@@ -228,6 +228,7 @@ export default function SellerProfilePage() {
   const [profile, setProfile] = useState({
     name: '', company: '', email: '', phone: '', city: '', address: '',
   })
+  const [sellerId, setSellerId] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -235,22 +236,33 @@ export default function SellerProfilePage() {
       if (!stored) return
       const u = JSON.parse(stored)
       if (u.role !== 'seller' || !u.id) return
+      setSellerId(u.id)
       supabase.from('sellers').select('*').eq('id', u.id).single().then(({ data }) => {
-        if (data) setProfile({
-          name: data.name || '',
-          company: data.company || '',
-          email: data.email || '',
-          phone: data.phone || '',
-          city: data.city || '',
-          address: data.address || '',
-        })
+        if (data) {
+          setProfile({
+            name: data.name || '',
+            company: data.company || '',
+            email: data.email || '',
+            phone: data.phone || '',
+            city: data.city || '',
+            address: data.address || '',
+          })
+          if (Array.isArray(data.payment_methods)) setMethods(data.payment_methods)
+        }
       })
     } catch {}
   }, [])
 
-  const setPrimary = (id: string) => setMethods(m => m.map(p => ({ ...p, primary: p.id === id })))
-  const remove = (id: string) => setMethods(m => m.filter(p => p.id !== id))
-  const addMethod = (m: PayMethod) => setMethods(prev => [...prev, m])
+  const persistMethods = async (next: PayMethod[]) => {
+    setMethods(next)
+    if (sellerId) {
+      await supabase.from('sellers').update({ payment_methods: next }).eq('id', sellerId)
+    }
+  }
+
+  const setPrimary = (id: string) => persistMethods(methods.map(p => ({ ...p, primary: p.id === id })))
+  const remove = (id: string) => persistMethods(methods.filter(p => p.id !== id))
+  const addMethod = (m: PayMethod) => persistMethods([...methods, m])
 
   return (
     <div className="min-h-screen bg-gray-50/50">
