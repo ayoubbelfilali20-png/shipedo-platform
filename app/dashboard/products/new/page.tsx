@@ -1,0 +1,212 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Header from '@/components/dashboard/Header'
+import { ExpeditionOrigin } from '@/lib/types'
+import {
+  Package, Plus, Trash2, ArrowLeft, Save,
+  ChevronDown, DollarSign, Hash, Tag, Globe
+} from 'lucide-react'
+import Link from 'next/link'
+
+const origins: { value: ExpeditionOrigin; flag: string }[] = [
+  { value: 'China',  flag: '🇨🇳' },
+  { value: 'Dubai',  flag: '🇦🇪' },
+  { value: 'Turkey', flag: '🇹🇷' },
+  { value: 'India',  flag: '🇮🇳' },
+  { value: 'Local',  flag: '🇰🇪' },
+]
+
+const categories = ['Electronics', 'Fashion', 'Beauty', 'Accessories', 'Home & Kitchen', 'Sports', 'Toys', 'Food', 'Health', 'Other']
+
+export default function NewProductPage() {
+  const router = useRouter()
+  const [origin, setOrigin] = useState<ExpeditionOrigin>('China')
+  const [category, setCategory] = useState('')
+  const [name, setName] = useState('')
+  const [sku, setSku] = useState('')
+  const [description, setDescription] = useState('')
+  const [buyingPrice, setBuyingPrice] = useState('')
+  const [sellingPrice, setSellingPrice] = useState('')
+  const [stock, setStock] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  const margin = buyingPrice && sellingPrice
+    ? ((parseFloat(sellingPrice) - parseFloat(buyingPrice)) / parseFloat(sellingPrice) * 100).toFixed(1)
+    : null
+
+  const handleSave = () => {
+    if (!name || !sku || !buyingPrice || !sellingPrice) return
+    setSaved(true)
+    setTimeout(() => router.push('/dashboard/products'), 1000)
+  }
+
+  return (
+    <div className="min-h-screen">
+      <Header title="New Product" subtitle="Add a product to your stock" />
+
+      <div className="px-6 pt-5 pb-10 max-w-2xl space-y-5">
+        {/* Back */}
+        <Link href="/dashboard/products" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-[#1a1c3a] transition-colors">
+          <ArrowLeft size={15} />
+          Back to Products
+        </Link>
+
+        {/* Origin */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Globe size={13} /> Origin
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            {origins.map(o => (
+              <button
+                key={o.value}
+                onClick={() => setOrigin(o.value)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                  origin === o.value
+                    ? 'border-[#f4991a] bg-orange-50 text-[#1a1c3a]'
+                    : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                }`}
+              >
+                <span className="text-lg">{o.flag}</span>
+                {o.value}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Basic Info */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-2">
+            <Tag size={13} /> Product Info
+          </h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Product Name *</label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="e.g. Wireless Earbuds Pro"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">SKU *</label>
+              <input
+                value={sku}
+                onChange={e => setSku(e.target.value)}
+                placeholder="e.g. WEP-001"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Category *</label>
+              <div className="relative">
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                  className="w-full appearance-none px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
+                >
+                  <option value="">Select category</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Description</label>
+              <textarea
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Product description..."
+                rows={2}
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all resize-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Pricing */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-2">
+            <DollarSign size={13} /> Pricing
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Buying Price (KES) *</label>
+              <input
+                type="number"
+                value={buyingPrice}
+                onChange={e => setBuyingPrice(e.target.value)}
+                placeholder="0"
+                min="0"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Selling Price (KES) *</label>
+              <input
+                type="number"
+                value={sellingPrice}
+                onChange={e => setSellingPrice(e.target.value)}
+                placeholder="0"
+                min="0"
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Margin</label>
+              <div className={`px-3.5 py-2.5 rounded-xl text-sm font-bold border-2 ${
+                margin === null ? 'bg-gray-50 border-gray-100 text-gray-300' :
+                parseFloat(margin) >= 30 ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                parseFloat(margin) >= 10 ? 'bg-yellow-50 border-yellow-200 text-yellow-700' :
+                'bg-red-50 border-red-200 text-red-600'
+              }`}>
+                {margin !== null ? `${margin}%` : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stock */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-4 flex items-center gap-2">
+            <Hash size={13} /> Initial Stock
+          </h3>
+          <div className="max-w-xs">
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Quantity</label>
+            <input
+              type="number"
+              value={stock}
+              onChange={e => setStock(e.target.value)}
+              placeholder="0"
+              min="0"
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            onClick={handleSave}
+            disabled={!name || !sku || !buyingPrice || !sellingPrice || saved}
+            className="flex-1 flex items-center justify-center gap-2 bg-[#1a1c3a] hover:bg-[#252750] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold py-3.5 rounded-xl transition-all"
+          >
+            <Save size={15} />
+            {saved ? 'Saved!' : 'Save Product'}
+          </button>
+          <Link
+            href="/dashboard/products"
+            className="flex items-center justify-center gap-2 border border-gray-200 text-gray-500 text-sm font-medium py-3.5 px-5 rounded-xl hover:bg-gray-50 transition-all"
+          >
+            <ArrowLeft size={15} />
+            Cancel
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}
