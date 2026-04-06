@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import { ExpeditionOrigin } from '@/lib/types'
+import { supabase } from '@/lib/supabase'
 import {
   Package, ArrowLeft, Save,
   ChevronDown, DollarSign, Hash, Tag, Globe,
@@ -49,8 +50,30 @@ export default function SellerNewProductPage() {
   const handleSave = async () => {
     if (!name || !sku || !buyingPrice || !sellingPrice) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 900))
+    let sellerId: string | null = null
+    try {
+      const stored = localStorage.getItem('shipedo_user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u.role === 'seller') sellerId = u.id
+      }
+    } catch {}
+    const stockNum = parseInt(stock) || 0
+    const { error } = await supabase.from('products').insert({
+      name, sku, category,
+      description: description || null,
+      origin,
+      buying_price: parseFloat(buyingPrice),
+      selling_price: parseFloat(sellingPrice),
+      stock: stockNum,
+      status: stockNum === 0 ? 'out_of_stock' : stockNum <= 5 ? 'low_stock' : 'active',
+      seller_id: sellerId,
+    })
     setSaving(false)
+    if (error) {
+      alert('Supabase error: ' + error.message + '\nCode: ' + (error.code || 'n/a'))
+      return
+    }
     setGeneratedId(generateProductId())
   }
 

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
-import { mockProducts } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 import { ProductStatus } from '@/lib/types'
 import { Search, Plus, Package, ShoppingBag, TrendingUp, AlertTriangle, XCircle, X } from 'lucide-react'
 import Link from 'next/link'
@@ -41,19 +41,35 @@ export default function SellerProductsPage() {
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<ProductStatus | 'all'>('all')
+  const [products, setProducts] = useState<any[]>([])
 
-  const filtered = mockProducts.filter(p => {
+  useEffect(() => {
+    let sellerId: string | null = null
+    try {
+      const stored = localStorage.getItem('shipedo_user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u.role === 'seller') sellerId = u.id
+      }
+    } catch {}
+    if (!sellerId) return
+    supabase.from('products').select('*').eq('seller_id', sellerId).order('created_at', { ascending: false }).then(({ data }) => {
+      setProducts(data || [])
+    })
+  }, [])
+
+  const filtered = products.filter(p => {
     const q = search.toLowerCase()
-    const matchSearch = p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
+    const matchSearch = (p.name||'').toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q)
     const matchStatus = statusFilter === 'all' || p.status === statusFilter
     return matchSearch && matchStatus
   })
 
   const stats = {
-    total: mockProducts.length,
-    active: mockProducts.filter(p => p.status === 'active').length,
-    lowStock: mockProducts.filter(p => p.status === 'low_stock').length,
-    outOfStock: mockProducts.filter(p => p.status === 'out_of_stock').length,
+    total: products.length,
+    active: products.filter(p => p.status === 'active').length,
+    lowStock: products.filter(p => p.status === 'low_stock').length,
+    outOfStock: products.filter(p => p.status === 'out_of_stock').length,
   }
 
   return (
@@ -137,8 +153,11 @@ export default function SellerProductsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(product => {
-              const available = product.stock - product.reserved
-              const margin = ((product.sellingPrice - product.buyingPrice) / product.sellingPrice * 100).toFixed(0)
+              const sellingPrice = product.selling_price || 0
+              const buyingPrice = product.buying_price || 0
+              const stockQty = product.stock || 0
+              const available = stockQty
+              const margin = sellingPrice > 0 ? ((sellingPrice - buyingPrice) / sellingPrice * 100).toFixed(0) : '0'
               return (
                 <div
                   key={product.id}
@@ -156,11 +175,11 @@ export default function SellerProductsPage() {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="text-xs text-gray-400">Selling Price</p>
-                      <p className="text-sm font-bold text-[#1a1c3a]">KES {product.sellingPrice.toLocaleString()}</p>
+                      <p className="text-sm font-bold text-[#1a1c3a]">KES {sellingPrice.toLocaleString()}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-400">Buying Price</p>
-                      <p className="text-sm font-medium text-gray-500">KES {product.buyingPrice.toLocaleString()}</p>
+                      <p className="text-sm font-medium text-gray-500">KES {buyingPrice.toLocaleString()}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-400">Margin</p>
@@ -169,7 +188,7 @@ export default function SellerProductsPage() {
                   </div>
                   <div className="mb-3">
                     <div className="flex justify-between text-xs text-gray-400 mb-1.5">
-                      <span>Stock: <span className="font-semibold text-[#1a1c3a]">{product.stock}</span> units</span>
+                      <span>Stock: <span className="font-semibold text-[#1a1c3a]">{stockQty}</span> units</span>
                       <span>Available: <span className={`font-semibold ${available <= 5 ? 'text-red-500' : 'text-emerald-600'}`}>{available}</span></span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -178,7 +197,7 @@ export default function SellerProductsPage() {
                           product.status === 'out_of_stock' ? 'bg-red-400' :
                           product.status === 'low_stock'    ? 'bg-yellow-400' : 'bg-emerald-400'
                         }`}
-                        style={{ width: `${Math.min((product.stock / 100) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((stockQty / 100) * 100, 100)}%` }}
                       />
                     </div>
                   </div>
