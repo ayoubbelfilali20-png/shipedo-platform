@@ -49,7 +49,10 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.from('products').select('*').order('created_at', { ascending: false }).then(({ data }) => {
+    supabase.from('products').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+      if (error) alert('LOAD products error: ' + error.message + ' / code ' + error.code)
+      else if (!data || data.length === 0) console.log('Products query returned empty')
+      else console.log('Loaded products:', data.length, data)
       setProducts(data || [])
       setLoading(false)
     })

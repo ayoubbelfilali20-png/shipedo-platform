@@ -44,7 +44,7 @@ export default function NewProductPage() {
     setSaving(true)
     setError('')
     const stockNum = parseInt(stock) || 0
-    const { error: err } = await supabase.from('products').insert({
+    const { data: insertData, error: err } = await supabase.from('products').insert({
       name,
       sku,
       category,
@@ -54,13 +54,14 @@ export default function NewProductPage() {
       selling_price: parseFloat(sellingPrice),
       stock: stockNum,
       status: stockNum === 0 ? 'out_of_stock' : stockNum <= 5 ? 'low_stock' : 'active',
-    })
+    }).select()
     if (err) {
       alert('Supabase error: ' + err.message + '\n\nCode: ' + (err.code || 'n/a') + '\nDetails: ' + (err.details || 'n/a'))
       setError('Error saving product: ' + err.message)
       setSaving(false)
       return
     }
+    alert('INSERT OK. Returned: ' + JSON.stringify(insertData))
     setSaved(true)
     setTimeout(() => router.push('/dashboard/products'), 1000)
   }
