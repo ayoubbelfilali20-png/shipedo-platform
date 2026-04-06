@@ -9,8 +9,12 @@ export const mockInventory: InventoryItem[] = []
 export const mockCODTransactions: CODTransaction[] = []
 
 export const mockSellerWallet: SellerWallet = {
-  balance: 0,
-  pendingCOD: 0,
+  sellerId: '',
+  sellerName: '',
+  totalBalance: 0,
+  availableBalance: 0,
+  onHoldBalance: 0,
+  pendingBalance: 0,
   totalEarned: 0,
   totalWithdrawn: 0,
 }
