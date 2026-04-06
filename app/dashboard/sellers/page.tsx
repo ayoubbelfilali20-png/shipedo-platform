@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/dashboard/Header'
-import { mockSellers } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 import { Seller, SellerStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
   Store, Plus, Search, X, Eye, EyeOff, Copy, Check,
-  CheckCircle, Clock, XCircle, TrendingUp, Users,
-  Phone, Mail, MapPin, Package, Wallet, RefreshCw,
+  CheckCircle, Clock, XCircle, Users,
+  Phone, Mail, MapPin, Package, RefreshCw,
   ChevronDown, Trash2, ShieldOff, ShieldCheck
 } from 'lucide-react'
 
@@ -19,7 +19,7 @@ const statusConfig: Record<SellerStatus, { label: string; color: string; bg: str
   suspended: { label: 'Suspended', color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200',     dot: 'bg-red-500',     icon: XCircle     },
 }
 
-const cities = ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Kakamega','Nyeri','Machakos','Meru','Kericho']
+const cities = ['Casablanca','Rabat','Marrakech','Fès','Tanger','Agadir','Meknès','Oujda','Tétouan','Laâyoune','Kenitra','Salé','Mohammedia','Béni Mellal','Nador']
 
 function genPassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789@#'
@@ -44,20 +44,48 @@ const statusFilters: { value: SellerStatus | 'all'; label: string }[] = [
 ]
 
 export default function SellersPage() {
-  const [sellers, setSellers] = useState<Seller[]>(mockSellers)
+  const [sellers, setSellers] = useState<Seller[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<SellerStatus | 'all'>('all')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [savedSeller, setSavedSeller] = useState<Seller | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
-  // Form state
   const [form, setForm] = useState({
-    storeName: '', name: '', email: '', phone: '+254',
+    storeName: '', name: '', email: '', phone: '',
     city: '', password: genPassword(), notes: '',
   })
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadSellers()
+  }, [])
+
+  const loadSellers = async () => {
+    setLoading(true)
+    const { data } = await supabase.from('sellers').select('*').order('created_at', { ascending: false })
+    if (data) {
+      setSellers(data.map(row => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone || '',
+        password: row.password || '',
+        storeName: row.company || row.name,
+        city: row.city || '',
+        totalOrders: 0,
+        totalRevenue: 0,
+        pendingPayout: 0,
+        status: row.status as SellerStatus,
+        role: 'seller' as const,
+        notes: row.notes || undefined,
+        createdAt: row.created_at,
+      })))
+    }
+    setLoading(false)
+  }
 
   const filtered = sellers.filter(s => {
     const q = search.toLowerCase()
@@ -76,28 +104,40 @@ export default function SellersPage() {
   const handleSave = async () => {
     if (!form.storeName || !form.name || !form.email || !form.password) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const newSeller: Seller = {
-      id: `sel-${Date.now()}`,
-      storeName: form.storeName,
+    const { data, error } = await supabase.from('sellers').insert({
       name: form.name,
       email: form.email,
       phone: form.phone,
-      password: form.password,
+      company: form.storeName,
       city: form.city,
-      totalOrders: 0,
-      totalRevenue: 0,
-      pendingPayout: 0,
+      password: form.password,
       status: 'pending',
-      role: 'seller',
-      notes: form.notes || undefined,
-      createdAt: new Date().toISOString(),
+      notes: form.notes || null,
+    }).select().single()
+
+    if (data && !error) {
+      const newSeller: Seller = {
+        id: data.id,
+        storeName: data.company || data.name,
+        name: data.name,
+        email: data.email,
+        phone: data.phone || '',
+        password: form.password,
+        city: data.city || '',
+        totalOrders: 0,
+        totalRevenue: 0,
+        pendingPayout: 0,
+        status: 'pending',
+        role: 'seller',
+        notes: data.notes || undefined,
+        createdAt: data.created_at,
+      }
+      setSellers(prev => [newSeller, ...prev])
+      setSavedSeller(newSeller)
+      setDrawerOpen(false)
+      setForm({ storeName: '', name: '', email: '', phone: '', city: '', password: genPassword(), notes: '' })
     }
-    setSellers(prev => [newSeller, ...prev])
-    setSavedSeller(newSeller)
     setSaving(false)
-    setDrawerOpen(false)
-    setForm({ storeName: '', name: '', email: '', phone: '+254', city: '', password: genPassword(), notes: '' })
   }
 
   const copyText = (text: string, key: string) => {
@@ -106,24 +146,20 @@ export default function SellersPage() {
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  const toggleStatus = (id: string) => {
-    setSellers(prev => prev.map(s => {
-      if (s.id !== id) return s
-      const next: SellerStatus = s.status === 'active' ? 'suspended' : 'active'
-      return { ...s, status: next }
-    }))
+  const toggleStatus = async (id: string, current: SellerStatus) => {
+    const next: SellerStatus = current === 'active' ? 'suspended' : 'active'
+    await supabase.from('sellers').update({ status: next }).eq('id', id)
+    setSellers(prev => prev.map(s => s.id === id ? { ...s, status: next } : s))
   }
 
-  const removeSeller = (id: string) => {
+  const removeSeller = async (id: string) => {
+    await supabase.from('sellers').delete().eq('id', id)
     setSellers(prev => prev.filter(s => s.id !== id))
   }
 
   return (
     <div className="min-h-screen">
-      <Header
-        title="Sellers"
-        subtitle={`${stats.total} registered sellers`}
-      />
+      <Header title="Sellers" subtitle={`${stats.total} registered sellers`} />
 
       <div className="px-6 pt-5 pb-10 space-y-4">
 
@@ -221,19 +257,26 @@ export default function SellersPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50/70 border-b border-gray-100">
-                  {['Store', 'Contact', 'City', 'Orders', 'Revenue', 'Payout', 'Status', 'Joined', 'Actions'].map(h => (
+                  {['Store', 'Contact', 'City', 'Orders', 'Status', 'Joined', 'Actions'].map(h => (
                     <th key={h} className={cn(
                       'text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 first:px-6',
-                      ['City', 'Revenue', 'Joined'].includes(h) && 'hidden lg:table-cell',
-                      h === 'Payout' && 'hidden md:table-cell',
+                      ['City', 'Joined'].includes(h) && 'hidden lg:table-cell',
+                      h === 'Orders' && 'hidden md:table-cell',
                     )}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.length === 0 ? (
+                {loading ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-16 text-gray-400">
+                    <td colSpan={7} className="text-center py-16 text-gray-400">
+                      <div className="w-6 h-6 border-2 border-gray-200 border-t-[#f4991a] rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm">Loading sellers...</p>
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-16 text-gray-400">
                       <Store size={36} className="mx-auto mb-3 opacity-30" />
                       <p className="text-sm">No sellers found</p>
                     </td>
@@ -266,18 +309,10 @@ export default function SellersPage() {
                         <MapPin size={11} className="text-gray-400" /> {seller.city}
                       </div>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 hidden md:table-cell">
                       <div className="flex items-center gap-1 text-xs font-semibold text-[#1a1c3a]">
                         <Package size={12} className="text-gray-400" /> {seller.totalOrders}
                       </div>
-                    </td>
-                    <td className="px-4 py-4 hidden lg:table-cell">
-                      <span className="text-xs font-bold text-[#1a1c3a]">KES {seller.totalRevenue.toLocaleString()}</span>
-                    </td>
-                    <td className="px-4 py-4 hidden md:table-cell">
-                      <span className={`text-xs font-bold ${seller.pendingPayout > 0 ? 'text-[#f4991a]' : 'text-gray-300'}`}>
-                        KES {seller.pendingPayout.toLocaleString()}
-                      </span>
                     </td>
                     <td className="px-4 py-4">
                       <StatusBadge status={seller.status} />
@@ -288,7 +323,7 @@ export default function SellersPage() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => toggleStatus(seller.id)}
+                          onClick={() => toggleStatus(seller.id, seller.status)}
                           title={seller.status === 'active' ? 'Suspend' : 'Activate'}
                           className={cn(
                             'w-7 h-7 rounded-lg flex items-center justify-center transition-all text-xs',
@@ -316,12 +351,11 @@ export default function SellersPage() {
         </div>
       </div>
 
-      {/* ── Add Seller Drawer ── */}
+      {/* Add Seller Drawer */}
       {drawerOpen && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setDrawerOpen(false)} />
           <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
-            {/* Drawer header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
               <div>
                 <h2 className="font-bold text-[#1a1c3a]">Add New Seller</h2>
@@ -332,10 +366,7 @@ export default function SellersPage() {
               </button>
             </div>
 
-            {/* Drawer body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-
-              {/* Store info */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Store Name *</label>
                 <div className="relative">
@@ -343,7 +374,7 @@ export default function SellersPage() {
                   <input
                     value={form.storeName}
                     onChange={e => setForm(f => ({ ...f, storeName: e.target.value }))}
-                    placeholder="e.g. TechHub Kenya"
+                    placeholder="e.g. TechHub Maroc"
                     className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
                   />
                 </div>
@@ -380,7 +411,7 @@ export default function SellersPage() {
                   <input
                     value={form.phone}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    placeholder="+254700000000"
+                    placeholder="+212600000000"
                     className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
                   />
                 </div>
@@ -401,7 +432,6 @@ export default function SellersPage() {
                 </div>
               </div>
 
-              {/* Password */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Password *</label>
                 <div className="flex gap-2">
@@ -412,18 +442,13 @@ export default function SellersPage() {
                       onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                       className="w-full px-3.5 py-2.5 pr-10 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
+                    <button type="button" onClick={() => setShowPass(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
                   <button
                     type="button"
                     onClick={() => setForm(f => ({ ...f, password: genPassword() }))}
-                    title="Generate new password"
                     className="w-10 h-10 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition-all flex-shrink-0"
                   >
                     <RefreshCw size={14} />
@@ -431,7 +456,6 @@ export default function SellersPage() {
                 </div>
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Notes (optional)</label>
                 <textarea
@@ -444,11 +468,10 @@ export default function SellersPage() {
               </div>
 
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-600 leading-relaxed">
-                The seller will receive a <strong>Pending</strong> status until you manually activate their account. Their login will be the email + password above.
+                The seller will receive a <strong>Pending</strong> status until you manually activate their account.
               </div>
             </div>
 
-            {/* Drawer footer */}
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button
                 onClick={handleSave}
@@ -460,10 +483,7 @@ export default function SellersPage() {
                   : <><Plus size={15} /> Create Account</>
                 }
               </button>
-              <button
-                onClick={() => setDrawerOpen(false)}
-                className="px-5 py-3 border border-gray-200 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 transition-all"
-              >
+              <button onClick={() => setDrawerOpen(false)} className="px-5 py-3 border border-gray-200 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 transition-all">
                 Cancel
               </button>
             </div>

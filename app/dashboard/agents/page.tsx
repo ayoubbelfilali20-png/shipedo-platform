@@ -1,22 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/dashboard/Header'
-import { mockAgents } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 import { Agent, AgentStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
   Headphones, Plus, Search, X, Eye, EyeOff, Copy, Check,
   CheckCircle, XCircle, Clock, TrendingUp, Phone, Mail,
-  RefreshCw, ShieldOff, ShieldCheck, Trash2, BarChart3,
-  Users
+  RefreshCw, ShieldOff, ShieldCheck, Trash2, Users
 } from 'lucide-react'
 
 const statusConfig: Record<AgentStatus, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  active:    { label: 'Active',   color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  inactive:  { label: 'Inactive', color: 'text-gray-500',    bg: 'bg-gray-100',   border: 'border-gray-200',    dot: 'bg-gray-400'    },
-  suspended: { label: 'Suspended',color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200',     dot: 'bg-red-500'     },
+  active:    { label: 'Active',    color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  inactive:  { label: 'Inactive',  color: 'text-gray-500',    bg: 'bg-gray-100',   border: 'border-gray-200',    dot: 'bg-gray-400'    },
+  suspended: { label: 'Suspended', color: 'text-red-600',     bg: 'bg-red-50',     border: 'border-red-200',     dot: 'bg-red-500'     },
 }
 
 function StatusBadge({ status }: { status: AgentStatus }) {
@@ -53,16 +52,43 @@ function genPassword() {
 }
 
 export default function AgentsPage() {
-  const [agents, setAgents] = useState<Agent[]>(mockAgents)
+  const [agents, setAgents] = useState<Agent[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<AgentStatus | 'all'>('all')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [savedAgent, setSavedAgent] = useState<Agent | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '+254', password: genPassword(), notes: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: genPassword(), notes: '' })
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadAgents()
+  }, [])
+
+  const loadAgents = async () => {
+    setLoading(true)
+    const { data } = await supabase.from('agents').select('*').order('created_at', { ascending: false })
+    if (data) {
+      setAgents(data.map(row => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone || '',
+        password: row.password || '',
+        status: row.status as AgentStatus,
+        totalCalls: 0,
+        confirmed: 0,
+        notReached: 0,
+        rescheduled: 0,
+        notes: row.notes || undefined,
+        createdAt: row.created_at,
+      })))
+    }
+    setLoading(false)
+  }
 
   const filtered = agents.filter(a => {
     const q = search.toLowerCase()
@@ -72,37 +98,45 @@ export default function AgentsPage() {
   })
 
   const stats = {
-    total:    agents.length,
-    active:   agents.filter(a => a.status === 'active').length,
+    total:  agents.length,
+    active: agents.filter(a => a.status === 'active').length,
     totalCalls: agents.reduce((s, a) => s + a.totalCalls, 0),
-    avgRate:  agents.length > 0
-      ? agents.reduce((s, a) => s + (a.totalCalls > 0 ? (a.confirmed / a.totalCalls) * 100 : 0), 0) / agents.length
-      : 0,
+    avgRate: 0,
   }
 
   const handleSave = async () => {
     if (!form.name || !form.email || !form.password) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const newAgent: Agent = {
-      id: `agt-${Date.now()}`,
+    const { data, error } = await supabase.from('agents').insert({
       name: form.name,
       email: form.email,
       phone: form.phone,
       password: form.password,
       status: 'active',
-      totalCalls: 0,
-      confirmed: 0,
-      notReached: 0,
-      rescheduled: 0,
-      notes: form.notes || undefined,
-      createdAt: new Date().toISOString(),
+      notes: form.notes || null,
+    }).select().single()
+
+    if (data && !error) {
+      const newAgent: Agent = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone || '',
+        password: form.password,
+        status: 'active',
+        totalCalls: 0,
+        confirmed: 0,
+        notReached: 0,
+        rescheduled: 0,
+        notes: data.notes || undefined,
+        createdAt: data.created_at,
+      }
+      setAgents(prev => [newAgent, ...prev])
+      setSavedAgent(newAgent)
+      setDrawerOpen(false)
+      setForm({ name: '', email: '', phone: '', password: genPassword(), notes: '' })
     }
-    setAgents(prev => [newAgent, ...prev])
-    setSavedAgent(newAgent)
     setSaving(false)
-    setDrawerOpen(false)
-    setForm({ name: '', email: '', phone: '+254', password: genPassword(), notes: '' })
   }
 
   const copyText = (text: string, key: string) => {
@@ -111,32 +145,30 @@ export default function AgentsPage() {
     setTimeout(() => setCopiedField(null), 2000)
   }
 
-  const toggleStatus = (id: string) => {
-    setAgents(prev => prev.map(a => {
-      if (a.id !== id) return a
-      const next: AgentStatus = a.status === 'active' ? 'inactive' : 'active'
-      return { ...a, status: next }
-    }))
+  const toggleStatus = async (id: string, current: AgentStatus) => {
+    const next: AgentStatus = current === 'active' ? 'inactive' : 'active'
+    await supabase.from('agents').update({ status: next }).eq('id', id)
+    setAgents(prev => prev.map(a => a.id === id ? { ...a, status: next } : a))
   }
 
-  const removeAgent = (id: string) => setAgents(prev => prev.filter(a => a.id !== id))
+  const removeAgent = async (id: string) => {
+    await supabase.from('agents').delete().eq('id', id)
+    setAgents(prev => prev.filter(a => a.id !== id))
+  }
 
   return (
     <div className="min-h-screen">
-      <Header
-        title="Agents"
-        subtitle={`${stats.total} call agents`}
-      />
+      <Header title="Agents" subtitle={`${stats.total} call agents`} />
 
       <div className="px-6 pt-5 pb-10 space-y-4">
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Total Agents',   value: stats.total,               icon: Users,      color: 'text-[#1a1c3a]',   bg: 'bg-white'        },
-            { label: 'Active',         value: stats.active,              icon: CheckCircle,color: 'text-emerald-600', bg: 'bg-emerald-50'   },
-            { label: 'Total Calls',    value: stats.totalCalls,          icon: Phone,      color: 'text-blue-600',    bg: 'bg-blue-50'      },
-            { label: 'Avg Confirm. Rate', value: `${stats.avgRate.toFixed(1)}%`, icon: TrendingUp, color: 'text-[#f4991a]', bg: 'bg-orange-50' },
+            { label: 'Total Agents',     value: stats.total,      icon: Users,       color: 'text-[#1a1c3a]',   bg: 'bg-white'      },
+            { label: 'Active',           value: stats.active,     icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Total Calls',      value: stats.totalCalls, icon: Phone,       color: 'text-blue-600',    bg: 'bg-blue-50'    },
+            { label: 'Avg Confirm. Rate',value: `${stats.avgRate.toFixed(1)}%`, icon: TrendingUp, color: 'text-[#f4991a]', bg: 'bg-orange-50' },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3`}>
               <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center flex-shrink-0">
@@ -186,7 +218,7 @@ export default function AgentsPage() {
           </button>
         </div>
 
-        {/* Credentials success banner */}
+        {/* Credentials banner */}
         {savedAgent && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
             <div className="flex items-start justify-between gap-3">
@@ -222,19 +254,26 @@ export default function AgentsPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50/70 border-b border-gray-100">
-                  {['Agent', 'Contact', 'Total Calls', 'Confirmed', 'Not Reached', 'Rescheduled', 'Rate', 'Status', 'Joined', 'Actions'].map(h => (
+                  {['Agent', 'Contact', 'Total Calls', 'Confirmed', 'Rate', 'Status', 'Joined', 'Actions'].map(h => (
                     <th key={h} className={cn(
                       'text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 first:px-6',
-                      ['Not Reached', 'Rescheduled', 'Joined'].includes(h) && 'hidden xl:table-cell',
+                      ['Joined'].includes(h) && 'hidden xl:table-cell',
                       h === 'Contact' && 'hidden md:table-cell',
                     )}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.length === 0 ? (
+                {loading ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-16 text-gray-400">
+                    <td colSpan={8} className="text-center py-16 text-gray-400">
+                      <div className="w-6 h-6 border-2 border-gray-200 border-t-[#f4991a] rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm">Loading agents...</p>
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-16 text-gray-400">
                       <Headphones size={36} className="mx-auto mb-3 opacity-30" />
                       <p className="text-sm">No agents found</p>
                     </td>
@@ -270,12 +309,6 @@ export default function AgentsPage() {
                       <td className="px-4 py-4">
                         <span className="text-xs font-bold text-emerald-600">{agent.confirmed}</span>
                       </td>
-                      <td className="px-4 py-4 hidden xl:table-cell">
-                        <span className="text-xs font-bold text-red-500">{agent.notReached}</span>
-                      </td>
-                      <td className="px-4 py-4 hidden xl:table-cell">
-                        <span className="text-xs font-bold text-blue-500">{agent.rescheduled}</span>
-                      </td>
                       <td className="px-4 py-4">
                         <RateBadge rate={rate} />
                       </td>
@@ -288,7 +321,7 @@ export default function AgentsPage() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={() => toggleStatus(agent.id)}
+                            onClick={() => toggleStatus(agent.id, agent.status)}
                             title={agent.status === 'active' ? 'Deactivate' : 'Activate'}
                             className={cn(
                               'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
@@ -316,7 +349,7 @@ export default function AgentsPage() {
         </div>
       </div>
 
-      {/* ── Add Agent Drawer ── */}
+      {/* Add Agent Drawer */}
       {drawerOpen && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setDrawerOpen(false)} />
@@ -332,7 +365,6 @@ export default function AgentsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">Full Name *</label>
                 <input
@@ -364,7 +396,7 @@ export default function AgentsPage() {
                   <input
                     value={form.phone}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    placeholder="+254700000000"
+                    placeholder="+212600000000"
                     className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
                   />
                 </div>
@@ -387,7 +419,6 @@ export default function AgentsPage() {
                   <button
                     type="button"
                     onClick={() => setForm(f => ({ ...f, password: genPassword() }))}
-                    title="Generate new password"
                     className="w-10 h-10 flex items-center justify-center bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-100 transition-all flex-shrink-0"
                   >
                     <RefreshCw size={14} />
@@ -407,7 +438,7 @@ export default function AgentsPage() {
               </div>
 
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-600 leading-relaxed">
-                The agent will be <strong>Active</strong> immediately and can log in at <strong>shipedo.com/login</strong> using their email and password above.
+                The agent will be <strong>Active</strong> immediately and can log in using their email and password above.
               </div>
             </div>
 
