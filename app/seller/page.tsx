@@ -26,16 +26,12 @@ const periodLabels: Record<Period, string> = {
   this_year: 'This Year', between: 'Between',
 }
 
-const statsData: Record<Period, { total: number; confirmed: number; delivered: number; returned: number; rate: number; revenue: number }> = {
-  all:        { total: 87,  confirmed: 74,  delivered: 69,  returned: 8,  rate: 85.1, revenue: 342800 },
-  today:      { total: 6,   confirmed: 4,   delivered: 3,   returned: 0,  rate: 66.7, revenue: 14200  },
-  yesterday:  { total: 8,   confirmed: 7,   delivered: 6,   returned: 1,  rate: 87.5, revenue: 28900  },
-  this_week:  { total: 31,  confirmed: 26,  delivered: 24,  returned: 3,  rate: 83.9, revenue: 98400  },
-  last_week:  { total: 28,  confirmed: 24,  delivered: 22,  returned: 2,  rate: 85.7, revenue: 87200  },
-  this_month: { total: 87,  confirmed: 74,  delivered: 69,  returned: 8,  rate: 85.1, revenue: 342800 },
-  last_month: { total: 72,  confirmed: 62,  delivered: 58,  returned: 7,  rate: 86.1, revenue: 284300 },
-  this_year:  { total: 312, confirmed: 265, delivered: 248, returned: 28, rate: 84.9, revenue: 1124000},
-  between:    { total: 0,   confirmed: 0,   delivered: 0,   returned: 0,  rate: 0,    revenue: 0      },
+const emptyStats = { total: 0, confirmed: 0, delivered: 0, returned: 0, rate: 0, revenue: 0 }
+const statsData: Record<Period, typeof emptyStats> = {
+  all: emptyStats, today: emptyStats, yesterday: emptyStats,
+  this_week: emptyStats, last_week: emptyStats,
+  this_month: emptyStats, last_month: emptyStats,
+  this_year: emptyStats, between: emptyStats,
 }
 
 function PeriodDropdown({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
@@ -150,12 +146,12 @@ export default function SellerDashboard() {
 
         {/* ── 6 KPIs ── */}
         <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
-          <StatCard label="Total Orders"      value={s.total.toLocaleString()}      sub={periodLabels[period]}                                                    icon={Package}     iconColor="text-[#f4991a]"   iconBg="bg-orange-50"  arrow="+12%" positive />
-          <StatCard label="Confirmed Orders"  value={s.confirmed.toLocaleString()}  sub={`${confirmRate}% confirmation rate`}                                     icon={CheckCircle} iconColor="text-blue-600"    iconBg="bg-blue-50"    arrow="+8%"  positive />
-          <StatCard label="Delivered Orders"  value={s.delivered.toLocaleString()}  sub={`${s.total > 0 ? ((s.delivered/s.total)*100).toFixed(1) : 0}% rate`}   icon={Truck}       iconColor="text-emerald-600" iconBg="bg-emerald-50" arrow="+15%" positive />
-          <StatCard label="Returned Orders"   value={s.returned.toLocaleString()}   sub={`${s.total > 0 ? ((s.returned/s.total)*100).toFixed(1) : 0}% rate`}    icon={RotateCcw}   iconColor="text-red-500"     iconBg="bg-red-50"     arrow="-3%"  positive={false} />
-          <StatCard label="Confirmation Rate" value={`${confirmRate}%`}             sub="Orders confirmed by call center"                                         icon={Phone}       iconColor="text-purple-600"  iconBg="bg-purple-50"  arrow="+2.1%" positive />
-          <StatCard label="Total Revenue"     value={`KES ${s.revenue > 0 ? (s.revenue/1000).toFixed(0)+'K' : '0'}`} sub="Cash on delivery collected"           icon={CreditCard}  iconColor="text-teal-600"    iconBg="bg-teal-50"    arrow="+18%" positive />
+          <StatCard label="Total Orders"      value={s.total.toLocaleString()}      sub={periodLabels[period]}                                                    icon={Package}     iconColor="text-[#f4991a]"   iconBg="bg-orange-50"  />
+          <StatCard label="Confirmed Orders"  value={s.confirmed.toLocaleString()}  sub={`${confirmRate}% confirmation rate`}                                     icon={CheckCircle} iconColor="text-blue-600"    iconBg="bg-blue-50"    />
+          <StatCard label="Delivered Orders"  value={s.delivered.toLocaleString()}  sub={`${s.total > 0 ? ((s.delivered/s.total)*100).toFixed(1) : 0}% rate`}   icon={Truck}       iconColor="text-emerald-600" iconBg="bg-emerald-50" />
+          <StatCard label="Returned Orders"   value={s.returned.toLocaleString()}   sub={`${s.total > 0 ? ((s.returned/s.total)*100).toFixed(1) : 0}% rate`}    icon={RotateCcw}   iconColor="text-red-500"     iconBg="bg-red-50"     />
+          <StatCard label="Confirmation Rate" value={`${confirmRate}%`}             sub="Orders confirmed by call center"                                         icon={Phone}       iconColor="text-purple-600"  iconBg="bg-purple-50"  />
+          <StatCard label="Total Revenue"     value={`KES ${s.revenue > 0 ? (s.revenue/1000).toFixed(0)+'K' : '0'}`} sub="Cash on delivery collected"           icon={CreditCard}  iconColor="text-teal-600"    iconBg="bg-teal-50"    />
         </div>
 
         {/* ── Charts ── */}
@@ -166,7 +162,6 @@ export default function SellerDashboard() {
                 <h2 className="text-base font-bold text-[#1a1c3a]">Revenue Trend</h2>
                 <p className="text-xs text-gray-400 mt-0.5">Monthly revenue overview</p>
               </div>
-              <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2 py-1 rounded-full">+18% vs last year</span>
             </div>
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={revenueChartData}>

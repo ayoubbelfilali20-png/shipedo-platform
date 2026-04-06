@@ -30,14 +30,7 @@ const deliveryRate    = totalOrders > 0 ? ((deliveredOrders / totalOrders) * 100
 const returnRate      = totalOrders > 0 ? ((returnedOrders / totalOrders) * 100).toFixed(1) : '0'
 const totalPendingPayout = mockSellers.reduce((s, sl) => s + sl.pendingPayout, 0)
 
-const revenueChart = [
-  { month: 'Aug', revenue: 198000 },
-  { month: 'Sep', revenue: 172000 },
-  { month: 'Oct', revenue: 245000 },
-  { month: 'Nov', revenue: 312000 },
-  { month: 'Dec', revenue: 398000 },
-  { month: 'Jan', revenue: 458200 },
-]
+const revenueChart: { month: string; revenue: number }[] = []
 
 const orderStatusChart = [
   { label: 'Delivered', value: deliveredOrders,  color: '#10b981' },
@@ -150,9 +143,6 @@ export default function AdminDashboard() {
                 <h2 className="text-sm font-bold text-[#1a1c3a]">Platform Revenue</h2>
                 <p className="text-xs text-gray-400 mt-0.5">All sellers — monthly trend</p>
               </div>
-              <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">
-                +18% vs last month
-              </span>
             </div>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={revenueChart}>

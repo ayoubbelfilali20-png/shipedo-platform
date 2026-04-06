@@ -31,7 +31,7 @@ export default function AgentDashboard() {
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="font-bold text-[#1a1c3a] text-lg">Call Center Dashboard</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Yassine B. · Call Agent · Today</p>
+          <p className="text-xs text-gray-400 mt-0.5">Call Agent · Today</p>
         </div>
         <Link
           href="/agent/calls"
@@ -173,9 +173,9 @@ export default function AgentDashboard() {
         {/* Performance hints */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
-            { label: 'Avg Call Time',     value: '3m 24s',  icon: Clock,      color: 'text-blue-600',    bg: 'bg-blue-50'   },
-            { label: 'Confirmation Rate', value: '71.4%',   icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50'},
-            { label: 'Return Rate',       value: '8.3%',    icon: RotateCcw,  color: 'text-red-500',     bg: 'bg-red-50'    },
+            { label: 'Avg Call Time',     value: '0m 0s',  icon: Clock,      color: 'text-blue-600',    bg: 'bg-blue-50'   },
+            { label: 'Confirmation Rate', value: '0%',     icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50'},
+            { label: 'Return Rate',       value: '0%',     icon: RotateCcw,  color: 'text-red-500',     bg: 'bg-red-50'    },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3`}>
               <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center flex-shrink-0">
