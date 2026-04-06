@@ -31,9 +31,9 @@ export const dashboardStats: DashboardStats = {
   returnRate: 0,
 }
 
-export const revenueChartData = []
+export const revenueChartData: { name: string; revenue: number }[] = []
 
-export const orderStatusData = []
+export const orderStatusData: { name: string; value: number; color: string }[] = []
 
 export const mockProducts: Product[] = []
 
