@@ -115,6 +115,12 @@ export default function SellersPage() {
       notes: form.notes || null,
     }).select().single()
 
+    if (error) {
+      alert('Supabase Error: ' + error.message + ' | Code: ' + error.code)
+      setSaving(false)
+      return
+    }
+
     if (data && !error) {
       const newSeller: Seller = {
         id: data.id,
