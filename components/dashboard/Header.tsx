@@ -7,9 +7,9 @@ import { useState, useRef, useEffect } from 'react'
 import { mockSellerWallet } from '@/lib/data'
 
 const roleConfig = {
-  admin:  { label: 'Admin',      badge: 'bg-purple-100 text-purple-700', avatar: 'from-purple-500 to-purple-700', name: 'Admin User',    icon: ShieldCheck },
-  seller: { label: 'Seller',     badge: 'bg-orange-100 text-orange-700', avatar: 'from-[#f4991a] to-orange-600', name: 'TechHub Kenya', icon: Store       },
-  agent:  { label: 'Call Agent', badge: 'bg-blue-100 text-blue-700',     avatar: 'from-blue-500 to-blue-700',    name: 'Agent User',    icon: Headphones  },
+  admin:  { label: 'Admin',      badge: 'bg-purple-100 text-purple-700', avatar: 'from-purple-500 to-purple-700', name: 'Admin', icon: ShieldCheck },
+  seller: { label: 'Seller',     badge: 'bg-orange-100 text-orange-700', avatar: 'from-[#f4991a] to-orange-600', name: 'Seller', icon: Store       },
+  agent:  { label: 'Call Agent', badge: 'bg-blue-100 text-blue-700',     avatar: 'from-blue-500 to-blue-700',    name: 'Agent', icon: Headphones  },
 }
 
 const USD_RATE = 130
@@ -226,7 +226,18 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [hideBalance, setHideBalance] = useState(false)
   const walletRef = useRef<HTMLDivElement>(null)
-  const user = roleConfig[role as keyof typeof roleConfig] ?? roleConfig.admin
+  const baseUser = roleConfig[role as keyof typeof roleConfig] ?? roleConfig.admin
+  const [displayName, setDisplayName] = useState(baseUser.name)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('shipedo_user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u.name) setDisplayName(u.name)
+      }
+    } catch {}
+  }, [])
+  const user = { ...baseUser, name: displayName }
   const UserIcon = user.icon
   const w = mockSellerWallet
 

@@ -10,13 +10,13 @@ import {
   ShoppingBag, Search, ChevronDown, Plus, List, Clock, UserCog
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 /* ─── Role config ─────────────────────────────────────── */
 const roleConfig = {
-  admin:  { label: 'Admin',      badge: 'bg-purple-500/20 text-purple-300', avatarBg: 'from-purple-500 to-purple-700',  name: 'Admin User',    icon: ShieldCheck },
-  seller: { label: 'Seller',     badge: 'bg-[#f4991a]/20 text-orange-300',  avatarBg: 'from-[#f4991a] to-orange-600',  name: 'TechHub Kenya', icon: Store       },
-  agent:  { label: 'Call Agent', badge: 'bg-blue-500/20 text-blue-300',     avatarBg: 'from-blue-500 to-blue-700',     name: 'Yassine B.',    icon: Headphones  },
+  admin:  { label: 'Admin',      badge: 'bg-purple-500/20 text-purple-300', avatarBg: 'from-purple-500 to-purple-700',  name: 'Admin',  icon: ShieldCheck },
+  seller: { label: 'Seller',     badge: 'bg-[#f4991a]/20 text-orange-300',  avatarBg: 'from-[#f4991a] to-orange-600',  name: 'Seller', icon: Store       },
+  agent:  { label: 'Call Agent', badge: 'bg-blue-500/20 text-blue-300',     avatarBg: 'from-blue-500 to-blue-700',     name: 'Agent',  icon: Headphones  },
 }
 
 /* ─── Nav types ───────────────────────────────────────── */
@@ -161,7 +161,18 @@ interface SidebarProps {
 /* ─── Component ───────────────────────────────────────── */
 export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname()
-  const user = roleConfig[role as keyof typeof roleConfig] ?? roleConfig.admin
+  const baseUser = roleConfig[role as keyof typeof roleConfig] ?? roleConfig.admin
+  const [displayName, setDisplayName] = useState(baseUser.name)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('shipedo_user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u.name) setDisplayName(u.name)
+      }
+    } catch {}
+  }, [])
+  const user = { ...baseUser, name: displayName }
   const [collapsedInternal, setCollapsedInternal] = useState(false)
 
   const collapsed = collapsedProp !== undefined ? collapsedProp : collapsedInternal

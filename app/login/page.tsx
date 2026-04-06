@@ -24,6 +24,9 @@ export default function LoginPage() {
 
     // Admin login
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      localStorage.setItem('shipedo_user', JSON.stringify({
+        role: 'admin', email: ADMIN_EMAIL, name: 'Admin',
+      }))
       router.push('/dashboard')
       return
     }
@@ -31,7 +34,7 @@ export default function LoginPage() {
     // Seller login
     const { data: seller } = await supabase
       .from('sellers')
-      .select('id, email, password, status')
+      .select('id, email, password, status, name, company')
       .eq('email', email)
       .single()
 
@@ -41,6 +44,10 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
+      localStorage.setItem('shipedo_user', JSON.stringify({
+        role: 'seller', id: seller.id, email: seller.email,
+        name: seller.company || seller.name, fullName: seller.name,
+      }))
       router.push('/seller')
       return
     }
@@ -48,7 +55,7 @@ export default function LoginPage() {
     // Agent login
     const { data: agent } = await supabase
       .from('agents')
-      .select('id, email, password, status')
+      .select('id, email, password, status, name')
       .eq('email', email)
       .single()
 
@@ -58,6 +65,9 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
+      localStorage.setItem('shipedo_user', JSON.stringify({
+        role: 'agent', id: agent.id, email: agent.email, name: agent.name,
+      }))
       router.push('/agent')
       return
     }
