@@ -116,8 +116,8 @@ export default function SellersPage() {
       notes: form.notes || null,
     }).select().single()
 
+    alert('Result: ' + JSON.stringify({ data, error }))
     if (error) {
-      alert('Supabase Error: ' + error.message + ' | Code: ' + error.code)
       setSaving(false)
       return
     }
