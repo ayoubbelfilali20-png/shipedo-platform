@@ -116,8 +116,8 @@ export default function SellersPage() {
       notes: form.notes || null,
     }).select().single()
 
-    alert('Result: ' + JSON.stringify({ data, error }))
     if (error) {
+      alert('Error: ' + error.message)
       setSaving(false)
       return
     }
