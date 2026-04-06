@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from '@/components/dashboard/Header'
+import { supabase } from '@/lib/supabase'
 import {
   User, Mail, Phone, MapPin, Store, Lock, Eye, EyeOff,
   Save, CheckCircle, CreditCard, Smartphone,
@@ -196,6 +197,7 @@ function Field({ label, value, type = 'text', icon: Icon }: {
 }) {
   const [val, setVal] = useState(value)
   const [show, setShow] = useState(false)
+  useEffect(() => { setVal(value) }, [value])
   const isPass = type === 'password'
   return (
     <div>
@@ -221,8 +223,30 @@ function Field({ label, value, type = 'text', icon: Icon }: {
 /* ── Page ───────────────────────────────────────── */
 export default function SellerProfilePage() {
   const [saved, setSaved] = useState(false)
-  const [methods, setMethods] = useState<PayMethod[]>(initialMethods)
+  const [methods, setMethods] = useState<PayMethod[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
+  const [profile, setProfile] = useState({
+    name: '', company: '', email: '', phone: '', city: '', address: '',
+  })
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('shipedo_user')
+      if (!stored) return
+      const u = JSON.parse(stored)
+      if (u.role !== 'seller' || !u.id) return
+      supabase.from('sellers').select('*').eq('id', u.id).single().then(({ data }) => {
+        if (data) setProfile({
+          name: data.name || '',
+          company: data.company || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          city: data.city || '',
+          address: data.address || '',
+        })
+      })
+    } catch {}
+  }, [])
 
   const setPrimary = (id: string) => setMethods(m => m.map(p => ({ ...p, primary: p.id === id })))
   const remove = (id: string) => setMethods(m => m.filter(p => p.id !== id))
@@ -237,16 +261,16 @@ export default function SellerProfilePage() {
         {/* Avatar hero */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-5">
           <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#f4991a] to-orange-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">Y</div>
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#f4991a] to-orange-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">{(profile.name || profile.company || 'S')[0]?.toUpperCase()}</div>
             <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-[#1a1c3a] rounded-xl flex items-center justify-center text-white hover:bg-[#252750] transition-all shadow">
               <Camera size={13} />
             </button>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-[#1a1c3a]">Yassine Belfilali</h2>
-            <p className="text-sm text-gray-400 mt-0.5">yassine@techhubkenya.com</p>
+            <h2 className="text-xl font-bold text-[#1a1c3a]">{profile.name || '—'}</h2>
+            <p className="text-sm text-gray-400 mt-0.5">{profile.email || '—'}</p>
             <span className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold px-2.5 py-1 rounded-full bg-orange-50 text-orange-700">
-              <Store size={11} /> Seller · TechHub Kenya
+              <Store size={11} /> Seller {profile.company && `· ${profile.company}`}
             </span>
           </div>
         </div>
@@ -258,12 +282,12 @@ export default function SellerProfilePage() {
             <h3 className="font-bold text-[#1a1c3a]">Personal Information</h3>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Full Name"  value="Yassine Belfilali"        icon={User}     />
-            <Field label="Store Name" value="TechHub Kenya"            icon={Store}    />
-            <Field label="Email"      value="yassine@techhubkenya.com" type="email" icon={Mail}  />
-            <Field label="Phone"      value="+254 712 345 678"         type="tel"   icon={Phone} />
-            <Field label="City"       value="Nairobi"                               icon={MapPin} />
-            <Field label="Address"    value="Tom Mboya St, Nairobi CBD"             icon={MapPin} />
+            <Field label="Full Name"  value={profile.name}    icon={User}     />
+            <Field label="Store Name" value={profile.company} icon={Store}    />
+            <Field label="Email"      value={profile.email}   type="email" icon={Mail}  />
+            <Field label="Phone"      value={profile.phone}   type="tel"   icon={Phone} />
+            <Field label="City"       value={profile.city}                 icon={MapPin} />
+            <Field label="Address"    value={profile.address}              icon={MapPin} />
           </div>
         </div>
 
