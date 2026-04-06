@@ -67,25 +67,22 @@ export default function SellersPage() {
     setLoading(true)
     const { data } = await supabase.from('sellers').select('*').order('created_at', { ascending: false })
     if (data) {
-      setSellers(data.map(row => {
-        const parts = (row.name || '').split(' | ')
-        return {
-          id: row.id,
-          storeName: parts[0] || row.name,
-          name: parts[1] || row.name,
-          email: row.email,
-          phone: row.phone || '',
-          password: '',
-          city: '',
-          totalOrders: 0,
-          totalRevenue: 0,
-          pendingPayout: 0,
-          status: row.status as SellerStatus,
-          role: 'seller' as const,
-          notes: undefined,
-          createdAt: row.created_at,
-        }
-      }))
+      setSellers(data.map(row => ({
+        id: row.id,
+        storeName: row.company || row.name,
+        name: row.name,
+        email: row.email,
+        phone: row.phone || '',
+        password: row.password || '',
+        city: row.city || '',
+        totalOrders: 0,
+        totalRevenue: 0,
+        pendingPayout: 0,
+        status: row.status as SellerStatus,
+        role: 'seller' as const,
+        notes: row.notes || undefined,
+        createdAt: row.created_at,
+      })))
     }
     setLoading(false)
   }
@@ -108,10 +105,14 @@ export default function SellersPage() {
     if (!form.storeName || !form.name || !form.email || !form.password) return
     setSaving(true)
     const { data, error } = await supabase.from('sellers').insert({
-      name: form.storeName + ' | ' + form.name,
+      name: form.name,
       email: form.email,
       phone: form.phone,
+      company: form.storeName,
+      city: form.city,
+      password: form.password,
       status: 'pending',
+      notes: form.notes || null,
     }).select().single()
 
     if (error) {
@@ -121,21 +122,20 @@ export default function SellersPage() {
     }
 
     if (data && !error) {
-      const parts = data.name.split(' | ')
       const newSeller: Seller = {
         id: data.id,
-        storeName: parts[0] || data.name,
-        name: parts[1] || data.name,
+        storeName: data.company || data.name,
+        name: data.name,
         email: data.email,
         phone: data.phone || '',
         password: form.password,
-        city: form.city,
+        city: data.city || '',
         totalOrders: 0,
         totalRevenue: 0,
         pendingPayout: 0,
         status: 'pending',
         role: 'seller',
-        notes: undefined,
+        notes: data.notes || undefined,
         createdAt: data.created_at,
       }
       setSellers(prev => [newSeller, ...prev])
