@@ -65,7 +65,8 @@ export default function SellersPage() {
 
   const loadSellers = async () => {
     setLoading(true)
-    const { data } = await supabase.from('sellers').select('*').order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('sellers').select('*').order('created_at', { ascending: false })
+    if (error) console.error('LOAD ERROR:', error.message, error.code)
     if (data) {
       setSellers(data.map(row => ({
         id: row.id,
