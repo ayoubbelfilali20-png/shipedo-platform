@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
-import { mockProducts } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 import { ProductStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import {
@@ -45,19 +45,28 @@ export default function ProductsPage() {
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<ProductStatus | 'all'>('all')
+  const [products, setProducts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const filtered = mockProducts.filter(p => {
+  useEffect(() => {
+    supabase.from('products').select('*').order('created_at', { ascending: false }).then(({ data }) => {
+      setProducts(data || [])
+      setLoading(false)
+    })
+  }, [])
+
+  const filtered = products.filter(p => {
     const q = search.toLowerCase()
-    const matchSearch = p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
+    const matchSearch = (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q)
     const matchStatus = statusFilter === 'all' || p.status === statusFilter
     return matchSearch && matchStatus
   })
 
   const stats = {
-    total: mockProducts.length,
-    active: mockProducts.filter(p => p.status === 'active').length,
-    lowStock: mockProducts.filter(p => p.status === 'low_stock').length,
-    outOfStock: mockProducts.filter(p => p.status === 'out_of_stock').length,
+    total: products.length,
+    active: products.filter(p => p.status === 'active').length,
+    lowStock: products.filter(p => p.status === 'low_stock').length,
+    outOfStock: products.filter(p => p.status === 'out_of_stock').length,
   }
 
   return (
@@ -131,7 +140,12 @@ export default function ProductsPage() {
         </div>
 
         {/* Products Grid */}
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 flex flex-col items-center text-gray-400">
+            <div className="w-6 h-6 border-2 border-gray-200 border-t-[#f4991a] rounded-full animate-spin mb-3" />
+            <p className="text-sm">Loading products...</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 flex flex-col items-center text-gray-400">
             <Package size={40} className="mb-3 opacity-30" />
             <p className="text-sm">No products found</p>
@@ -139,20 +153,21 @@ export default function ProductsPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(product => {
-              const available = product.stock - product.reserved
-              const margin = ((product.sellingPrice - product.buyingPrice) / product.sellingPrice * 100).toFixed(0)
+              const sellingPrice = product.selling_price || product.sellingPrice || 0
+              const buyingPrice = product.buying_price || product.buyingPrice || 0
+              const stockQty = product.stock || 0
+              const margin = sellingPrice > 0 ? ((sellingPrice - buyingPrice) / sellingPrice * 100).toFixed(0) : '0'
               return (
                 <div
                   key={product.id}
-                  onClick={() => router.push(`/dashboard/products/${product.id}`)}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group"
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-200 transition-all group"
                 >
                   {/* Header */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-50 to-blue-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
                       <Package size={20} className="text-gray-400" />
                     </div>
-                    <StatusBadge status={product.status} />
+                    <StatusBadge status={product.status as ProductStatus} />
                   </div>
 
                   {/* Info */}
@@ -163,11 +178,11 @@ export default function ProductsPage() {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <p className="text-xs text-gray-400">Selling Price</p>
-                      <p className="text-sm font-bold text-[#1a1c3a]">KES {product.sellingPrice.toLocaleString()}</p>
+                      <p className="text-sm font-bold text-[#1a1c3a]">{sellingPrice.toLocaleString()}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-400">Buying Price</p>
-                      <p className="text-sm font-medium text-gray-500">KES {product.buyingPrice.toLocaleString()}</p>
+                      <p className="text-sm font-medium text-gray-500">{buyingPrice.toLocaleString()}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-gray-400">Margin</p>
@@ -178,8 +193,7 @@ export default function ProductsPage() {
                   {/* Stock bar */}
                   <div className="mb-3">
                     <div className="flex justify-between text-xs text-gray-400 mb-1.5">
-                      <span>Stock: <span className="font-semibold text-[#1a1c3a]">{product.stock}</span> units</span>
-                      <span>Available: <span className={`font-semibold ${available <= 5 ? 'text-red-500' : 'text-emerald-600'}`}>{available}</span></span>
+                      <span>Stock: <span className="font-semibold text-[#1a1c3a]">{stockQty}</span> units</span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div
@@ -187,7 +201,7 @@ export default function ProductsPage() {
                           product.status === 'out_of_stock' ? 'bg-red-400' :
                           product.status === 'low_stock'    ? 'bg-yellow-400' : 'bg-emerald-400'
                         }`}
-                        style={{ width: `${Math.min((product.stock / 100) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((stockQty / 100) * 100, 100)}%` }}
                       />
                     </div>
                   </div>

@@ -110,11 +110,17 @@ export default function AgentsPage() {
     const { data, error } = await supabase.from('agents').insert({
       name: form.name,
       email: form.email,
-      phone: form.phone,
+      phone: form.phone || null,
       password: form.password,
       status: 'active',
       notes: form.notes || null,
     }).select().single()
+
+    if (error) {
+      alert('Error: ' + error.message)
+      setSaving(false)
+      return
+    }
 
     if (data && !error) {
       const newAgent: Agent = {

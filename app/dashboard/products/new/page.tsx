@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import { ExpeditionOrigin } from '@/lib/types'
+import { supabase } from '@/lib/supabase'
 import {
   Package, Plus, Trash2, ArrowLeft, Save,
   ChevronDown, DollarSign, Hash, Tag, Globe
@@ -31,13 +32,34 @@ export default function NewProductPage() {
   const [sellingPrice, setSellingPrice] = useState('')
   const [stock, setStock] = useState('')
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const margin = buyingPrice && sellingPrice
     ? ((parseFloat(sellingPrice) - parseFloat(buyingPrice)) / parseFloat(sellingPrice) * 100).toFixed(1)
     : null
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name || !sku || !buyingPrice || !sellingPrice) return
+    setSaving(true)
+    setError('')
+    const stockNum = parseInt(stock) || 0
+    const { error: err } = await supabase.from('products').insert({
+      name,
+      sku,
+      category,
+      description: description || null,
+      origin,
+      buying_price: parseFloat(buyingPrice),
+      selling_price: parseFloat(sellingPrice),
+      stock: stockNum,
+      status: stockNum === 0 ? 'out_of_stock' : stockNum <= 5 ? 'low_stock' : 'active',
+    })
+    if (err) {
+      setError('Error saving product: ' + err.message)
+      setSaving(false)
+      return
+    }
     setSaved(true)
     setTimeout(() => router.push('/dashboard/products'), 1000)
   }
@@ -189,14 +211,16 @@ export default function NewProductPage() {
         </div>
 
         {/* Actions */}
+        {error && <p className="text-red-500 text-sm bg-red-50 px-4 py-2 rounded-xl">{error}</p>}
+
         <div className="flex gap-3">
           <button
             onClick={handleSave}
-            disabled={!name || !sku || !buyingPrice || !sellingPrice || saved}
+            disabled={!name || !sku || !buyingPrice || !sellingPrice || saved || saving}
             className="flex-1 flex items-center justify-center gap-2 bg-[#1a1c3a] hover:bg-[#252750] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold py-3.5 rounded-xl transition-all"
           >
-            <Save size={15} />
-            {saved ? 'Saved!' : 'Save Product'}
+            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={15} />}
+            {saved ? 'Saved!' : saving ? 'Saving...' : 'Save Product'}
           </button>
           <Link
             href="/dashboard/products"

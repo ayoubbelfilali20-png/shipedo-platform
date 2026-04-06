@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Truck, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 const ADMIN_EMAIL = 'ayoub.belfilali20@gmail.com'
 const ADMIN_PASSWORD = 'ayoubilyas@20'
@@ -20,14 +21,49 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    await new Promise(r => setTimeout(r, 800))
 
+    // Admin login
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       router.push('/dashboard')
-    } else {
-      setLoading(false)
-      setError('Invalid email or password.')
+      return
     }
+
+    // Seller login
+    const { data: seller } = await supabase
+      .from('sellers')
+      .select('id, email, password, status')
+      .eq('email', email)
+      .single()
+
+    if (seller && seller.password === password) {
+      if (seller.status === 'suspended') {
+        setError('Your account is suspended. Contact admin.')
+        setLoading(false)
+        return
+      }
+      router.push('/seller')
+      return
+    }
+
+    // Agent login
+    const { data: agent } = await supabase
+      .from('agents')
+      .select('id, email, password, status')
+      .eq('email', email)
+      .single()
+
+    if (agent && agent.password === password) {
+      if (agent.status === 'inactive' || agent.status === 'suspended') {
+        setError('Your account is inactive. Contact admin.')
+        setLoading(false)
+        return
+      }
+      router.push('/agent')
+      return
+    }
+
+    setLoading(false)
+    setError('Invalid email or password.')
   }
 
   return (
@@ -59,30 +95,14 @@ export default function LoginPage() {
           <p className="text-white/50 leading-relaxed max-w-sm">
             Track orders, manage COD payments, and confirm deliveries in real-time.
           </p>
-
-          <div className="mt-10 grid grid-cols-2 gap-4">
-            {[
-              { label: 'Orders Today', value: '0', icon: '📦' },
-              { label: 'Delivered', value: '0', icon: '✅' },
-              { label: 'COD Collected', value: '0', icon: '💵' },
-              { label: 'Delivery Rate', value: '0%', icon: '🚀' },
-            ].map((s) => (
-              <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <div className="text-2xl mb-1">{s.icon}</div>
-                <div className="text-white font-bold text-lg">{s.value}</div>
-                <div className="text-white/40 text-xs">{s.label}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <p className="relative text-white/30 text-xs">© 2024 Shipedo</p>
       </div>
 
-      {/* Right panel — form */}
+      {/* Right panel */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
             <div className="w-9 h-9 bg-[#f4991a] rounded-xl flex items-center justify-center">
               <Truck size={20} className="text-white" />
@@ -129,15 +149,8 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <p className="text-red-500 text-sm text-center">{error}</p>
+                <p className="text-red-500 text-sm text-center bg-red-50 py-2 px-3 rounded-xl">{error}</p>
               )}
-
-              <div className="flex items-center justify-between text-sm">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="rounded border-gray-300 text-[#f4991a]" />
-                  <span className="text-gray-600">Remember me</span>
-                </label>
-              </div>
 
               <button
                 type="submit"
@@ -147,9 +160,7 @@ export default function LoginPage() {
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <>
-                    Sign In <ArrowRight size={16} />
-                  </>
+                  <>Sign In <ArrowRight size={16} /></>
                 )}
               </button>
             </form>
