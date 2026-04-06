@@ -56,6 +56,7 @@ export default function NewProductPage() {
       status: stockNum === 0 ? 'out_of_stock' : stockNum <= 5 ? 'low_stock' : 'active',
     })
     if (err) {
+      alert('Supabase error: ' + err.message + '\n\nCode: ' + (err.code || 'n/a') + '\nDetails: ' + (err.details || 'n/a'))
       setError('Error saving product: ' + err.message)
       setSaving(false)
       return
