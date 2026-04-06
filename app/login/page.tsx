@@ -5,33 +5,29 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Truck, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react'
 
+const ADMIN_EMAIL = 'ayoub.belfilali20@gmail.com'
+const ADMIN_PASSWORD = 'ayoubilyas@20'
+
 export default function LoginPage() {
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
-  const [role, setRole] = useState<'admin' | 'seller' | 'agent'>('seller')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const demoAccounts = [
-    { role: 'admin' as const, email: 'admin@shipedo.com', label: 'Admin', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-    { role: 'seller' as const, email: 'seller@shipedo.com', label: 'Seller', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-    { role: 'agent' as const, email: 'agent@shipedo.com', label: 'Call Agent', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  ]
+  const [error, setError] = useState('')
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     setLoading(true)
     await new Promise(r => setTimeout(r, 800))
-    if (role === 'seller') router.push('/seller')
-    else if (role === 'agent') router.push('/agent')
-    else router.push('/dashboard')
-  }
 
-  const fillDemo = (acc: typeof demoAccounts[0]) => {
-    setRole(acc.role)
-    setEmail(acc.email)
-    setPassword('demo123')
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      router.push('/dashboard')
+    } else {
+      setLoading(false)
+      setError('Invalid email or password.')
+    }
   }
 
   return (
@@ -61,15 +57,15 @@ export default function LoginPage() {
             One Dashboard
           </h2>
           <p className="text-white/50 leading-relaxed max-w-sm">
-            Track orders, manage COD payments, and confirm deliveries across Kenya in real-time.
+            Track orders, manage COD payments, and confirm deliveries in real-time.
           </p>
 
           <div className="mt-10 grid grid-cols-2 gap-4">
             {[
-              { label: 'Orders Today', value: '248', icon: '📦' },
-              { label: 'Delivered', value: '18', icon: '✅' },
-              { label: 'COD Collected', value: 'KES 45K', icon: '💵' },
-              { label: 'Delivery Rate', value: '84.2%', icon: '🚀' },
+              { label: 'Orders Today', value: '0', icon: '📦' },
+              { label: 'Delivered', value: '0', icon: '✅' },
+              { label: 'COD Collected', value: '0', icon: '💵' },
+              { label: 'Delivery Rate', value: '0%', icon: '🚀' },
             ].map((s) => (
               <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4">
                 <div className="text-2xl mb-1">{s.icon}</div>
@@ -80,7 +76,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="relative text-white/30 text-xs">© 2024 Shipedo Kenya</p>
+        <p className="relative text-white/30 text-xs">© 2024 Shipedo</p>
       </div>
 
       {/* Right panel — form */}
@@ -98,32 +94,14 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-[#1a1c3a] mb-1">Welcome back</h1>
             <p className="text-gray-500 text-sm mb-6">Sign in to your Shipedo account</p>
 
-            {/* Role selector */}
-            <div className="mb-6">
-              <div className="flex gap-2">
-                {demoAccounts.map((acc) => (
-                  <button
-                    key={acc.role}
-                    type="button"
-                    onClick={() => fillDemo(acc)}
-                    className={`flex-1 text-xs font-semibold py-2 px-3 rounded-lg border transition-all hover:scale-105 ${
-                      role === acc.role ? acc.color : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
-                    }`}
-                  >
-                    {acc.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
                 <input
-                  type="text"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your username"
+                  placeholder="Enter your email"
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/30 focus:border-[#f4991a] transition-all"
                   required
                 />
@@ -150,12 +128,15 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              {error && (
+                <p className="text-red-500 text-sm text-center">{error}</p>
+              )}
+
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" className="rounded border-gray-300 text-[#f4991a]" />
                   <span className="text-gray-600">Remember me</span>
                 </label>
-                <a href="#" className="text-[#f4991a] hover:underline font-medium">Forgot password?</a>
               </div>
 
               <button
@@ -178,11 +159,6 @@ export default function LoginPage() {
               <span>Secured with 256-bit encryption</span>
             </div>
           </div>
-
-          <p className="text-center text-white/40 text-xs mt-6">
-            Don't have an account?{' '}
-            <a href="#" className="text-[#f4991a] hover:underline">Contact our team</a>
-          </p>
         </div>
       </div>
     </div>
