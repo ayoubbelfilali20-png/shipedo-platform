@@ -86,10 +86,7 @@ function ProductModal({ open, onClose, countryCode, alreadySelected, onConfirm, 
     if (open) { setPicked(new Set()); setSearch('') }
   }, [open])
 
-  const allowedOrigins = countryOriginMap[countryCode] ?? []
   const available = sellerProducts.filter(p =>
-    allowedOrigins.includes(p.origin) &&
-    (p.stock || 0) > 0 &&
     !alreadySelected.includes(p.id) &&
     (search === '' ||
       (p.name || '').toLowerCase().includes(search.toLowerCase()) ||
