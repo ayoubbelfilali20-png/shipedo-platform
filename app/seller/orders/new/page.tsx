@@ -232,9 +232,40 @@ export default function SellerNewOrderPage() {
   const handleSave = async () => {
     if (!validate()) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 900))
+    let sellerId: string | null = null
+    let sellerName: string | null = null
+    try {
+      const stored = localStorage.getItem('shipedo_user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u.role === 'seller') { sellerId = u.id; sellerName = u.name }
+      }
+    } catch {}
+    const newId = generateOrderId()
+    const items = rows.map(r => ({
+      product_id: r.productId, name: r.name, sku: r.sku,
+      quantity: parseInt(r.quantity) || 0, unit_price: parseFloat(r.unitPrice) || 0,
+    }))
+    const { error } = await supabase.from('orders').insert({
+      tracking_number: newId,
+      seller_id: sellerId,
+      seller_name: sellerName,
+      customer_name: fullName,
+      customer_phone: phone,
+      customer_city: city,
+      customer_address: address,
+      country: selectedCountry.name,
+      items,
+      total_amount: total,
+      status: 'pending',
+      payment_method: 'COD',
+    })
     setSaving(false)
-    setGeneratedId(generateOrderId())
+    if (error) {
+      alert('Supabase error: ' + error.message + '\nCode: ' + (error.code || 'n/a'))
+      return
+    }
+    setGeneratedId(newId)
   }
 
   if (generatedId) {
