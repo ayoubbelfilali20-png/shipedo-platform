@@ -154,8 +154,11 @@ function ProductModal({ open, onClose, countryCode, alreadySelected, onConfirm, 
                 <Package size={20} className="text-gray-300" />
               </div>
               <p className="text-sm font-semibold text-gray-500">
-                {sellerProducts.length === 0 ? t('no_no_products_yet') : t('no_no_avail')}
+                {sellerProducts.length === 0
+                  ? 'No products yet — create one in Products → New Product'
+                  : 'No products match your search'}
               </p>
+              <p className="text-[10px] text-gray-300 mt-2">Loaded: {sellerProducts.length} product(s)</p>
             </div>
           ) : available.map(p => {
             const isPicked = picked.has(p.id)
