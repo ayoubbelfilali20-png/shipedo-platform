@@ -38,10 +38,11 @@ const adminNav: NavSection[] = [
   {
     labelKey: 'nav_management',
     items: [
-      { href: '/dashboard/sellers',  icon: Store,    labelKey: 'nav_sellers'  },
-      { href: '/dashboard/agents',   icon: UserCog,  labelKey: 'nav_agents'   },
-      { href: '/dashboard/billing',  icon: Send,     labelKey: 'nav_billing'  },
-      { href: '/dashboard/settings', icon: Settings, labelKey: 'nav_settings' },
+      { href: '/dashboard/sellers',     icon: Store,        labelKey: 'nav_sellers'     },
+      { href: '/dashboard/agents',      icon: UserCog,      labelKey: 'nav_agents'      },
+      { href: '/dashboard/expeditions', icon: PlaneTakeoff, labelKey: 'nav_expeditions' },
+      { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'     },
+      { href: '/dashboard/settings',    icon: Settings,     labelKey: 'nav_settings'    },
     ],
   },
 ]
