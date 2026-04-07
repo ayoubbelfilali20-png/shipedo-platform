@@ -3,7 +3,8 @@ alter table if exists public.products
   add column if not exists product_link text,
   add column if not exists code text,
   add column if not exists variant_code text,
-  add column if not exists product_video_link text;
+  add column if not exists product_video_link text,
+  add column if not exists image_url text;
 
 -- Make pricing/stock optional so the simplified form works
 alter table if exists public.products
