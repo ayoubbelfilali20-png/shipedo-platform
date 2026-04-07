@@ -1,30 +1,29 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Server-only Supabase client with the service role key.
- * Bypasses RLS — never import this from client components.
- *
- * Requires in .env.local:
- *   NEXT_PUBLIC_SUPABASE_URL
- *   SUPABASE_SERVICE_ROLE_KEY
+ * Lazy so missing env vars don't crash the Next.js build.
  */
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+let _client: SupabaseClient | null = null
 
-if (!url) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set')
+function getClient(): SupabaseClient {
+  if (_client) return _client
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url) throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set')
+  _client = createClient(url, serviceKey ?? anonKey ?? '', {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  return _client
 }
 
-export const supabaseAdmin = serviceKey
-  ? createClient(url, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    })
-  : // Fallback to anon key so /api routes still load during local dev,
-    // but writes/reads will be subject to RLS.
-    createClient(
-      url,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+export const supabaseAdmin: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_t, prop) {
+    const c = getClient() as any
+    const v = c[prop]
+    return typeof v === 'function' ? v.bind(c) : v
+  },
+})
 
-export const isServiceRoleConfigured = Boolean(serviceKey)
+export const isServiceRoleConfigured = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)

@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin, isServiceRoleConfigured } from '@/lib/supabaseAdmin'
 import { resend, RESEND_FROM, isResendConfigured } from '@/lib/resend'
