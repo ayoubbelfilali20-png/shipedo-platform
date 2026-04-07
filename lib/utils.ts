@@ -32,16 +32,17 @@ export function formatDateTime(dateString: string): string {
   })
 }
 
-export function getStatusConfig(status: OrderStatus) {
-  const config = {
-    pending: { label: 'Pending', className: 'badge-pending', dot: 'bg-yellow-500' },
-    confirmed: { label: 'Confirmed', className: 'badge-confirmed', dot: 'bg-blue-500' },
-    shipped: { label: 'Shipped', className: 'badge-shipped', dot: 'bg-indigo-500' },
+export function getStatusConfig(status: OrderStatus | string) {
+  const config: Record<string, { label: string; className: string; dot: string }> = {
+    pending:   { label: 'Pending',   className: 'badge-pending',   dot: 'bg-yellow-500'  },
+    confirmed: { label: 'Confirmed', className: 'badge-confirmed', dot: 'bg-blue-500'    },
+    prepared:  { label: 'Prepared',  className: 'badge-confirmed', dot: 'bg-indigo-500'  },
+    shipped:   { label: 'Shipped',   className: 'badge-shipped',   dot: 'bg-indigo-500'  },
     delivered: { label: 'Delivered', className: 'badge-delivered', dot: 'bg-emerald-500' },
-    returned: { label: 'Returned', className: 'badge-returned', dot: 'bg-red-500' },
-    cancelled: { label: 'Cancelled', className: 'badge-cancelled', dot: 'bg-gray-400' },
+    returned:  { label: 'Returned',  className: 'badge-returned',  dot: 'bg-red-500'     },
+    cancelled: { label: 'Cancelled', className: 'badge-cancelled', dot: 'bg-gray-400'    },
   }
-  return config[status]
+  return config[status as string] || { label: status || 'Unknown', className: 'badge-pending', dot: 'bg-gray-400' }
 }
 
 export function timeAgo(dateString: string): string {
