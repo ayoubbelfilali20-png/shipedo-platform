@@ -46,12 +46,19 @@ export default function AgentHistoryPage() {
   const [filter, setFilter] = useState<'all' | 'confirmed' | 'prepared' | 'delivered' | 'cancelled'>('all')
   const [busy, setBusy] = useState<string | null>(null)
 
-  const load = async (aid: string) => {
-    const { data } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('last_call_agent_id', aid)
-      .order('last_call_at', { ascending: false })
+  const load = async (aid: string | null) => {
+    let q = supabase.from('orders').select('*').order('last_call_at', { ascending: false })
+    if (aid) q = q.eq('last_call_agent_id', aid)
+    let { data } = await q
+    // Fallback: if filtering by agent returns nothing, show any touched order
+    if (aid && (!data || data.length === 0)) {
+      const r = await supabase
+        .from('orders')
+        .select('*')
+        .gt('call_attempts', 0)
+        .order('last_call_at', { ascending: false })
+      data = r.data
+    }
     setOrders((data || []) as OrderRow[])
     setLoading(false)
   }
