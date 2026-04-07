@@ -7,6 +7,7 @@ import { mockExpeditions } from '@/lib/data'
 import { Expedition, ExpeditionStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { loadStoredExpeditions, updateStoredExpeditionStatus } from '@/lib/expeditionStore'
+import { receiveStock } from '@/lib/stock'
 import {
   PlaneTakeoff, Ship, Package, Clock, CheckCircle, AlertTriangle,
   Search, Plus, Eye, ArrowRight, Globe, ChevronRight, X,
@@ -192,6 +193,9 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
   const [selected, setSelected] = useState<Expedition | null>(null)
   const [stored, setStored] = useState<Expedition[]>([])
   const [sellerId, setSellerId] = useState<string | null>(null)
+  const [acceptModal, setAcceptModal] = useState<Expedition | null>(null)
+  const [rcvRows, setRcvRows] = useState<{ received: number; defective: number }[]>([])
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     setStored(loadStoredExpeditions())
@@ -204,9 +208,29 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
     } catch {}
   }, [])
 
-  const acceptExpedition = (id: string) => {
-    updateStoredExpeditionStatus(id, 'received')
+  const openAccept = (exp: Expedition) => {
+    setAcceptModal(exp)
+    setRcvRows(exp.products.map(p => ({ received: p.quantity, defective: 0 })))
+  }
+
+  const confirmAccept = async () => {
+    if (!acceptModal) return
+    setConfirming(true)
+    for (let i = 0; i < acceptModal.products.length; i++) {
+      const p = acceptModal.products[i]
+      const r = rcvRows[i]
+      if (!p.sellerId || !p.sku) continue
+      await receiveStock({
+        sellerId: p.sellerId,
+        sku: p.sku,
+        received: r.received || 0,
+        defective: r.defective || 0,
+      })
+    }
+    updateStoredExpeditionStatus(acceptModal.id, 'received')
     setStored(loadStoredExpeditions())
+    setConfirming(false)
+    setAcceptModal(null)
   }
 
   const allExpeditions: Expedition[] = role === 'seller'
@@ -315,7 +339,7 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
 
                   {role === 'admin' && exp.status === 'pending' && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); acceptExpedition(exp.id) }}
+                      onClick={(e) => { e.stopPropagation(); openAccept(exp) }}
                       className="mt-3 w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                     >
                       <CheckCircle size={14} /> Accept (Stock Received)
@@ -422,6 +446,83 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
       </div>
 
       {selected && <DetailModal exp={selected} onClose={() => setSelected(null)} />}
+
+      {acceptModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl my-4">
+            <div className="bg-emerald-600 rounded-t-2xl p-5 flex items-center justify-between">
+              <div>
+                <p className="text-white/70 text-xs font-semibold uppercase tracking-wide">Confirm Stock Reception</p>
+                <p className="text-white font-bold font-mono">{acceptModal.reference}</p>
+              </div>
+              <button onClick={() => setAcceptModal(null)} className="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-lg flex items-center justify-center text-white">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-500">
+                Adjust the received and defective quantities for each product. These will be added to the seller's stock when you confirm.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100">
+                      <th className="py-2 px-2">Product</th>
+                      <th className="py-2 px-2">SKU</th>
+                      <th className="py-2 px-2 text-center">Declared</th>
+                      <th className="py-2 px-2 text-center">Received</th>
+                      <th className="py-2 px-2 text-center">Defective</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {acceptModal.products.map((p, i) => (
+                      <tr key={i}>
+                        <td className="py-3 px-2 text-sm font-semibold text-[#1a1c3a]">{p.name}</td>
+                        <td className="py-3 px-2 text-xs font-mono text-gray-500">{p.sku || '—'}</td>
+                        <td className="py-3 px-2 text-center text-sm text-gray-600">{p.quantity}</td>
+                        <td className="py-3 px-2 text-center">
+                          <input
+                            type="number" min="0"
+                            value={rcvRows[i]?.received ?? 0}
+                            onChange={e => setRcvRows(prev => prev.map((r, j) => j === i ? { ...r, received: parseInt(e.target.value) || 0 } : r))}
+                            className="w-20 px-2 py-1.5 text-center bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                          />
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <input
+                            type="number" min="0"
+                            value={rcvRows[i]?.defective ?? 0}
+                            onChange={e => setRcvRows(prev => prev.map((r, j) => j === i ? { ...r, defective: parseInt(e.target.value) || 0 } : r))}
+                            className="w-20 px-2 py-1.5 text-center bg-red-50 border border-red-200 rounded-lg text-sm font-bold text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-700">
+                <strong>Note:</strong> the seller's <strong>Quantity in Stock</strong> and <strong>Total Quantity</strong> will both be increased by the received amount. <strong>Defective Quantity</strong> will be increased by the defective amount.
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setAcceptModal(null)}
+                  className="px-5 py-2.5 border border-gray-200 text-gray-600 text-sm font-semibold rounded-xl hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAccept}
+                  disabled={confirming}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl shadow-sm disabled:opacity-60"
+                >
+                  {confirming ? 'Confirming…' : <><CheckCircle size={14} /> Confirm Reception</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

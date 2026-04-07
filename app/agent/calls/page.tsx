@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
+import { decrementStockForOrderItems } from '@/lib/stock'
 import { cn } from '@/lib/utils'
 import {
   Phone, CheckCircle, XCircle, Clock, MapPin, Package,
@@ -93,6 +94,8 @@ export default function AgentCallsPage() {
     if (action === 'confirmed') {
       patch.status = 'confirmed'
       patch.reminded_at = null
+      // Decrement seller stock for each item in this order
+      await decrementStockForOrderItems(order.items as any[])
     } else if (action === 'cancelled') {
       patch.status = 'cancelled'
       patch.reminded_at = null
