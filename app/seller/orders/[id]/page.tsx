@@ -1,1 +1,240 @@
-export { default } from '@/app/dashboard/orders/[id]/page'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import Header from '@/components/dashboard/Header'
+import { supabase } from '@/lib/supabase'
+import {
+  ArrowLeft, Phone, MapPin, Package, Save, Lock, Eye, Pencil,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+type OrderRow = {
+  id: string
+  tracking_number: string
+  customer_name: string
+  customer_phone: string
+  customer_city: string
+  customer_address: string
+  country?: string | null
+  items: any[]
+  total_amount: number
+  status: string
+  payment_method: string
+  source?: string | null
+  notes?: string | null
+  call_attempts?: number | null
+  reminded_at?: string | null
+  last_call_note?: string | null
+  created_at: string
+}
+
+const statusColors: Record<string, string> = {
+  pending:   'bg-rose-50 text-rose-600 border-rose-300',
+  confirmed: 'bg-emerald-50 text-emerald-600 border-emerald-400',
+  shipped:   'bg-indigo-50 text-indigo-600 border-indigo-300',
+  delivered: 'bg-sky-50 text-sky-600 border-sky-300',
+  returned:  'bg-red-50 text-red-600 border-red-300',
+  cancelled: 'bg-gray-50 text-gray-500 border-gray-300',
+}
+
+export default function SellerOrderDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const router = useRouter()
+  const [order, setOrder] = useState<OrderRow | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  // editable fields
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [city, setCity] = useState('')
+  const [address, setAddress] = useState('')
+  const [notes, setNotes] = useState('')
+
+  useEffect(() => {
+    if (!id) return
+    supabase.from('orders').select('*').eq('id', id).limit(1).then(({ data }) => {
+      const row = data?.[0] as OrderRow | undefined
+      if (row) {
+        setOrder(row)
+        setName(row.customer_name || '')
+        setPhone(row.customer_phone || '')
+        setCity(row.customer_city || '')
+        setAddress(row.customer_address || '')
+        setNotes(row.notes || '')
+      }
+      setLoading(false)
+    })
+  }, [id])
+
+  const locked = !!order && ((order.call_attempts || 0) > 0 || order.status !== 'pending')
+
+  const save = async () => {
+    if (!order || locked) return
+    setSaving(true)
+    await supabase.from('orders').update({
+      customer_name: name,
+      customer_phone: phone,
+      customer_city: city,
+      customer_address: address,
+      notes,
+    }).eq('id', order.id)
+    setSaving(false)
+    setEditing(false)
+    // refresh
+    const { data } = await supabase.from('orders').select('*').eq('id', order.id).limit(1)
+    if (data?.[0]) setOrder(data[0] as OrderRow)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f7fa] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-gray-200 border-t-[#f4991a] rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-[#f5f7fa] flex flex-col items-center justify-center gap-4">
+        <Package size={48} className="text-gray-300" />
+        <p className="text-gray-400 text-sm">Order not found</p>
+        <Link href="/seller/orders" className="text-[#f4991a] text-sm font-semibold hover:underline">
+          Back to orders
+        </Link>
+      </div>
+    )
+  }
+
+  const inputCls = cn(
+    'w-full px-4 py-3 border rounded-xl text-sm focus:outline-none transition-all',
+    editing && !locked
+      ? 'bg-white border-emerald-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
+      : 'bg-gray-50 border-gray-200'
+  )
+
+  return (
+    <div className="min-h-screen bg-[#f5f7fa]">
+      <Header title="Order Detail" subtitle={order.tracking_number} role="seller" />
+
+      <div className="px-6 pt-6 pb-10 max-w-4xl space-y-5">
+        {/* Top bar */}
+        <div className="flex items-center justify-between gap-3">
+          <button onClick={() => router.push('/seller/orders')} className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#1a1c3a]">
+            <ArrowLeft size={16} /> Back to orders
+          </button>
+          <div className="flex items-center gap-2">
+            <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold border-2 whitespace-nowrap', statusColors[order.status] || statusColors.pending)}>
+              {order.status}
+            </span>
+            {!locked && !editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-lg transition-all"
+              >
+                <Pencil size={13} /> Edit
+              </button>
+            )}
+            {!locked && editing && (
+              <>
+                <button
+                  onClick={() => { setEditing(false); setName(order.customer_name); setPhone(order.customer_phone); setCity(order.customer_city); setAddress(order.customer_address); setNotes(order.notes || '') }}
+                  className="px-4 py-2 border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-60"
+                >
+                  {saving ? 'Saving…' : <><Save size={13} /> Save</>}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Lock notice */}
+        {locked && (
+          <div className="flex items-start gap-2 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <Lock size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-800">
+              <strong>Read-only.</strong> This order has been processed by the call center{(order.call_attempts || 0) > 0 ? ` (${order.call_attempts} attempt${order.call_attempts === 1 ? '' : 's'})` : ''} or is no longer pending. You can view it but not edit. To change anything, contact support.
+            </div>
+          </div>
+        )}
+
+        {/* Customer info */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-base font-bold text-[#1a1c3a] mb-4">Customer Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Full Name</label>
+              <input value={name} onChange={e => setName(e.target.value)} disabled={!editing || locked} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1"><Phone size={11} /> Phone</label>
+              <input value={phone} onChange={e => setPhone(e.target.value)} disabled={!editing || locked} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5 flex items-center gap-1"><MapPin size={11} /> City</label>
+              <input value={city} onChange={e => setCity(e.target.value)} disabled={!editing || locked} className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Address</label>
+              <input value={address} onChange={e => setAddress(e.target.value)} disabled={!editing || locked} className={inputCls} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notes</label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} disabled={!editing || locked} rows={2} className={cn(inputCls, 'resize-none')} />
+            </div>
+          </div>
+        </div>
+
+        {/* Items */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-base font-bold text-[#1a1c3a] mb-4">Items</h2>
+          <div className="space-y-2">
+            {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Package size={14} className="text-[#f4991a]" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#1a1c3a] truncate">{it.name || 'Item'}</p>
+                    <p className="text-xs text-gray-400 font-mono">{it.sku || '—'}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-[#1a1c3a]">×{it.quantity || 1}</p>
+                  <p className="text-xs text-gray-400">KES {((Number(it.unit_price) || 0) * (Number(it.quantity) || 1)).toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-sm font-bold text-gray-600">Total</span>
+            <span className="text-lg font-bold text-[#f4991a]">KES {(order.total_amount || 0).toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Call history */}
+        {(order.call_attempts || 0) > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-bold text-[#1a1c3a] mb-3">Call Center Activity</h2>
+            <div className="space-y-2 text-xs text-gray-600">
+              <p><strong>Attempts:</strong> {order.call_attempts}</p>
+              {order.reminded_at && <p><strong>Reminder set for:</strong> {new Date(order.reminded_at).toLocaleString()}</p>}
+              {order.last_call_note && <p className="bg-gray-50 p-3 rounded-lg"><strong>Last note:</strong> {order.last_call_note}</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
