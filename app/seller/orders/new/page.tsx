@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/dashboard/Header'
-import { mockProducts } from '@/lib/data'
+import { supabase } from '@/lib/supabase'
 import { getOrderFlags } from '@/lib/orderFlags'
 import {
   User, ArrowLeft, Save, CheckCircle,
@@ -39,8 +39,7 @@ const countryOriginMap: Record<string, string[]> = {
   OTHER: ['China', 'Dubai', 'Turkey', 'India', 'Local'],
 }
 
-// Seller's own products only
-const sellerProducts = mockProducts.filter(p => p.sellerId === 'sel-001')
+interface SellerProduct { id: string; name: string; sku: string; origin: string; stock: number; selling_price: number }
 
 interface ProductRow {
   id: string
@@ -76,10 +75,11 @@ function CountrySlider({ value, onChange }: { value: string; onChange: (c: strin
   )
 }
 
-function ProductSelector({ countryCode, selected, onAdd }: {
+function ProductSelector({ countryCode, selected, onAdd, sellerProducts }: {
   countryCode: string
   selected: string[]
   onAdd: (p: { id: string; name: string; sku: string; price: number }) => void
+  sellerProducts: SellerProduct[]
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -88,8 +88,8 @@ function ProductSelector({ countryCode, selected, onAdd }: {
   const allowedOrigins = countryOriginMap[countryCode] ?? countryOriginMap.OTHER
   const available = sellerProducts.filter(p =>
     allowedOrigins.includes(p.origin) &&
-    p.stock > 0 &&
-    (search === '' || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku.toLowerCase().includes(search.toLowerCase()))
+    (p.stock || 0) > 0 &&
+    (search === '' || (p.name||'').toLowerCase().includes(search.toLowerCase()) || (p.sku||'').toLowerCase().includes(search.toLowerCase()))
   )
 
   useEffect(() => {
@@ -137,7 +137,7 @@ function ProductSelector({ countryCode, selected, onAdd }: {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => { if (!alreadyAdded) { onAdd({ id: p.id, name: p.name, sku: p.sku, price: p.sellingPrice }); setOpen(false); setSearch('') } }}
+                  onClick={() => { if (!alreadyAdded) { onAdd({ id: p.id, name: p.name, sku: p.sku, price: p.selling_price || 0 }); setOpen(false); setSearch('') } }}
                   disabled={alreadyAdded}
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0',
@@ -152,7 +152,7 @@ function ProductSelector({ countryCode, selected, onAdd }: {
                     <p className="text-[10px] text-gray-400 font-mono">{p.sku} · {p.origin} · Stock: {p.stock}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-xs font-bold text-[#f4991a]">KES {p.sellingPrice.toLocaleString()}</p>
+                    <p className="text-xs font-bold text-[#f4991a]">KES {(p.selling_price || 0).toLocaleString()}</p>
                     {alreadyAdded && <p className="text-[10px] text-gray-400">Added</p>}
                   </div>
                 </button>
@@ -178,6 +178,22 @@ export default function SellerNewOrderPage() {
   const [generatedId, setGeneratedId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [sellerProducts, setSellerProducts] = useState<SellerProduct[]>([])
+
+  useEffect(() => {
+    let sellerId: string | null = null
+    try {
+      const stored = localStorage.getItem('shipedo_user')
+      if (stored) {
+        const u = JSON.parse(stored)
+        if (u.role === 'seller') sellerId = u.id
+      }
+    } catch {}
+    if (!sellerId) return
+    supabase.from('products').select('*').eq('seller_id', sellerId).then(({ data }) => {
+      setSellerProducts((data || []) as SellerProduct[])
+    })
+  }, [])
 
   const selectedCountry = countries.find(c => c.code === country)!
   const total = rows.reduce((a, r) => a + (parseFloat(r.unitPrice) || 0) * (parseInt(r.quantity) || 0), 0)
@@ -451,6 +467,7 @@ export default function SellerNewOrderPage() {
                 countryCode={country}
                 selected={rows.map(r => r.productId)}
                 onAdd={addProduct}
+                sellerProducts={sellerProducts}
               />
 
               {total > 0 && (

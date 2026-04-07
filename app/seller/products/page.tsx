@@ -161,8 +161,7 @@ export default function SellerProductsPage() {
               return (
                 <div
                   key={product.id}
-                  onClick={() => router.push(`/seller/products/${product.id}`)}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 cursor-pointer hover:shadow-md hover:border-gray-200 transition-all group"
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-gray-200 transition-all group"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-50 to-blue-50 border border-gray-100 flex items-center justify-center flex-shrink-0">
