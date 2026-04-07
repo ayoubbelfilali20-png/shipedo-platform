@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
 import { Seller, SellerStatus } from '@/lib/types'
@@ -44,6 +45,7 @@ const statusFilters: { value: SellerStatus | 'all'; label: string }[] = [
 ]
 
 export default function SellersPage() {
+  const router = useRouter()
   const [sellers, setSellers] = useState<Seller[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -157,6 +159,21 @@ export default function SellersPage() {
     const next: SellerStatus = current === 'active' ? 'suspended' : 'active'
     await supabase.from('sellers').update({ status: next }).eq('id', id)
     setSellers(prev => prev.map(s => s.id === id ? { ...s, status: next } : s))
+  }
+
+  const viewAsSeller = (seller: Seller) => {
+    try {
+      const current = localStorage.getItem('shipedo_user')
+      if (current) localStorage.setItem('shipedo_admin_backup', current)
+      localStorage.setItem('shipedo_user', JSON.stringify({
+        role: 'seller',
+        id: seller.id,
+        email: seller.email,
+        name: seller.storeName,
+        fullName: seller.name,
+      }))
+      router.push('/seller')
+    } catch {}
   }
 
   const removeSeller = async (id: string) => {
@@ -329,6 +346,13 @@ export default function SellersPage() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => viewAsSeller(seller)}
+                          title="View dashboard as seller"
+                          className="w-7 h-7 rounded-lg bg-purple-50 text-purple-500 hover:bg-purple-100 flex items-center justify-center transition-all"
+                        >
+                          <Eye size={13} />
+                        </button>
                         <button
                           onClick={() => toggleStatus(seller.id, seller.status)}
                           title={seller.status === 'active' ? 'Suspend' : 'Activate'}

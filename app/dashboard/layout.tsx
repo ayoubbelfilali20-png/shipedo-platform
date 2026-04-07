@@ -33,8 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main content — shifts with sidebar */}
       <div
-        className="flex-1 min-h-screen overflow-x-hidden transition-all duration-300"
-        style={{ marginLeft: collapsed ? 68 : 240 }}
+        className={`flex-1 min-h-screen overflow-x-hidden transition-all duration-300 ${collapsed ? 'lg:ml-[68px]' : 'lg:ml-[240px]'}`}
       >
         <div className="lg:hidden h-0" />
         {children}

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import Sidebar from '@/components/dashboard/Sidebar'
+import ImpersonationBanner from '@/components/ImpersonationBanner'
 
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -27,9 +28,9 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       )}
 
       <div
-        className="flex-1 min-h-screen overflow-x-hidden transition-all duration-300"
-        style={{ marginLeft: collapsed ? 68 : 240 }}
+        className={`flex-1 min-h-screen overflow-x-hidden transition-all duration-300 ${collapsed ? 'lg:ml-[68px]' : 'lg:ml-[240px]'}`}
       >
+        <ImpersonationBanner />
         {children}
         <footer className="px-6 py-4 border-t border-gray-100 bg-[#f8fafc]">
           <p className="text-xs text-gray-400 text-center">Copyright © 2026 Shipedo. All rights reserved</p>

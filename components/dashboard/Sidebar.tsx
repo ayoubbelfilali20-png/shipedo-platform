@@ -7,10 +7,12 @@ import {
   CreditCard, FileText, Wallet, Users, Plug, Settings,
   LogOut, ChevronRight, Truck as TruckIcon, PlaneTakeoff,
   ShieldCheck, Store, Headphones, PanelLeftClose, PanelLeftOpen,
-  ShoppingBag, Search, ChevronDown, Plus, List, Clock, UserCog
+  ShoppingBag, Search, ChevronDown, Plus, List, Clock, UserCog,
+  Send
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
+import { useT, type TKey } from '@/lib/i18n'
 
 /* ─── Role config ─────────────────────────────────────── */
 const roleConfig = {
@@ -20,58 +22,26 @@ const roleConfig = {
 }
 
 /* ─── Nav types ───────────────────────────────────────── */
-interface SubItem  { href: string; label: string; icon: React.ElementType }
-interface NavItem  { href?: string; icon: React.ElementType; label: string; sub?: SubItem[] }
-interface NavSection { label: string; items: NavItem[] }
+interface SubItem  { href: string; labelKey: TKey; icon: React.ElementType }
+interface NavItem  { href?: string; icon: React.ElementType; labelKey: TKey; sub?: SubItem[] }
+interface NavSection { labelKey: TKey; items: NavItem[] }
 
 /* ─── Admin nav ───────────────────────────────────────── */
 const adminNav: NavSection[] = [
   {
-    label: 'MAIN',
+    labelKey: 'nav_main',
     items: [
-      { href: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard'  },
-      { icon: Package, label: 'Orders', sub: [
-        { href: '/dashboard/orders',     icon: List, label: 'All Orders' },
-        { href: '/dashboard/orders/new', icon: Plus, label: 'New Order'  },
-      ]},
-      { href: '/dashboard/shipping',  icon: TruckIcon,  label: 'Shipping'  },
-      { href: '/dashboard/analytics', icon: BarChart3,  label: 'Analytics' },
+      { href: '/dashboard',           icon: LayoutDashboard, labelKey: 'nav_dashboard'  },
+      { href: '/dashboard/analytics', icon: BarChart3,       labelKey: 'nav_analytics' },
     ],
   },
   {
-    label: 'STOCK',
+    labelKey: 'nav_management',
     items: [
-      { icon: ShoppingBag, label: 'Products', sub: [
-        { href: '/dashboard/products',     icon: List, label: 'All Products' },
-        { href: '/dashboard/products/new', icon: Plus, label: 'New Product'  },
-      ]},
-      { icon: PlaneTakeoff, label: 'Expeditions', sub: [
-        { href: '/dashboard/expeditions',     icon: List, label: 'All Expeditions' },
-        { href: '/dashboard/expeditions/new', icon: Plus, label: 'New Expedition'  },
-      ]},
-      { icon: Search, label: 'Sourcings', sub: [
-        { href: '/dashboard/sourcings',     icon: List, label: 'All Sourcings' },
-        { href: '/dashboard/sourcings/new', icon: Plus, label: 'New Sourcing'  },
-      ]},
-    ],
-  },
-  {
-    label: 'OPERATIONS',
-    items: [
-      { href: '/dashboard/call-center',  icon: Phone,      label: 'Call Center'  },
-      { href: '/dashboard/fulfillment',  icon: Warehouse,  label: 'Fulfillment'  },
-      { href: '/dashboard/cod',          icon: CreditCard, label: 'COD Tracking' },
-      { href: '/dashboard/invoices',     icon: FileText,   label: 'Invoices'     },
-      { href: '/dashboard/transactions', icon: Wallet,     label: 'Transactions' },
-    ],
-  },
-  {
-    label: 'MANAGEMENT',
-    items: [
-      { href: '/dashboard/customers',    icon: Users,       label: 'Customers'    },
-      { href: '/dashboard/sellers',      icon: Store,       label: 'Sellers'      },
-      { href: '/dashboard/agents',       icon: UserCog,     label: 'Agents'       },
-      { href: '/dashboard/settings',     icon: Settings,    label: 'Settings'     },
+      { href: '/dashboard/sellers',  icon: Store,    labelKey: 'nav_sellers'  },
+      { href: '/dashboard/agents',   icon: UserCog,  labelKey: 'nav_agents'   },
+      { href: '/dashboard/billing',  icon: Send,     labelKey: 'nav_billing'  },
+      { href: '/dashboard/settings', icon: Settings, labelKey: 'nav_settings' },
     ],
   },
 ]
@@ -79,46 +49,46 @@ const adminNav: NavSection[] = [
 /* ─── Seller nav ──────────────────────────────────────── */
 const sellerNav: NavSection[] = [
   {
-    label: 'MAIN',
+    labelKey: 'nav_main',
     items: [
-      { href: '/seller',          icon: LayoutDashboard, label: 'Dashboard' },
-      { icon: Package, label: 'Orders', sub: [
-        { href: '/seller/orders',     icon: List, label: 'All Orders' },
-        { href: '/seller/orders/new', icon: Plus, label: 'New Order'  },
+      { href: '/seller',          icon: LayoutDashboard, labelKey: 'nav_dashboard' },
+      { icon: Package, labelKey: 'nav_orders', sub: [
+        { href: '/seller/orders',     icon: List, labelKey: 'nav_all_orders' },
+        { href: '/seller/orders/new', icon: Plus, labelKey: 'nav_new_order'  },
       ]},
-      { href: '/seller/shipping',  icon: TruckIcon, label: 'Shipping'  },
-      { href: '/seller/analytics', icon: BarChart3, label: 'Analytics' },
+      { href: '/seller/shipping',  icon: TruckIcon, labelKey: 'nav_shipping'  },
+      { href: '/seller/analytics', icon: BarChart3, labelKey: 'nav_analytics' },
     ],
   },
   {
-    label: 'STOCK',
+    labelKey: 'nav_stock',
     items: [
-      { icon: ShoppingBag, label: 'Products', sub: [
-        { href: '/seller/products',     icon: List, label: 'All Products' },
-        { href: '/seller/products/new', icon: Plus, label: 'New Product'  },
+      { icon: ShoppingBag, labelKey: 'nav_products', sub: [
+        { href: '/seller/products',     icon: List, labelKey: 'nav_all_products' },
+        { href: '/seller/products/new', icon: Plus, labelKey: 'nav_new_product'  },
       ]},
-      { icon: PlaneTakeoff, label: 'Expeditions', sub: [
-        { href: '/seller/expeditions',     icon: List, label: 'All Expeditions' },
-        { href: '/seller/expeditions/new', icon: Plus, label: 'New Expedition'  },
+      { icon: PlaneTakeoff, labelKey: 'nav_expeditions', sub: [
+        { href: '/seller/expeditions',     icon: List, labelKey: 'nav_all_expeditions' },
+        { href: '/seller/expeditions/new', icon: Plus, labelKey: 'nav_new_expedition'  },
       ]},
-      { icon: Search, label: 'Sourcings', sub: [
-        { href: '/seller/sourcings',     icon: List, label: 'All Sourcings' },
-        { href: '/seller/sourcings/new', icon: Plus, label: 'New Sourcing'  },
+      { icon: Search, labelKey: 'nav_sourcings', sub: [
+        { href: '/seller/sourcings',     icon: List, labelKey: 'nav_all_sourcings' },
+        { href: '/seller/sourcings/new', icon: Plus, labelKey: 'nav_new_sourcing'  },
       ]},
     ],
   },
   {
-    label: 'FINANCE',
+    labelKey: 'nav_finance',
     items: [
-      { href: '/seller/transactions', icon: Wallet,   label: 'My Wallet' },
-      { href: '/seller/invoices',     icon: FileText, label: 'Invoices'  },
+      { href: '/seller/transactions', icon: Wallet,   labelKey: 'nav_my_wallet' },
+      { href: '/seller/invoices',     icon: FileText, labelKey: 'nav_invoices'  },
     ],
   },
   {
-    label: 'ACCOUNT',
+    labelKey: 'nav_account',
     items: [
-      { href: '/seller/integrations', icon: Plug,     label: 'Integrations' },
-      { href: '/seller/settings',     icon: Settings, label: 'Settings'     },
+      { href: '/seller/integrations', icon: Plug,     labelKey: 'nav_integrations' },
+      { href: '/seller/settings',     icon: Settings, labelKey: 'nav_settings'     },
     ],
   },
 ]
@@ -126,17 +96,17 @@ const sellerNav: NavSection[] = [
 /* ─── Agent nav ───────────────────────────────────────── */
 const agentNav: NavSection[] = [
   {
-    label: 'MAIN',
+    labelKey: 'nav_main',
     items: [
-      { href: '/agent',         icon: LayoutDashboard, label: 'Dashboard'    },
-      { href: '/agent/calls',   icon: Phone,           label: 'Call Queue'   },
-      { href: '/agent/history', icon: Clock,           label: 'Call History' },
+      { href: '/agent',         icon: LayoutDashboard, labelKey: 'nav_dashboard'    },
+      { href: '/agent/calls',   icon: Phone,           labelKey: 'nav_call_queue'   },
+      { href: '/agent/history', icon: Clock,           labelKey: 'nav_call_history' },
     ],
   },
   {
-    label: 'ACCOUNT',
+    labelKey: 'nav_account',
     items: [
-      { href: '/agent/settings', icon: Settings, label: 'Settings' },
+      { href: '/agent/settings', icon: Settings, labelKey: 'nav_settings' },
     ],
   },
 ]
@@ -161,6 +131,7 @@ interface SidebarProps {
 /* ─── Component ───────────────────────────────────────── */
 export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname()
+  const { t } = useT()
   const baseUser = roleConfig[role as keyof typeof roleConfig] ?? roleConfig.admin
   const [displayName, setDisplayName] = useState(baseUser.name)
   useEffect(() => {
@@ -188,7 +159,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
     navSections.forEach(section =>
       section.items.forEach(item => {
         if (item.sub?.some(s => pathname.startsWith(s.href.replace('/new', '')))) {
-          initial[item.label] = true
+          initial[item.labelKey] = true
         }
       })
     )
@@ -219,21 +190,22 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-2.5 space-y-1">
         {navSections.map(section => (
-          <div key={section.label} className="mb-4">
+          <div key={section.labelKey} className="mb-4">
             {!collapsed && (
-              <div className="text-white/25 text-[9px] font-bold uppercase tracking-widest px-3 mb-1.5">{section.label}</div>
+              <div className="text-white/25 text-[9px] font-bold uppercase tracking-widest px-3 mb-1.5">{t(section.labelKey)}</div>
             )}
             {collapsed && <div className="my-2 border-t border-white/10" />}
 
             <div className="space-y-0.5">
               {section.items.map(item => {
+                const itemLabel = t(item.labelKey)
                 if (!item.sub) {
                   const isActive = pathname === item.href
                   return (
                     <Link
                       key={item.href}
                       href={item.href!}
-                      title={collapsed ? item.label : undefined}
+                      title={collapsed ? itemLabel : undefined}
                       className={cn(
                         'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative',
                         collapsed && 'justify-center px-2',
@@ -243,13 +215,13 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                       <item.icon size={18} className="flex-shrink-0" />
                       {!collapsed && (
                         <>
-                          <span className="flex-1 truncate">{item.label}</span>
+                          <span className="flex-1 truncate">{itemLabel}</span>
                           {isActive && <ChevronRight size={13} className="opacity-50" />}
                         </>
                       )}
                       {collapsed && (
                         <span className="absolute left-full ml-3 bg-[#1a1c3a] border border-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-50">
-                          {item.label}
+                          {itemLabel}
                         </span>
                       )}
                     </Link>
@@ -257,14 +229,14 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                 }
 
                 const isGroupActive = item.sub.some(s => pathname.startsWith(s.href.replace('/new', '')))
-                const isOpen = openGroups[item.label] ?? false
+                const isOpen = openGroups[item.labelKey] ?? false
 
                 if (collapsed) {
                   return (
                     <Link
-                      key={item.label}
+                      key={item.labelKey}
                       href={item.sub[0].href}
-                      title={item.label}
+                      title={itemLabel}
                       className={cn(
                         'flex items-center justify-center px-2 py-2.5 rounded-xl transition-all group relative',
                         isGroupActive ? 'bg-[#f4991a]/15 text-[#f4991a]' : 'text-white/55 hover:text-white hover:bg-white/5'
@@ -272,23 +244,23 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                     >
                       <item.icon size={18} />
                       <span className="absolute left-full ml-3 bg-[#1a1c3a] border border-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-xl z-50">
-                        {item.label}
+                        {itemLabel}
                       </span>
                     </Link>
                   )
                 }
 
                 return (
-                  <div key={item.label}>
+                  <div key={item.labelKey}>
                     <button
-                      onClick={() => toggleGroup(item.label)}
+                      onClick={() => toggleGroup(item.labelKey)}
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
                         isGroupActive ? 'text-[#f4991a]' : 'text-white/55 hover:text-white hover:bg-white/5'
                       )}
                     >
                       <item.icon size={18} className="flex-shrink-0" />
-                      <span className="flex-1 text-left truncate">{item.label}</span>
+                      <span className="flex-1 text-left truncate">{itemLabel}</span>
                       <ChevronDown size={13} className={cn('opacity-50 transition-transform duration-200', isOpen && 'rotate-180')} />
                     </button>
                     {isOpen && (
@@ -305,7 +277,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                               )}
                             >
                               <s.icon size={13} className="flex-shrink-0" />
-                              {s.label}
+                              {t(s.labelKey)}
                             </Link>
                           )
                         })}

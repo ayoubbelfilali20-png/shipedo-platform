@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
 import { Agent, AgentStatus } from '@/lib/types'
@@ -52,6 +53,7 @@ function genPassword() {
 }
 
 export default function AgentsPage() {
+  const router = useRouter()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -155,6 +157,20 @@ export default function AgentsPage() {
     const next: AgentStatus = current === 'active' ? 'inactive' : 'active'
     await supabase.from('agents').update({ status: next }).eq('id', id)
     setAgents(prev => prev.map(a => a.id === id ? { ...a, status: next } : a))
+  }
+
+  const viewAsAgent = (agent: Agent) => {
+    try {
+      const current = localStorage.getItem('shipedo_user')
+      if (current) localStorage.setItem('shipedo_admin_backup', current)
+      localStorage.setItem('shipedo_user', JSON.stringify({
+        role: 'agent',
+        id: agent.id,
+        email: agent.email,
+        name: agent.name,
+      }))
+      router.push('/agent')
+    } catch {}
   }
 
   const removeAgent = async (id: string) => {
@@ -326,6 +342,13 @@ export default function AgentsPage() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => viewAsAgent(agent)}
+                            title="View dashboard as agent"
+                            className="w-7 h-7 rounded-lg bg-purple-50 text-purple-500 hover:bg-purple-100 flex items-center justify-center transition-all"
+                          >
+                            <Eye size={13} />
+                          </button>
                           <button
                             onClick={() => toggleStatus(agent.id, agent.status)}
                             title={agent.status === 'active' ? 'Deactivate' : 'Activate'}

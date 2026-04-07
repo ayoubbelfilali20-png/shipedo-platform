@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/dashboard/Header'
-import { ExpeditionOrigin } from '@/lib/types'
+import { Expedition, ExpeditionOrigin } from '@/lib/types'
+import { addStoredExpedition } from '@/lib/expeditionStore'
 import {
   PlaneTakeoff, Plus, Trash2, ArrowLeft, Save,
   Package, Globe, DollarSign, FileText,
@@ -79,9 +80,48 @@ export default function SellerNewExpeditionPage() {
 
   const handleSave = async () => {
     setSaving(true)
-    await new Promise(r => setTimeout(r, 1000))
+    await new Promise(r => setTimeout(r, 600))
+    const ref = generateExpeditionId()
+    let sellerId = ''
+    let sellerName = ''
+    try {
+      const u = localStorage.getItem('shipedo_user')
+      if (u) {
+        const parsed = JSON.parse(u)
+        sellerId = parsed.id || ''
+        sellerName = parsed.name || parsed.email || ''
+      }
+    } catch {}
+    const exp: Expedition = {
+      id: `exp-${Date.now()}`,
+      reference: ref,
+      origin,
+      originCity,
+      destination: 'Nairobi',
+      status: 'pending',
+      products: products.filter(p => p.name).map(p => ({
+        name: p.name,
+        sku: p.sku,
+        quantity: parseInt(p.quantity) || 0,
+        unitCost: parseFloat(p.unitCost) || 0,
+        sellerId,
+        sellerName: p.sellerName || sellerName,
+      })),
+      totalItems,
+      totalCost: totalGoodsCost,
+      shippingCost: parseFloat(shippingCost) || 0,
+      customsFee: parseFloat(customsFee) || 0,
+      estimatedArrival,
+      trackingNumber,
+      carrier,
+      notes,
+      createdBy: sellerId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    addStoredExpedition(exp)
     setSaving(false)
-    setGeneratedId(generateExpeditionId())
+    setGeneratedId(ref)
   }
 
   const copyId = () => {

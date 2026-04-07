@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Truck, Eye, EyeOff, ArrowRight, Shield } from 'lucide-react'
+import { Truck, Eye, EyeOff, ArrowRight, Mail, Lock, Shield } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const ADMIN_EMAIL = 'ayoub.belfilali20@gmail.com'
@@ -22,16 +22,15 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    // Admin login
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       localStorage.setItem('shipedo_user', JSON.stringify({
         role: 'admin', email: ADMIN_EMAIL, name: 'Admin',
       }))
       router.push('/dashboard')
+      setLoading(false)
       return
     }
 
-    // Seller login
     const { data: seller } = await supabase
       .from('sellers')
       .select('id, email, password, status, name, company')
@@ -49,10 +48,10 @@ export default function LoginPage() {
         name: seller.company || seller.name, fullName: seller.name,
       }))
       router.push('/seller')
+      setLoading(false)
       return
     }
 
-    // Agent login
     const { data: agent } = await supabase
       .from('agents')
       .select('id, email, password, status, name')
@@ -69,6 +68,7 @@ export default function LoginPage() {
         role: 'agent', id: agent.id, email: agent.email, name: agent.name,
       }))
       router.push('/agent')
+      setLoading(false)
       return
     }
 
@@ -77,110 +77,104 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1c3a] flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 right-20 w-80 h-80 bg-[#f4991a] rounded-full blur-3xl" />
-          <div className="absolute bottom-20 left-20 w-60 h-60 bg-blue-500 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-[#0f1129] relative overflow-hidden flex items-center justify-center p-5">
+      {/* Ambient background blobs */}
+      <div className="absolute top-[-10%] right-[-10%] w-[420px] h-[420px] bg-[#f4991a] rounded-full blur-[120px] opacity-25 pointer-events-none" />
+      <div className="absolute bottom-[-15%] left-[-10%] w-[380px] h-[380px] bg-blue-500 rounded-full blur-[120px] opacity-20 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-purple-500 rounded-full blur-[140px] opacity-10 pointer-events-none" />
+
+      <div className="relative w-full max-w-[400px]">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-7">
+          <div className="w-14 h-14 bg-gradient-to-br from-[#f4991a] to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30 mb-3">
+            <Truck size={26} className="text-white" />
+          </div>
+          <h1 className="text-white font-bold text-2xl tracking-tight">Shipedo</h1>
+          <p className="text-white/40 text-xs mt-1">Logistics & COD platform</p>
         </div>
 
-        <Link href="/" className="relative flex items-center gap-2">
-          <div className="w-9 h-9 bg-[#f4991a] rounded-xl flex items-center justify-center">
-            <Truck size={20} className="text-white" />
-          </div>
-          <span className="text-white font-bold text-xl">Shipedo</span>
-        </Link>
-
-        <div className="relative">
-          <div className="inline-flex items-center gap-2 bg-[#f4991a]/10 border border-[#f4991a]/20 rounded-full px-4 py-2 mb-6">
-            <span className="w-2 h-2 bg-[#f4991a] rounded-full" />
-            <span className="text-[#f4991a] text-xs font-medium">Live Platform</span>
-          </div>
-          <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
-            Manage Your<br />
-            <span className="text-[#f4991a]">Logistics</span> From<br />
-            One Dashboard
-          </h2>
-          <p className="text-white/50 leading-relaxed max-w-sm">
-            Track orders, manage COD payments, and confirm deliveries in real-time.
-          </p>
-        </div>
-
-        <p className="relative text-white/30 text-xs">© 2024 Shipedo</p>
-      </div>
-
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
-            <div className="w-9 h-9 bg-[#f4991a] rounded-xl flex items-center justify-center">
-              <Truck size={20} className="text-white" />
-            </div>
-            <span className="text-white font-bold text-xl">Shipedo</span>
+        {/* Card */}
+        <div className="bg-white rounded-3xl p-7 shadow-2xl shadow-black/50">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-[#0f1129]">Welcome back</h2>
+            <p className="text-gray-400 text-xs mt-1">Sign in to continue to your dashboard</p>
           </div>
 
-          <div className="bg-white rounded-2xl p-8 shadow-2xl">
-            <h1 className="text-2xl font-bold text-[#1a1c3a] mb-1">Welcome back</h1>
-            <p className="text-gray-500 text-sm mb-6">Sign in to your Shipedo account</p>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+          <form onSubmit={handleLogin} className="space-y-3.5">
+            {/* Email */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Email</label>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/30 focus:border-[#f4991a] transition-all"
+                  placeholder="you@example.com"
+                  className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm text-[#0f1129] placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] focus:bg-white transition-all"
                   required
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/30 focus:border-[#f4991a] transition-all"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <p className="text-red-500 text-sm text-center bg-red-50 py-2 px-3 rounded-xl">{error}</p>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-[#1a1c3a] hover:bg-[#252750] disabled:opacity-70 text-white font-semibold py-3.5 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 mt-2"
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>Sign In <ArrowRight size={16} /></>
-                )}
-              </button>
-            </form>
-
-            <div className="mt-6 pt-6 border-t border-gray-100 flex items-center justify-center gap-2 text-xs text-gray-400">
-              <Shield size={12} />
-              <span>Secured with 256-bit encryption</span>
             </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Password</label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-11 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm text-[#0f1129] placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] focus:bg-white transition-all"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <div className="flex justify-end mt-1.5">
+                <Link
+                  href="/forgot-password"
+                  className="text-[11px] font-semibold text-[#f4991a] hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+                <div className="w-1 self-stretch bg-red-400 rounded-full flex-shrink-0" />
+                <p className="text-red-600 text-xs font-medium">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-[#f4991a] to-orange-500 hover:from-orange-500 hover:to-orange-600 disabled:opacity-60 text-white font-bold py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 active:scale-[0.98] mt-2"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>Sign In <ArrowRight size={16} /></>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-5 pt-5 border-t border-gray-100 flex items-center justify-center gap-1.5 text-[10px] text-gray-400">
+            <Shield size={11} />
+            <span>Secured · End-to-end encrypted</span>
           </div>
         </div>
+
+        <p className="text-center text-white/30 text-[10px] mt-6">© 2026 Shipedo · All rights reserved</p>
       </div>
     </div>
   )

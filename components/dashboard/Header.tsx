@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
 import { mockSellerWallet } from '@/lib/data'
+import { useT, languages, type Lang } from '@/lib/i18n'
 
 const roleConfig = {
   admin:  { label: 'Admin',      badge: 'bg-purple-100 text-purple-700', avatar: 'from-purple-500 to-purple-700', name: 'Admin', icon: ShieldCheck },
@@ -225,7 +226,10 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
   const [walletOpen, setWalletOpen] = useState(false)
   const [withdrawOpen, setWithdrawOpen] = useState(false)
   const [hideBalance, setHideBalance] = useState(false)
+  const [langOpen, setLangOpen] = useState(false)
+  const { lang, setLang, t } = useT()
   const walletRef = useRef<HTMLDivElement>(null)
+  const langRef = useRef<HTMLDivElement>(null)
   const baseUser = roleConfig[role as keyof typeof roleConfig] ?? roleConfig.admin
   const [displayName, setDisplayName] = useState(baseUser.name)
   useEffect(() => {
@@ -244,12 +248,222 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (walletRef.current && !walletRef.current.contains(e.target as Node)) setWalletOpen(false)
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false)
     }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [])
 
+  const changeLang = (l: Lang) => {
+    setLang(l)
+    setLangOpen(false)
+  }
+
   const mask = (v: number) => hideBalance ? '••••••' : `KES ${v.toLocaleString()}`
+
+  if (role === 'seller') {
+    const availableUsd = (w.availableBalance / USD_RATE).toFixed(2)
+    return (
+      <>
+        <header className="bg-white border-b border-gray-100 px-4 lg:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+          <button onClick={onMenuToggle} className="lg:hidden text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0">
+            <Menu size={22} />
+          </button>
+
+          {/* Search bar */}
+          <div className="relative flex-1 max-w-md">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder={t('search_dots')}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Language selector */}
+            <div className="relative hidden md:block" ref={langRef}>
+              <button
+                onClick={() => setLangOpen(v => !v)}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+              >
+                <span className="text-base leading-none">{languages[lang].flag}</span>
+                <span className="text-xs font-semibold text-[#1a1c3a]">{languages[lang].label}</span>
+                <ChevronDown size={12} className="text-gray-400" />
+              </button>
+
+              {langOpen && (
+                <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-2xl border border-gray-100 shadow-xl z-50 overflow-hidden p-1.5">
+                  {(Object.keys(languages) as Lang[]).map(code => (
+                    <button
+                      key={code}
+                      onClick={() => changeLang(code)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-xl transition-all ${
+                        lang === code
+                          ? 'bg-orange-50 text-[#f4991a] font-bold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="text-base leading-none">{languages[code].flag}</span>
+                      <span>{languages[code].label}</span>
+                      {lang === code && <CheckCircle size={13} className="ml-auto text-[#f4991a]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Country selector — Kenya */}
+            <button className="hidden md:flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
+              <span className="text-base leading-none">🇰🇪</span>
+              <div className="flex flex-col items-start leading-none">
+                <span className="text-[11px] font-bold text-[#1a1c3a]">Kenya</span>
+                <span className="text-[9px] font-semibold text-gray-400 mt-0.5">KES</span>
+              </div>
+              <ChevronDown size={12} className="text-gray-400" />
+            </button>
+
+            {/* Balance with eye toggle */}
+            <div className="relative" ref={walletRef}>
+              <button
+                onClick={() => setWalletOpen(v => !v)}
+                className="flex items-center gap-2 px-3 py-2 bg-[#1a1c3a] hover:bg-[#252750] text-white rounded-xl text-xs font-bold transition-all"
+              >
+                <Wallet size={13} className="text-[#f4991a]" />
+                <span className="hidden sm:inline">
+                  {hideBalance ? '••••' : `$${availableUsd}`}
+                </span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); setHideBalance(h => !h) }}
+                  className="ml-0.5 w-5 h-5 rounded-md bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all cursor-pointer"
+                >
+                  {hideBalance ? <EyeOff size={10} /> : <Eye size={10} />}
+                </span>
+              </button>
+
+              {walletOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-[#1a1c3a] rounded-2xl shadow-2xl border border-white/10 p-4 z-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-white/60 text-[10px] font-semibold uppercase tracking-wide">{t('hdr_my_wallet')}</span>
+                    <button
+                      onClick={() => setHideBalance(h => !h)}
+                      className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/15 flex items-center justify-center text-white/50 hover:text-white transition-all"
+                    >
+                      {hideBalance ? <EyeOff size={11} /> : <Eye size={11} />}
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
+                          <Wallet size={13} className="text-white/60" />
+                        </div>
+                        <span className="text-white/60 text-xs">{t('hdr_total_balance')}</span>
+                      </div>
+                      <span className="text-[#f4991a] font-bold text-sm">{mask(w.totalBalance)}</span>
+                    </div>
+                    <div className="w-full h-px bg-white/10" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
+                          <TrendingUp size={13} className="text-green-400" />
+                        </div>
+                        <span className="text-white/60 text-xs">{t('hdr_available')}</span>
+                      </div>
+                      <span className="text-green-400 font-bold text-sm">{mask(w.availableBalance)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-yellow-500/15 flex items-center justify-center">
+                          <Lock size={13} className="text-yellow-400" />
+                        </div>
+                        <span className="text-white/60 text-xs">{t('hdr_on_hold')}</span>
+                      </div>
+                      <span className="text-yellow-400 font-bold text-sm">{mask(w.onHoldBalance)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
+                          <Clock size={13} className="text-blue-400" />
+                        </div>
+                        <span className="text-white/60 text-xs">{t('hdr_pending_payout')}</span>
+                      </div>
+                      <span className="text-blue-400 font-bold text-sm">{mask(w.pendingBalance)}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => { setWalletOpen(false); setWithdrawOpen(true) }}
+                    className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-all"
+                  >
+                    <DollarSign size={13} /> {t('hdr_withdraw_usd')}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bell */}
+            <button className="relative w-9 h-9 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all">
+              <Bell size={15} />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#f4991a] rounded-full" />
+            </button>
+
+            {/* Hexagon user avatar */}
+            <div className="relative">
+              <button
+                onClick={() => setDropOpen(!dropOpen)}
+                className="flex items-center gap-3 pl-1.5 pr-3 py-1.5 hover:bg-gray-50 rounded-xl transition-all"
+              >
+                <div
+                  className={`w-10 h-10 bg-gradient-to-br ${user.avatar} flex items-center justify-center text-white text-base font-bold flex-shrink-0`}
+                  style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                >
+                  {user.name[0]}
+                </div>
+                <div className="hidden lg:flex flex-col items-start leading-tight">
+                  <span className="text-sm font-bold text-[#1a1c3a] max-w-[160px] truncate">{user.name}</span>
+                  <span className="text-[11px] font-semibold text-gray-400 mt-0.5">{t('hdr_seller')}</span>
+                </div>
+                <ChevronDown size={14} className="text-gray-400 hidden lg:block" />
+              </button>
+
+              {dropOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setDropOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-gray-100 shadow-xl z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-50">
+                      <div className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full mb-1 ${user.badge}`}>
+                        <UserIcon size={11} />
+                        {user.label}
+                      </div>
+                      <div className="text-sm font-bold text-[#1a1c3a]">{user.name}</div>
+                    </div>
+                    <div className="p-2">
+                      <Link
+                        href="/seller/profile"
+                        onClick={() => setDropOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                      >
+                        <User size={14} /> {t('hdr_profile')}
+                      </Link>
+                      <Link href="/login" className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                        <LogOut size={14} /> {t('hdr_signout')}
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {withdrawOpen && <WithdrawModal onClose={() => setWithdrawOpen(false)} />}
+      </>
+    )
+  }
 
   return (
     <>
@@ -273,82 +487,6 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
               className="pl-8 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-600 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all w-44"
             />
           </div>
-
-          {/* Wallet chip — seller only */}
-          {role === 'seller' && (
-            <div className="relative" ref={walletRef}>
-              <button
-                onClick={() => setWalletOpen(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-[#1a1c3a] hover:bg-[#252750] text-white rounded-xl text-xs font-bold transition-all"
-              >
-                <Wallet size={13} className="text-[#f4991a]" />
-                <span className="hidden sm:inline">
-                  {hideBalance ? '••••••' : w.availableBalance.toLocaleString()}
-                </span>
-              </button>
-
-              {walletOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-[#1a1c3a] rounded-2xl shadow-2xl border border-white/10 p-4 z-50">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-white/60 text-[10px] font-semibold uppercase tracking-wide">My Wallet</span>
-                    <button
-                      onClick={() => setHideBalance(h => !h)}
-                      className="w-6 h-6 rounded-lg bg-white/10 hover:bg-white/15 flex items-center justify-center text-white/50 hover:text-white transition-all"
-                    >
-                      {hideBalance ? <EyeOff size={11} /> : <Eye size={11} />}
-                    </button>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
-                          <Wallet size={13} className="text-white/60" />
-                        </div>
-                        <span className="text-white/60 text-xs">Total Balance</span>
-                      </div>
-                      <span className="text-[#f4991a] font-bold text-sm">{mask(w.totalBalance)}</span>
-                    </div>
-                    <div className="w-full h-px bg-white/10" />
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
-                          <TrendingUp size={13} className="text-green-400" />
-                        </div>
-                        <span className="text-white/60 text-xs">Available</span>
-                      </div>
-                      <span className="text-green-400 font-bold text-sm">{mask(w.availableBalance)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-yellow-500/15 flex items-center justify-center">
-                          <Lock size={13} className="text-yellow-400" />
-                        </div>
-                        <span className="text-white/60 text-xs">On Hold</span>
-                      </div>
-                      <span className="text-yellow-400 font-bold text-sm">{mask(w.onHoldBalance)}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center">
-                          <Clock size={13} className="text-blue-400" />
-                        </div>
-                        <span className="text-white/60 text-xs">Pending Payout</span>
-                      </div>
-                      <span className="text-blue-400 font-bold text-sm">{mask(w.pendingBalance)}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => { setWalletOpen(false); setWithdrawOpen(true) }}
-                    className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-all"
-                  >
-                    <DollarSign size={13} /> Withdraw in USD
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Bell */}
           <button className="relative w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all">

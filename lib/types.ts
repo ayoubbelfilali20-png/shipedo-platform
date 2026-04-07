@@ -151,7 +151,7 @@ export interface WithdrawRequest {
   note?: string
 }
 
-export type ExpeditionStatus = 'preparing' | 'in_transit' | 'customs' | 'arrived' | 'distributing' | 'completed' | 'delayed'
+export type ExpeditionStatus = 'pending' | 'received' | 'preparing' | 'in_transit' | 'customs' | 'arrived' | 'distributing' | 'completed' | 'delayed'
 export type ExpeditionOrigin = 'China' | 'Dubai' | 'Turkey' | 'India' | 'Local'
 
 export interface ExpeditionProduct {

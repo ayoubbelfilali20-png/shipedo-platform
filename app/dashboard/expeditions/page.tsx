@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/dashboard/Header'
 import { mockExpeditions } from '@/lib/data'
 import { Expedition, ExpeditionStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
+import { loadStoredExpeditions, updateStoredExpeditionStatus } from '@/lib/expeditionStore'
 import {
   PlaneTakeoff, Ship, Package, Clock, CheckCircle, AlertTriangle,
   Search, Plus, Eye, ArrowRight, Globe, ChevronRight, X,
@@ -14,6 +15,8 @@ import {
 import { cn } from '@/lib/utils'
 
 const statusConfig: Record<ExpeditionStatus, { label: string; color: string; bg: string; border: string; dot: string; icon: React.ElementType }> = {
+  pending:      { label: 'Pending',      color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-300',  dot: 'bg-[#f4991a]',   icon: Clock },
+  received:     { label: 'Received',     color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-300', dot: 'bg-emerald-500', icon: CheckCircle },
   preparing:    { label: 'Preparing',    color: 'text-gray-600',    bg: 'bg-gray-50',    border: 'border-gray-200',    dot: 'bg-gray-400',    icon: Box },
   in_transit:   { label: 'In Transit',   color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200',    dot: 'bg-blue-500',    icon: PlaneTakeoff },
   customs:      { label: 'Customs',      color: 'text-yellow-700',  bg: 'bg-yellow-50',  border: 'border-yellow-200',  dot: 'bg-yellow-500',  icon: AlertTriangle },
@@ -183,12 +186,34 @@ function DetailModal({ exp, onClose }: { exp: Expedition; onClose: () => void })
   )
 }
 
-export default function ExpeditionsPage() {
+export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | 'seller' } = {}) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<ExpeditionStatus | 'all'>('all')
   const [selected, setSelected] = useState<Expedition | null>(null)
+  const [stored, setStored] = useState<Expedition[]>([])
+  const [sellerId, setSellerId] = useState<string | null>(null)
 
-  const filtered = mockExpeditions.filter(exp => {
+  useEffect(() => {
+    setStored(loadStoredExpeditions())
+    try {
+      const u = localStorage.getItem('shipedo_user')
+      if (u) {
+        const parsed = JSON.parse(u)
+        if (parsed.role === 'seller') setSellerId(parsed.id)
+      }
+    } catch {}
+  }, [])
+
+  const acceptExpedition = (id: string) => {
+    updateStoredExpeditionStatus(id, 'received')
+    setStored(loadStoredExpeditions())
+  }
+
+  const allExpeditions: Expedition[] = role === 'seller'
+    ? stored.filter(e => e.createdBy === sellerId)
+    : [...stored, ...mockExpeditions]
+
+  const filtered = allExpeditions.filter(exp => {
     const matchSearch =
       exp.reference.toLowerCase().includes(search.toLowerCase()) ||
       exp.origin.toLowerCase().includes(search.toLowerCase()) ||
@@ -199,18 +224,18 @@ export default function ExpeditionsPage() {
   })
 
   const stats = {
-    total: mockExpeditions.length,
-    inTransit: mockExpeditions.filter(e => e.status === 'in_transit').length,
-    customs: mockExpeditions.filter(e => e.status === 'customs').length,
-    totalValue: mockExpeditions.reduce((a, e) => a + e.totalCost + e.shippingCost + e.customsFee, 0),
+    total: allExpeditions.length,
+    inTransit: allExpeditions.filter(e => e.status === 'in_transit').length,
+    customs: allExpeditions.filter(e => e.status === 'customs').length,
+    totalValue: allExpeditions.reduce((a, e) => a + e.totalCost + e.shippingCost + e.customsFee, 0),
   }
 
   return (
     <div className="min-h-screen">
       <Header
         title="Expeditions"
-        subtitle={`${mockExpeditions.length} expeditions tracked`}
-        action={{ label: 'New Expedition', href: '/dashboard/expeditions/new' }}
+        subtitle={`${allExpeditions.length} expeditions tracked`}
+        action={{ label: 'New Expedition', href: role === 'seller' ? '/seller/expeditions/new' : '/dashboard/expeditions/new' }}
       />
 
       <div className="p-6 space-y-6">
@@ -238,7 +263,7 @@ export default function ExpeditionsPage() {
             <h2 className="text-base font-bold text-[#1a1c3a]">Active Expeditions</h2>
           </div>
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {mockExpeditions.filter(e => e.status !== 'completed').map(exp => {
+            {allExpeditions.filter(e => e.status !== 'completed').map(exp => {
               const s = statusConfig[exp.status]
               const totalLanded = exp.totalCost + exp.shippingCost + exp.customsFee
               return (
@@ -287,6 +312,15 @@ export default function ExpeditionsPage() {
                     </div>
                     <ArrowRight size={16} className="text-gray-300 group-hover:text-[#f4991a] transition-colors" />
                   </div>
+
+                  {role === 'admin' && exp.status === 'pending' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); acceptExpedition(exp.id) }}
+                      className="mt-3 w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <CheckCircle size={14} /> Accept (Stock Received)
+                    </button>
+                  )}
                 </div>
               )
             })}
@@ -307,7 +341,7 @@ export default function ExpeditionsPage() {
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto">
-                {(['all', 'preparing', 'in_transit', 'customs', 'arrived', 'completed'] as const).map(f => (
+                {(['all', 'pending', 'received', 'preparing', 'in_transit', 'customs', 'arrived', 'completed'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => setStatusFilter(f)}
