@@ -1,87 +1,108 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/dashboard/Header'
-import { Expedition, ExpeditionOrigin } from '@/lib/types'
+import { supabase } from '@/lib/supabase'
+import { Expedition } from '@/lib/types'
 import { addStoredExpedition } from '@/lib/expeditionStore'
 import {
-  PlaneTakeoff, Plus, Trash2, ArrowLeft, Save,
-  Package, Globe, DollarSign, FileText,
-  ChevronDown, CheckCircle, Clock, Copy, Check, ArrowRight
+  ArrowLeft, Package, Save, Plus, Trash2, ChevronDown, User, Truck,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-interface ProductRow {
-  id: string
-  name: string
-  sku: string
-  quantity: string
-  unitCost: string
-  sellerName: string
+const COUNTRIES = [
+  'Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bahrain','Bangladesh','Belgium','Brazil',
+  'Bulgaria','Cambodia','Cameroon','Canada','Chile','China','Colombia','Czech Republic','Denmark','Egypt',
+  'Ethiopia','Finland','France','Germany','Ghana','Greece','Hong Kong','Hungary','India','Indonesia',
+  'Iran','Iraq','Ireland','Israel','Italy','Ivory Coast','Japan','Jordan','Kazakhstan','Kenya',
+  'Kuwait','Lebanon','Libya','Madagascar','Malaysia','Mali','Mauritania','Mexico','Morocco','Netherlands',
+  'New Zealand','Nigeria','Norway','Oman','Pakistan','Peru','Philippines','Poland','Portugal','Qatar',
+  'Romania','Russia','Rwanda','Saudi Arabia','Senegal','Serbia','Singapore','Slovakia','Somalia','South Africa',
+  'South Korea','Spain','Sri Lanka','Sudan','Sweden','Switzerland','Syria','Taiwan','Tanzania','Thailand',
+  'Tunisia','Turkey','Uganda','Ukraine','United Arab Emirates','United Kingdom','United States','Uruguay','Uzbekistan','Venezuela',
+  'Vietnam','Yemen','Zambia','Zimbabwe',
+]
+
+const TRANSPORT_MODES = ['Air Freight', 'Sea Freight', 'Land Freight', 'Express Courier']
+
+function generateRef() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let r = 'EXP-'
+  for (let i = 0; i < 6; i++) r += chars[Math.floor(Math.random() * chars.length)]
+  return r
 }
 
-const origins: { value: ExpeditionOrigin; label: string; flag: string; cities: string[] }[] = [
-  { value: 'China',  label: 'China',  flag: '🇨🇳', cities: ['Guangzhou', 'Shenzhen', 'Yiwu', 'Shanghai', 'Beijing'] },
-  { value: 'Dubai',  label: 'Dubai',  flag: '🇦🇪', cities: ['Dubai', 'Jebel Ali', 'Abu Dhabi'] },
-  { value: 'Turkey', label: 'Turkey', flag: '🇹🇷', cities: ['Istanbul', 'Bursa', 'Izmir'] },
-  { value: 'India',  label: 'India',  flag: '🇮🇳', cities: ['Mumbai', 'Delhi', 'Surat'] },
-  { value: 'Local',  label: 'Local',  flag: '🇰🇪', cities: ['Nairobi', 'Mombasa'] },
-]
-
-const carriers = [
-  'DHL Express', 'FedEx', 'Maersk', 'MSC', 'Emirates SkyCargo',
-  'Kenya Airways Cargo', 'Ethiopian Airlines Cargo', 'CMA CGM', 'Other',
-]
-
-function generateExpeditionId() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  let id = 'EXP-'
-  for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)]
-  return id
+interface ProductRow {
+  product_id: string
+  name: string
+  sku: string
+  price: number
+  quantity: number
 }
 
 export default function SellerNewExpeditionPage() {
   const router = useRouter()
-  const [saving, setSaving] = useState(false)
-  const [generatedId, setGeneratedId] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
-  const [origin, setOrigin] = useState<ExpeditionOrigin>('China')
-  const [originCity, setOriginCity] = useState('Guangzhou')
-  const [carrier, setCarrier] = useState('DHL Express')
-  const [trackingNumber, setTrackingNumber] = useState('')
-  const [estimatedArrival, setEstimatedArrival] = useState('')
-  const [shippingCost, setShippingCost] = useState('')
-  const [customsFee, setCustomsFee] = useState('')
+  const [from, setFrom] = useState('')
+  const [packages, setPackages] = useState('1')
+  const [expDate, setExpDate] = useState('')
+  const [transport, setTransport] = useState('')
+  const [supplier, setSupplier] = useState('')
+  const [forwarder, setForwarder] = useState('')
   const [notes, setNotes] = useState('')
-  const [products, setProducts] = useState<ProductRow[]>([
-    { id: '1', name: '', sku: '', quantity: '', unitCost: '', sellerName: '' },
-  ])
 
-  const selectedOrigin = origins.find(o => o.value === origin)!
+  const [sellerProducts, setSellerProducts] = useState<any[]>([])
+  const [selected, setSelected] = useState<ProductRow[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
 
-  const addProduct = () => {
-    setProducts([...products, { id: Date.now().toString(), name: '', sku: '', quantity: '', unitCost: '', sellerName: '' }])
+  // load seller products
+  useEffect(() => {
+    let sellerId: string | null = null
+    try {
+      const u = localStorage.getItem('shipedo_user')
+      if (u) {
+        const parsed = JSON.parse(u)
+        if (parsed.role === 'seller') sellerId = parsed.id
+      }
+    } catch {}
+    if (!sellerId) return
+    supabase
+      .from('products')
+      .select('id, name, sku, selling_price, buying_price, image_url')
+      .eq('seller_id', sellerId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setSellerProducts(data || []))
+  }, [])
+
+  const addProduct = (p: any) => {
+    if (selected.find(s => s.product_id === p.id)) return
+    setSelected(prev => [...prev, {
+      product_id: p.id,
+      name: p.name,
+      sku: p.sku || '',
+      price: Number(p.buying_price) || Number(p.selling_price) || 0,
+      quantity: 1,
+    }])
+    setPickerOpen(false)
   }
 
-  const removeProduct = (id: string) => {
-    if (products.length === 1) return
-    setProducts(products.filter(p => p.id !== id))
+  const updateRow = (id: string, field: 'price' | 'quantity', value: number) => {
+    setSelected(prev => prev.map(r => r.product_id === id ? { ...r, [field]: value } : r))
   }
 
-  const updateProduct = (id: string, field: keyof ProductRow, value: string) => {
-    setProducts(products.map(p => p.id === id ? { ...p, [field]: value } : p))
-  }
+  const removeRow = (id: string) => setSelected(prev => prev.filter(r => r.product_id !== id))
 
-  const totalItems = products.reduce((a, p) => a + (parseInt(p.quantity) || 0), 0)
-  const totalGoodsCost = products.reduce((a, p) => a + (parseFloat(p.unitCost) || 0) * (parseInt(p.quantity) || 0), 0)
-  const totalLanded = totalGoodsCost + (parseFloat(shippingCost) || 0) + (parseFloat(customsFee) || 0)
+  const totalUnits = selected.reduce((a, r) => a + (r.quantity || 0), 0)
+  const totalCost = selected.reduce((a, r) => a + (r.price || 0) * (r.quantity || 0), 0)
+
+  const canSave = from && expDate && transport && supplier && selected.length > 0
 
   const handleSave = async () => {
+    if (!canSave || saving) return
     setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    const ref = generateExpeditionId()
     let sellerId = ''
     let sellerName = ''
     try {
@@ -92,418 +113,269 @@ export default function SellerNewExpeditionPage() {
         sellerName = parsed.name || parsed.email || ''
       }
     } catch {}
+
+    const ref = generateRef()
     const exp: Expedition = {
       id: `exp-${Date.now()}`,
       reference: ref,
-      origin,
-      originCity,
-      destination: 'Nairobi',
+      origin: (from as any),
+      originCity: from,
+      destination: 'Kenya',
       status: 'pending',
-      products: products.filter(p => p.name).map(p => ({
-        name: p.name,
-        sku: p.sku,
-        quantity: parseInt(p.quantity) || 0,
-        unitCost: parseFloat(p.unitCost) || 0,
+      products: selected.map(r => ({
+        name: r.name,
+        sku: r.sku,
+        quantity: r.quantity,
+        unitCost: r.price,
         sellerId,
-        sellerName: p.sellerName || sellerName,
+        sellerName,
       })),
-      totalItems,
-      totalCost: totalGoodsCost,
-      shippingCost: parseFloat(shippingCost) || 0,
-      customsFee: parseFloat(customsFee) || 0,
-      estimatedArrival,
-      trackingNumber,
-      carrier,
-      notes,
+      totalItems: totalUnits,
+      totalCost,
+      shippingCost: 0,
+      customsFee: 0,
+      estimatedArrival: expDate,
+      carrier: transport,
+      trackingNumber: '',
+      notes: `Supplier: ${supplier}${forwarder ? ` · Forwarder: ${forwarder}` : ''}${notes ? ` · ${notes}` : ''} · Packages: ${packages}`,
       createdBy: sellerId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
     addStoredExpedition(exp)
     setSaving(false)
-    setGeneratedId(ref)
-  }
-
-  const copyId = () => {
-    if (!generatedId) return
-    navigator.clipboard.writeText(generatedId)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  // Success screen
-  if (generatedId) {
-    return (
-      <div className="min-h-screen">
-        <Header title="New Expedition" subtitle="Create a new sourcing expedition" role="seller" />
-        <div className="p-6 max-w-lg">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center space-y-6">
-            <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto">
-              <Clock size={32} className="text-amber-500" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-[#1a1c3a]">Expedition Submitted!</h2>
-              <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-                Your expedition is <strong className="text-amber-600">pending confirmation</strong>. It will be activated once our team confirms receipt of the goods at the warehouse.
-              </p>
-            </div>
-
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-              <p className="text-xs font-semibold text-gray-400 mb-2">EXPEDITION ID</p>
-              <div className="flex items-center justify-center gap-3">
-                <span className="text-2xl font-bold text-[#1a1c3a] font-mono tracking-wider">{generatedId}</span>
-                <button
-                  onClick={copyId}
-                  className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#f4991a] hover:border-[#f4991a] transition-all"
-                >
-                  {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-2">Keep this ID to track your expedition status</p>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 text-left space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Clock size={13} className="text-amber-500 flex-shrink-0" />
-                <p className="text-xs font-semibold text-amber-700">Status: Pending Warehouse Confirmation</p>
-              </div>
-              <p className="text-xs text-amber-600/80 leading-relaxed">
-                Once our warehouse team scans and confirms your shipment, the status will automatically update to <strong>Active</strong> and your products will become available.
-              </p>
-            </div>
-
-            <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-left">
-              <p className="text-xs font-semibold text-[#f4991a] mb-0.5">
-                {selectedOrigin.flag} {origin} → Nairobi · {carrier}
-              </p>
-              <p className="text-xs text-gray-500">
-                {products.filter(p => p.name).length} product(s) · {totalItems} units
-                {totalLanded > 0 ? ` · KES ${totalLanded.toLocaleString()} total` : ''}
-              </p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/seller/expeditions')}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1a1c3a] text-white text-sm font-semibold hover:bg-[#252750] transition-all"
-              >
-                View Expeditions <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    router.push('/seller/expeditions')
   }
 
   return (
-    <div className="min-h-screen">
-      <Header title="New Expedition" subtitle="Create a new sourcing expedition" role="seller" />
+    <div className="min-h-screen bg-[#f5f7fa]">
+      <Header title="New Expedition" subtitle="" role="seller" />
 
-      <div className="p-6 max-w-4xl">
-        {/* Back */}
-        <Link
-          href="/seller/expeditions"
-          className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#1a1c3a] mb-6 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Back to Expeditions
-        </Link>
+      <div className="px-6 pt-6 pb-10 max-w-6xl space-y-6">
+        <div className="flex items-center gap-3">
+          <Link href="/seller/expeditions" className="w-11 h-11 rounded-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center text-white shadow-sm transition-all">
+            <ArrowLeft size={18} />
+          </Link>
+          <h1 className="text-2xl font-bold text-emerald-600">New Expedition</h1>
+        </div>
 
-        <div className="space-y-6">
-          {/* Origin & Shipping */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <Globe size={18} className="text-[#f4991a]" />
-              <h2 className="text-base font-bold text-[#1a1c3a]">Origin & Shipping Info</h2>
+        {/* Package Information */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
+              <User size={18} className="text-gray-500" />
             </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              {/* Origin country */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Origin Country *</label>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                  {origins.map(o => (
-                    <button
-                      key={o.value}
-                      type="button"
-                      onClick={() => { setOrigin(o.value); setOriginCity(o.cities[0]) }}
-                      className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all text-xs font-semibold ${
-                        origin === o.value
-                          ? 'border-[#f4991a] bg-orange-50 text-[#f4991a]'
-                          : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
-                      }`}
-                    >
-                      <span className="text-xl">{o.flag}</span>
-                      <span>{o.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Origin city + carrier */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Origin City *</label>
-                <div className="relative">
-                  <select
-                    value={originCity}
-                    onChange={e => setOriginCity(e.target.value)}
-                    className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] bg-white pr-10"
-                  >
-                    {selectedOrigin.cities.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
-
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 mt-3">Carrier *</label>
-                <div className="relative">
-                  <select
-                    value={carrier}
-                    onChange={e => setCarrier(e.target.value)}
-                    className="w-full appearance-none px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] bg-white pr-10"
-                  >
-                    {carriers.map(c => <option key={c}>{c}</option>)}
-                  </select>
-                  <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Tracking */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Tracking Number</label>
-                <input
-                  type="text"
-                  value={trackingNumber}
-                  onChange={e => setTrackingNumber(e.target.value)}
-                  placeholder="e.g. CN-AIR-88123456"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] font-mono"
-                />
-              </div>
-
-              {/* ETA */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Estimated Arrival *</label>
-                <input
-                  type="date"
-                  value={estimatedArrival}
-                  onChange={e => setEstimatedArrival(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
-                />
-              </div>
-            </div>
+            <h2 className="text-lg font-bold text-[#1a1c3a]">Package Information</h2>
           </div>
 
-          {/* Products */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <Package size={18} className="text-[#f4991a]" />
-                <h2 className="text-base font-bold text-[#1a1c3a]">Products</h2>
-                <span className="text-xs bg-orange-50 text-[#f4991a] font-semibold px-2 py-0.5 rounded-full">
-                  {products.length} item{products.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={addProduct}
-                className="flex items-center gap-1.5 text-xs font-semibold text-[#f4991a] hover:text-orange-600 transition-colors"
-              >
-                <Plus size={14} /> Add Product
-              </button>
-            </div>
-
-            {/* Header row */}
-            <div className="hidden md:grid grid-cols-12 gap-3 px-1 mb-2">
-              {['Product Name', 'SKU', 'Qty', 'Unit Cost (KES)', 'Seller'].map((h, i) => (
-                <div key={h} className={`text-xs font-semibold text-gray-400 uppercase tracking-wide ${
-                  i === 0 ? 'col-span-4' : i === 4 ? 'col-span-3' : 'col-span-1'
-                }`}>
-                  {h}
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              {products.map((product) => (
-                <div key={product.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 group">
-                  <div className="md:col-span-4">
-                    <label className="md:hidden text-xs font-semibold text-gray-500 mb-1 block">Product Name</label>
-                    <input
-                      type="text"
-                      value={product.name}
-                      onChange={e => updateProduct(product.id, 'name', e.target.value)}
-                      placeholder="e.g. Wireless Earbuds Pro"
-                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
-                    />
-                  </div>
-                  <div className="md:col-span-1">
-                    <label className="md:hidden text-xs font-semibold text-gray-500 mb-1 block">SKU</label>
-                    <input
-                      type="text"
-                      value={product.sku}
-                      onChange={e => updateProduct(product.id, 'sku', e.target.value)}
-                      placeholder="SKU"
-                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] font-mono"
-                    />
-                  </div>
-                  <div className="md:col-span-1">
-                    <label className="md:hidden text-xs font-semibold text-gray-500 mb-1 block">Qty</label>
-                    <input
-                      type="number"
-                      value={product.quantity}
-                      onChange={e => updateProduct(product.id, 'quantity', e.target.value)}
-                      placeholder="0"
-                      min="1"
-                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="md:hidden text-xs font-semibold text-gray-500 mb-1 block">Unit Cost (KES)</label>
-                    <input
-                      type="number"
-                      value={product.unitCost}
-                      onChange={e => updateProduct(product.id, 'unitCost', e.target.value)}
-                      placeholder="0"
-                      min="0"
-                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
-                    />
-                  </div>
-                  <div className="md:col-span-3">
-                    <label className="md:hidden text-xs font-semibold text-gray-500 mb-1 block">Seller</label>
-                    <input
-                      type="text"
-                      value={product.sellerName}
-                      onChange={e => updateProduct(product.id, 'sellerName', e.target.value)}
-                      placeholder="Seller name"
-                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
-                    />
-                  </div>
-                  <div className="md:col-span-1 flex items-center justify-end md:justify-center">
-                    {product.quantity && product.unitCost ? (
-                      <div className="text-xs font-semibold text-[#f4991a] text-right mr-2 hidden md:block">
-                        KES {((parseFloat(product.unitCost) || 0) * (parseInt(product.quantity) || 0)).toLocaleString()}
-                      </div>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => removeProduct(product.id)}
-                      disabled={products.length === 1}
-                      className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400 hover:text-red-600 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={addProduct}
-              className="mt-3 w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-400 hover:border-[#f4991a]/40 hover:text-[#f4991a] transition-all flex items-center justify-center gap-2"
-            >
-              <Plus size={16} /> Add Another Product
-            </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <FieldSelect label="From" required value={from} onChange={setFrom} options={COUNTRIES} placeholder="Select origin country" />
+            <FieldNumber label="Number Of Packages" required value={packages} onChange={setPackages} />
+            <FieldDate label="Expedition Date" required value={expDate} onChange={setExpDate} />
+            <FieldSelect label="Transport Mode" required value={transport} onChange={setTransport} options={TRANSPORT_MODES} placeholder="Select transport mode" />
+            <FieldText label="Nom De Fournisseur" required value={supplier} onChange={setSupplier} />
+            <FieldText label="Nom De Transitaire" value={forwarder} onChange={setForwarder} />
           </div>
 
-          {/* Costs */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <DollarSign size={18} className="text-[#f4991a]" />
-              <h2 className="text-base font-bold text-[#1a1c3a]">Shipping & Customs Fees</h2>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Shipping Cost (KES)</label>
-                <input
-                  type="number"
-                  value={shippingCost}
-                  onChange={e => setShippingCost(e.target.value)}
-                  placeholder="e.g. 28000"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Customs & Handling Fees (KES)</label>
-                <input
-                  type="number"
-                  value={customsFee}
-                  onChange={e => setCustomsFee(e.target.value)}
-                  placeholder="e.g. 15200"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
-                />
-              </div>
-            </div>
-
-            {totalGoodsCost > 0 && (
-              <div className="mt-4 bg-gradient-to-r from-[#1a1c3a] to-[#252750] rounded-xl p-4">
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  {[
-                    { label: 'Goods', value: `KES ${totalGoodsCost.toLocaleString()}` },
-                    { label: 'Shipping', value: `KES ${(parseFloat(shippingCost) || 0).toLocaleString()}` },
-                    { label: 'Customs', value: `KES ${(parseFloat(customsFee) || 0).toLocaleString()}` },
-                    { label: 'Total Landed', value: `KES ${totalLanded.toLocaleString()}` },
-                  ].map((s, i) => (
-                    <div key={s.label}>
-                      <div className={`font-bold text-sm ${i === 3 ? 'text-[#f4991a]' : 'text-white'}`}>{s.value}</div>
-                      <div className="text-white/40 text-xs mt-0.5">{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-white/10 text-white/50 text-xs">
-                  <Package size={12} />
-                  <span>{totalItems} total units across {products.filter(p => p.name).length} product(s)</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <FileText size={18} className="text-[#f4991a]" />
-              <h2 className="text-base font-bold text-[#1a1c3a]">Notes</h2>
-            </div>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Any additional notes about this expedition (e.g. customs requirements, fragile items, supplier contact)..."
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] resize-none"
-            />
-          </div>
-
-          {/* Pending notice */}
-          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
-            <Clock size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 leading-relaxed">
-              <strong>Pending confirmation:</strong> After submitting, your expedition will be in <strong>pending</strong> status until our warehouse team confirms receipt of the goods. You will be notified once it is activated.
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center justify-between">
-            <Link
-              href="/seller/expeditions"
-              className="flex items-center gap-2 px-6 py-3 border border-gray-200 text-gray-600 text-sm font-medium rounded-xl hover:bg-gray-50 transition-all"
-            >
-              <ArrowLeft size={16} /> Cancel
-            </Link>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-8 py-3 rounded-xl text-white text-sm font-semibold transition-all bg-[#f4991a] hover:bg-[#f8b44a] hover:scale-105 shadow-lg shadow-orange-200 disabled:opacity-70"
-            >
-              {saving ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <><PlaneTakeoff size={16} /> Submit Expedition</>
-              )}
-            </button>
+          <div className="mt-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2 text-xs text-emerald-700">
+            <Truck size={14} />
+            <span><strong>To:</strong> Kenya 🇰🇪 (only destination available)</span>
           </div>
         </div>
+
+        {/* Products */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
+                <Package size={18} className="text-gray-500" />
+              </div>
+              <h2 className="text-lg font-bold text-[#1a1c3a]">Products</h2>
+              <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full">{selected.length} selected</span>
+            </div>
+            <button
+              onClick={() => setPickerOpen(v => !v)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all"
+            >
+              <Plus size={14} /> Add Product
+            </button>
+          </div>
+
+          {pickerOpen && (
+            <div className="mb-4 border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-2 bg-gray-50 text-xs font-bold text-gray-500">Your products ({sellerProducts.length})</div>
+              <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                {sellerProducts.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-gray-400">
+                    No products yet. <Link href="/seller/products/new" className="text-emerald-600 font-bold">Create one first</Link>.
+                  </div>
+                ) : sellerProducts.map(p => {
+                  const already = !!selected.find(s => s.product_id === p.id)
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => addProduct(p)}
+                      disabled={already}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
+                        already ? 'bg-gray-50 opacity-50 cursor-not-allowed' : 'hover:bg-emerald-50/50'
+                      )}
+                    >
+                      {p.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.image_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-gray-200" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                          <Package size={14} className="text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-[#1a1c3a] truncate">{p.name}</p>
+                        <p className="text-xs text-gray-400 font-mono">{p.sku}</p>
+                      </div>
+                      {already && <span className="text-[10px] font-bold text-emerald-600">ADDED</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {selected.length === 0 ? (
+            <div className="border-2 border-dashed border-gray-200 rounded-2xl py-12 text-center">
+              <Package size={28} className="text-gray-300 mx-auto mb-2" />
+              <p className="text-sm text-gray-400">No products added yet</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-[11px] font-bold text-gray-400 uppercase border-b border-gray-100">
+                    <th className="py-2 px-3">ID</th>
+                    <th className="py-2 px-3">Product Name</th>
+                    <th className="py-2 px-3">Price (KES)</th>
+                    <th className="py-2 px-3">Quantity</th>
+                    <th className="py-2 px-3 text-right">Total</th>
+                    <th className="py-2 px-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {selected.map(r => (
+                    <tr key={r.product_id}>
+                      <td className="py-3 px-3 text-xs font-mono text-gray-500">{r.sku || '—'}</td>
+                      <td className="py-3 px-3 text-sm font-semibold text-[#1a1c3a]">{r.name}</td>
+                      <td className="py-3 px-3">
+                        <input
+                          type="number" min="0"
+                          value={r.price}
+                          onChange={e => updateRow(r.product_id, 'price', parseFloat(e.target.value) || 0)}
+                          className="w-28 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      </td>
+                      <td className="py-3 px-3">
+                        <input
+                          type="number" min="1"
+                          value={r.quantity}
+                          onChange={e => updateRow(r.product_id, 'quantity', parseInt(e.target.value) || 1)}
+                          className="w-24 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      </td>
+                      <td className="py-3 px-3 text-right text-sm font-bold text-emerald-600">
+                        {(r.price * r.quantity).toLocaleString()}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          onClick={() => removeRow(r.product_id)}
+                          className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-gray-200">
+                    <td colSpan={3} className="py-3 px-3 text-xs font-bold text-gray-500">
+                      {totalUnits} unit(s) across {selected.length} product(s)
+                    </td>
+                    <td colSpan={3} className="py-3 px-3 text-right text-sm font-bold text-[#1a1c3a]">
+                      Total: <span className="text-emerald-600">KES {totalCost.toLocaleString()}</span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Save */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-gray-400">
+            After saving, the expedition will be <strong className="text-orange-500">pending</strong> until admin confirms stock receipt.
+          </p>
+          <button
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            className="flex items-center gap-2 px-10 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-lg shadow-emerald-200/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {saving ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <><Save size={15} /> Save</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Field components ── */
+const baseInput =
+  'w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-[#1a1c3a] placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all'
+
+function Label({ label, required }: { label: string; required?: boolean }) {
+  return <label className="block text-sm font-semibold text-[#1a1c3a] mb-2">{label}{required && <span className="text-emerald-500 ml-0.5">*</span>}</label>
+}
+
+function FieldText({ label, required, value, onChange }: { label: string; required?: boolean; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label label={label} required={required} />
+      <input value={value} onChange={e => onChange(e.target.value)} className={baseInput} />
+    </div>
+  )
+}
+
+function FieldNumber({ label, required, value, onChange }: { label: string; required?: boolean; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label label={label} required={required} />
+      <input type="number" min="1" value={value} onChange={e => onChange(e.target.value)} className={baseInput} />
+    </div>
+  )
+}
+
+function FieldDate({ label, required, value, onChange }: { label: string; required?: boolean; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <Label label={label} required={required} />
+      <input type="datetime-local" value={value} onChange={e => onChange(e.target.value)} className={baseInput} />
+    </div>
+  )
+}
+
+function FieldSelect({ label, required, value, onChange, options, placeholder }: { label: string; required?: boolean; value: string; onChange: (v: string) => void; options: string[]; placeholder?: string }) {
+  return (
+    <div>
+      <Label label={label} required={required} />
+      <div className="relative">
+        <select value={value} onChange={e => onChange(e.target.value)} className={cn(baseInput, 'appearance-none pr-10')}>
+          <option value="">{placeholder || 'Select…'}</option>
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
       </div>
     </div>
   )
