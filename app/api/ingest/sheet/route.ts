@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const qty = parseInt(body.totalQuantity) || 1
   const total = parseFloat(body.totalCharge) || 0
-  const sku = body.sku ? String(body.sku) : ''
+  const sku = body.sku ? String(body.sku).trim() : ''
   const productUrl = body.productUrl ? String(body.productUrl) : ''
 
   // Reuse the Order ID from the sheet if present, otherwise generate one
@@ -49,13 +49,33 @@ export async function POST(req: NextRequest) {
     (body.orderId && String(body.orderId).trim()) ||
     `ORD-${Date.now().toString(36).toUpperCase()}`
 
+  // Try to match product by SKU for this seller
+  let productId: string | null = null
+  let productName: string = sku || 'Sheet item'
+  let unitPrice: number = qty > 0 ? total / qty : total
+
+  if (sku) {
+    const { data: product } = await supabaseAdmin
+      .from('products')
+      .select('id, name, selling_price')
+      .eq('seller_id', seller.id)
+      .eq('sku', sku)
+      .maybeSingle()
+
+    if (product) {
+      productId = product.id
+      productName = product.name
+      unitPrice = product.selling_price ?? unitPrice
+    }
+  }
+
   const items = [
     {
-      product_id: null,
-      name: sku || 'Sheet item',
+      product_id: productId,
+      name: productName,
       sku,
       quantity: qty,
-      unit_price: qty > 0 ? total / qty : total,
+      unit_price: unitPrice,
     },
   ]
 
