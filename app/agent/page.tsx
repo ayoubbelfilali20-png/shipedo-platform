@@ -74,7 +74,7 @@ export default function AgentDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [busyId, setBusyId]     = useState<string | null>(null)
 
-  const load = async (aid: string | null) => {
+  const load = async (_aid: string | null) => {
     setLoading(true)
     const nowIso = new Date().toISOString()
 
@@ -86,24 +86,13 @@ export default function AgentDashboard() {
       .order('created_at', { ascending: true })
     setPending((pen || []) as OrderRow[])
 
-    let mine: OrderRow[] = []
-    if (aid) {
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('last_call_agent_id', aid)
-        .order('last_call_at', { ascending: false })
-      mine = (data || []) as OrderRow[]
-      if (mine.length === 0) {
-        const r = await supabase
-          .from('orders')
-          .select('*')
-          .gt('call_attempts', 0)
-          .order('last_call_at', { ascending: false })
-        mine = (r.data || []) as OrderRow[]
-      }
-    }
-    setOrders(mine)
+    // Agent sees ALL non-pending orders so they can manage the full pipeline
+    const { data } = await supabase
+      .from('orders')
+      .select('*')
+      .neq('status', 'pending')
+      .order('created_at', { ascending: false })
+    setOrders((data || []) as OrderRow[])
     setLoading(false)
   }
 
@@ -126,7 +115,12 @@ export default function AgentDashboard() {
   const filteredByPeriod = useMemo(() => {
     const since = startOf(period)
     if (!since) return orders
-    return orders.filter(o => new Date(o.created_at) >= since)
+    return orders.filter(o => {
+      // Use the most recent activity (last call OR creation) so freshly
+      // confirmed orders show up under "Today" even if they were created earlier.
+      const ref = new Date(o.last_call_at || o.created_at)
+      return ref >= since
+    })
   }, [orders, period])
 
   const stats = useMemo(() => {
