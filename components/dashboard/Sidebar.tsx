@@ -137,7 +137,8 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
   const [displayName, setDisplayName] = useState(baseUser.name)
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : 'shipedo_admin'
+      const stored = localStorage.getItem(key)
       if (stored) {
         const u = JSON.parse(stored)
         if (u.name) setDisplayName(u.name)

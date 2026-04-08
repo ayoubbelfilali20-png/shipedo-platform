@@ -159,18 +159,8 @@ export default function AgentsPage() {
     setAgents(prev => prev.map(a => a.id === id ? { ...a, status: next } : a))
   }
 
-  const viewAsAgent = (agent: Agent) => {
-    try {
-      const current = localStorage.getItem('shipedo_user')
-      if (current) localStorage.setItem('shipedo_admin_backup', current)
-      localStorage.setItem('shipedo_user', JSON.stringify({
-        role: 'agent',
-        id: agent.id,
-        email: agent.email,
-        name: agent.name,
-      }))
-      router.push('/agent')
-    } catch {}
+  const viewAsAgent = (_agent: Agent) => {
+    alert('Admin cannot impersonate agents. Each role has its own login.')
   }
 
   const removeAgent = async (id: string) => {

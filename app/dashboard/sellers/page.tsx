@@ -161,19 +161,8 @@ export default function SellersPage() {
     setSellers(prev => prev.map(s => s.id === id ? { ...s, status: next } : s))
   }
 
-  const viewAsSeller = (seller: Seller) => {
-    try {
-      const current = localStorage.getItem('shipedo_user')
-      if (current) localStorage.setItem('shipedo_admin_backup', current)
-      localStorage.setItem('shipedo_user', JSON.stringify({
-        role: 'seller',
-        id: seller.id,
-        email: seller.email,
-        name: seller.storeName,
-        fullName: seller.name,
-      }))
-      router.push('/seller')
-    } catch {}
+  const viewAsSeller = (_seller: Seller) => {
+    alert('Admin cannot impersonate sellers. Each role has its own login.')
   }
 
   const removeSeller = async (id: string) => {

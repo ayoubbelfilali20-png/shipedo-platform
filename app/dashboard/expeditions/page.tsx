@@ -200,7 +200,7 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
   useEffect(() => {
     setStored(loadStoredExpeditions())
     try {
-      const u = localStorage.getItem('shipedo_user')
+      const u = localStorage.getItem('shipedo_admin')
       if (u) {
         const parsed = JSON.parse(u)
         if (parsed.role === 'seller') setSellerId(parsed.id)

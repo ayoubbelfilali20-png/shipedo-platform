@@ -234,7 +234,8 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
   const [displayName, setDisplayName] = useState(baseUser.name)
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : 'shipedo_admin'
+      const stored = localStorage.getItem(key)
       if (stored) {
         const u = JSON.parse(stored)
         if (u.name) setDisplayName(u.name)
@@ -449,9 +450,12 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
                       >
                         <User size={14} /> {t('hdr_profile')}
                       </Link>
-                      <Link href="/login" className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                      <button
+                        onClick={() => { try { localStorage.removeItem('shipedo_seller'); localStorage.removeItem('shipedo_user') } catch {}; window.location.href = '/login' }}
+                        className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      >
                         <LogOut size={14} /> {t('hdr_signout')}
-                      </Link>
+                      </button>
                     </div>
                   </div>
                 </>
@@ -531,9 +535,19 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
                     >
                       <User size={14} /> Profile
                     </Link>
-                    <Link href="/login" className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                    <button
+                      onClick={() => {
+                        try {
+                          const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : 'shipedo_admin'
+                          localStorage.removeItem(key)
+                          localStorage.removeItem('shipedo_user')
+                        } catch {}
+                        window.location.href = '/login'
+                      }}
+                      className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    >
                       <LogOut size={14} /> Sign Out
-                    </Link>
+                    </button>
                   </div>
                 </div>
               </>

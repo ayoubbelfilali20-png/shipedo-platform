@@ -42,7 +42,7 @@ export default function SellerProductsPage() {
   useEffect(() => {
     let sellerId: string | null = null
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
         if (u.role === 'seller') sellerId = u.id

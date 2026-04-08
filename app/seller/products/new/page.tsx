@@ -76,7 +76,7 @@ export default function SellerNewProductPage() {
     setSaving(true)
     let sellerId: string | null = null
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
         if (u.role === 'seller') sellerId = u.id
@@ -100,7 +100,8 @@ export default function SellerNewProductPage() {
       alert('Supabase error: ' + error.message + '\nCode: ' + (error.code || 'n/a'))
       return
     }
-    router.push('/seller/products')
+    router.refresh()
+    router.push('/seller/products?t=' + Date.now())
   }
 
   return (

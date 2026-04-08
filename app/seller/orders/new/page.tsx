@@ -255,7 +255,7 @@ export default function SellerNewOrderPage() {
   useEffect(() => {
     let sellerId: string | null = null
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
         if (u.role === 'seller') sellerId = u.id
@@ -319,7 +319,7 @@ export default function SellerNewOrderPage() {
     let sellerId: string | null = null
     let sellerName: string | null = null
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
         if (u.role === 'seller') { sellerId = u.id; sellerName = u.name }

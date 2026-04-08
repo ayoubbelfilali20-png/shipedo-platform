@@ -19,12 +19,10 @@ const methodIcons: Record<string, { emoji: string; color: string; bg: string }> 
   bank:   { emoji: '🏦', color: 'text-purple-700', bg: 'bg-purple-50 border-purple-100' },
 }
 
-function Field({ label, value, type = 'text', icon: Icon }: {
-  label: string; value: string; type?: string; icon?: React.ElementType
+function Field({ label, value, onChange, type = 'text', icon: Icon }: {
+  label: string; value: string; onChange?: (v: string) => void; type?: string; icon?: React.ElementType
 }) {
-  const [val, setVal] = useState(value)
   const [show, setShow] = useState(false)
-  useEffect(() => { setVal(value) }, [value])
   const isPass = type === 'password'
   return (
     <div>
@@ -33,8 +31,8 @@ function Field({ label, value, type = 'text', icon: Icon }: {
         {Icon && <Icon size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />}
         <input
           type={isPass ? (show ? 'text' : 'password') : type}
-          value={val}
-          onChange={e => setVal(e.target.value)}
+          value={value}
+          onChange={e => onChange?.(e.target.value)}
           className={`w-full ${Icon ? 'pl-10' : 'pl-4'} ${isPass ? 'pr-10' : 'pr-4'} py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all bg-white`}
         />
         {isPass && (
@@ -51,13 +49,19 @@ export default function AgentProfilePage() {
   const [saved, setSaved] = useState(false)
   const [methods, setMethods] = useState<typeof paymentMethods>([])
   const [profile, setProfile] = useState({ name: '', email: '', phone: '', city: '' })
+  const [agentId, setAgentId] = useState<string | null>(null)
+  const [currentPwd, setCurrentPwd] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [saving, setSaving] = useState(false)
+  const setField = (k: keyof typeof profile) => (v: string) => setProfile(p => ({ ...p, [k]: v }))
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const stored = localStorage.getItem('shipedo_agent')
       if (!stored) return
       const u = JSON.parse(stored)
       if (u.role !== 'agent' || !u.id) return
+      setAgentId(u.id)
       supabase.from('agents').select('*').eq('id', u.id).single().then(({ data }) => {
         if (data) setProfile({
           name: data.name || '', email: data.email || '',
@@ -102,10 +106,10 @@ export default function AgentProfilePage() {
             <h3 className="font-bold text-[#1a1c3a]">Personal Information</h3>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Full Name"  value={profile.name}  icon={User}  />
-            <Field label="Email"      value={profile.email} type="email" icon={Mail}  />
-            <Field label="Phone"      value={profile.phone} type="tel"   icon={Phone} />
-            <Field label="City"       value={profile.city}               icon={MapPin} />
+            <Field label="Full Name"  value={profile.name}  onChange={setField('name')}  icon={User}  />
+            <Field label="Email"      value={profile.email} onChange={setField('email')} type="email" icon={Mail}  />
+            <Field label="Phone"      value={profile.phone} onChange={setField('phone')} type="tel"   icon={Phone} />
+            <Field label="City"       value={profile.city}  onChange={setField('city')}  icon={MapPin} />
           </div>
         </div>
 
@@ -116,8 +120,8 @@ export default function AgentProfilePage() {
             <h3 className="font-bold text-[#1a1c3a]">Security</h3>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="Current Password" value="" type="password" />
-            <Field label="New Password"     value="" type="password" />
+            <Field label="Current Password" value={currentPwd} onChange={setCurrentPwd} type="password" />
+            <Field label="New Password"     value={newPwd}     onChange={setNewPwd}     type="password" />
           </div>
         </div>
 
@@ -165,10 +169,36 @@ export default function AgentProfilePage() {
 
         <div className="flex justify-end pb-4">
           <button
-            onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2500) }}
-            className={`flex items-center gap-2 px-8 py-3 rounded-xl text-white text-sm font-bold transition-all ${saved ? 'bg-emerald-500' : 'bg-[#1a1c3a] hover:bg-[#252750]'}`}
+            disabled={saving || !agentId}
+            onClick={async () => {
+              if (!agentId) return
+              setSaving(true)
+              const update: any = {
+                name: profile.name, email: profile.email,
+                phone: profile.phone, city: profile.city,
+              }
+              if (newPwd && currentPwd) {
+                const { data: row } = await supabase.from('agents').select('password').eq('id', agentId).single()
+                if (row && row.password !== currentPwd) {
+                  alert('Current password is incorrect')
+                  setSaving(false)
+                  return
+                }
+                update.password = newPwd
+              }
+              const { error } = await supabase.from('agents').update(update).eq('id', agentId)
+              setSaving(false)
+              if (error) { alert('Save failed: ' + error.message); return }
+              try {
+                const u = JSON.parse(localStorage.getItem('shipedo_agent') || '{}')
+                localStorage.setItem('shipedo_agent', JSON.stringify({ ...u, name: profile.name, email: profile.email }))
+              } catch {}
+              setCurrentPwd(''); setNewPwd('')
+              setSaved(true); setTimeout(() => setSaved(false), 2500)
+            }}
+            className={`flex items-center gap-2 px-8 py-3 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-60 ${saved ? 'bg-emerald-500' : 'bg-[#1a1c3a] hover:bg-[#252750]'}`}
           >
-            {saved ? <><CheckCircle size={16} /> Saved!</> : <><Save size={16} /> Save Changes</>}
+            {saving ? 'Saving…' : saved ? <><CheckCircle size={16} /> Saved!</> : <><Save size={16} /> Save Changes</>}
           </button>
         </div>
       </div>

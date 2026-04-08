@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Truck, Eye, EyeOff, ArrowRight, Mail, Lock, Shield } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { setUser } from '@/lib/auth'
 
 const ADMIN_EMAIL = 'ayoub.belfilali20@gmail.com'
 const ADMIN_PASSWORD = 'ayoubilyas@20'
@@ -23,9 +24,7 @@ export default function LoginPage() {
     setLoading(true)
 
     if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      localStorage.setItem('shipedo_user', JSON.stringify({
-        role: 'admin', email: ADMIN_EMAIL, name: 'Admin',
-      }))
+      setUser({ role: 'admin', email: ADMIN_EMAIL, name: 'Admin' })
       router.push('/dashboard')
       setLoading(false)
       return
@@ -43,10 +42,10 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-      localStorage.setItem('shipedo_user', JSON.stringify({
+      setUser({
         role: 'seller', id: seller.id, email: seller.email,
         name: seller.company || seller.name, fullName: seller.name,
-      }))
+      })
       router.push('/seller')
       setLoading(false)
       return
@@ -64,9 +63,7 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
-      localStorage.setItem('shipedo_user', JSON.stringify({
-        role: 'agent', id: agent.id, email: agent.email, name: agent.name,
-      }))
+      setUser({ role: 'agent', id: agent.id, email: agent.email, name: agent.name })
       router.push('/agent')
       setLoading(false)
       return

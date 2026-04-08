@@ -106,7 +106,7 @@ export default function SellerDashboard() {
   useEffect(() => {
     let sellerId: string | null = null
     try {
-      const stored = localStorage.getItem('shipedo_user')
+      const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
         if (u.role === 'seller') { sellerId = u.id; setUserName(u.fullName || u.name || 'Seller') }
@@ -196,7 +196,7 @@ export default function SellerDashboard() {
   const mConfirmRate = mTotal > 0 ? Math.round((mConfirmed / mTotal) * 100) : 0
 
   const handleLogout = () => {
-    localStorage.removeItem('shipedo_user')
+    localStorage.removeItem('shipedo_seller')
     router.push('/login')
   }
 

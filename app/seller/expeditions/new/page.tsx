@@ -62,7 +62,7 @@ export default function SellerNewExpeditionPage() {
   useEffect(() => {
     let sellerId: string | null = null
     try {
-      const u = localStorage.getItem('shipedo_user')
+      const u = localStorage.getItem('shipedo_seller')
       if (u) {
         const parsed = JSON.parse(u)
         if (parsed.role === 'seller') sellerId = parsed.id
@@ -106,7 +106,7 @@ export default function SellerNewExpeditionPage() {
     let sellerId = ''
     let sellerName = ''
     try {
-      const u = localStorage.getItem('shipedo_user')
+      const u = localStorage.getItem('shipedo_seller')
       if (u) {
         const parsed = JSON.parse(u)
         sellerId = parsed.id || ''
