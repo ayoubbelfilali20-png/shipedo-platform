@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import Header from '@/components/dashboard/Header'
 import {
   Copy, CheckCircle, ExternalLink,
   Code2, FileSpreadsheet, Zap,
-  ChevronRight, Eye, EyeOff
+  ChevronRight, Eye, EyeOff, RefreshCw, Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -69,13 +69,18 @@ function GoogleSheetsLogo() {
 /* ─── Integration card ──────────────────────────────── */
 
 function IntegrationCard({ integration, onConnect }: { integration: Integration; onConnect: (id: string) => void }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(
+    integration.id === 'google_sheets' && integration.status === 'connected'
+  )
 
   return (
-    <div className={cn(
-      'bg-white rounded-2xl border shadow-sm transition-all hover:shadow-md',
-      integration.status === 'connected' ? 'border-emerald-200' : 'border-gray-100',
-    )}>
+    <div
+      id={`integration-${integration.id}`}
+      className={cn(
+        'bg-white rounded-2xl border shadow-sm transition-all hover:shadow-md',
+        integration.status === 'connected' ? 'border-emerald-200' : 'border-gray-100',
+      )}
+    >
       <div className="p-5">
         <div className="flex items-start gap-4">
           <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border', integration.bg)}>
@@ -241,27 +246,198 @@ function WordpressGuide() {
 }
 
 function SheetsGuide() {
+  const [token, setToken] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState<'token' | 'script' | null>(null)
+  const [scriptVisible, setScriptVisible] = useState(false)
+
+  const getSellerId = () => {
+    try {
+      const s = localStorage.getItem('shipedo_seller')
+      return s ? JSON.parse(s).id : null
+    } catch { return null }
+  }
+
+  const fetchToken = useCallback(async () => {
+    const sellerId = getSellerId()
+    if (!sellerId) return
+    setLoading(true)
+    const res = await fetch('/api/seller/sheet-token', {
+      headers: { 'x-seller-id': sellerId },
+    })
+    const data = await res.json()
+    setToken(data.token)
+    setLoading(false)
+  }, [])
+
+  const generateToken = useCallback(async () => {
+    const sellerId = getSellerId()
+    if (!sellerId) return
+    setLoading(true)
+    const res = await fetch('/api/seller/sheet-token', {
+      method: 'POST',
+      headers: { 'x-seller-id': sellerId },
+    })
+    const data = await res.json()
+    setToken(data.token)
+    setLoading(false)
+  }, [])
+
+  const endpoint =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/api/ingest/sheet`
+      : 'https://YOUR-DOMAIN/api/ingest/sheet'
+
+  const appsScript = `// ── Shipedo Google Sheet Sync ──────────────────
+const ENDPOINT = '${endpoint}';
+const TOKEN    = '${token ?? 'YOUR_TOKEN_HERE'}';
+
+function setup() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'onChangeHandler')
+      ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('onChangeHandler')
+    .forSpreadsheet(SpreadsheetApp.getActive())
+    .onChange().create();
+  SpreadsheetApp.getActive().toast('Shipedo sync installed ✔');
+}
+
+function onChangeHandler(e) {
+  if (!e || !['INSERT_ROW','EDIT','OTHER'].includes(e.changeType)) return;
+  syncNewRows_();
+}
+
+function syncNewRows_() {
+  const sheet  = SpreadsheetApp.getActive().getActiveSheet();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return;
+  const headers = values[0].map(h => String(h).trim().toLowerCase());
+  const col = k => headers.findIndex(h => h === k);
+  let statusCol = headers.findIndex(h => h === 'synced');
+  if (statusCol === -1) {
+    statusCol = headers.length;
+    sheet.getRange(1, statusCol + 1).setValue('Synced');
+  }
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    if (row[statusCol]) continue;
+    if (!row[col('full name')] || !row[col('phone')]) continue;
+    const payload = {
+      orderId:       row[col('order id')],
+      sku:           row[col('sku')],
+      fullName:      row[col('full name')],
+      phone:         row[col('phone')],
+      city:          row[col('city')],
+      totalCharge:   row[col('total charge')],
+      totalQuantity: row[col('total quantity')],
+      productUrl:    row[col('product url')],
+    };
+    try {
+      const res = UrlFetchApp.fetch(ENDPOINT, {
+        method: 'post', contentType: 'application/json',
+        headers: { 'x-sheet-token': TOKEN },
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true,
+      });
+      sheet.getRange(r + 1, statusCol + 1).setValue(
+        res.getResponseCode() < 300
+          ? 'OK ' + new Date().toISOString()
+          : 'ERR ' + res.getResponseCode()
+      );
+    } catch(err) {
+      sheet.getRange(r + 1, statusCol + 1).setValue('ERR ' + err);
+    }
+  }
+}`
+
+  const copy = (what: 'token' | 'script') => {
+    navigator.clipboard.writeText(what === 'token' ? (token ?? '') : appsScript)
+    setCopied(what)
+    setTimeout(() => setCopied(null), 1800)
+  }
+
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-gray-500">Sync orders automatically to Google Sheets for reporting.</p>
-      <div className="space-y-2">
-        {[
-          'Open our Google Sheets template (link below)',
-          'Make a copy to your Google Drive',
-          'Go to Extensions → Apps Script',
-          'Set your Shipedo API key in the config tab',
-          'Run "Sync Orders" to import data',
-          'Set a trigger for automatic hourly sync',
-        ].map((step, i) => (
-          <div key={i} className="flex items-start gap-2.5">
-            <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
-            <span className="text-xs text-gray-600">{step}</span>
+    <div className="space-y-4">
+      <p className="text-xs text-gray-500">
+        Push orders from your Google Sheet to the platform automatically — kol row jdid ytdkhel men ghir touch.
+      </p>
+
+      {/* Step 1 — Get token */}
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+        <p className="text-xs font-bold text-green-800">Step 1 — Generate your secret token</p>
+        {!token ? (
+          <button
+            onClick={() => { fetchToken().then(t => { if (!t) generateToken() }) || generateToken() }}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl transition-all"
+          >
+            {loading ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}
+            Generate Token
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <div className="bg-[#1a1c3a] rounded-xl p-3">
+              <div className="text-white/40 text-[10px] mb-1 uppercase tracking-wider">Your Sheet Token</div>
+              <div className="flex items-center gap-2">
+                <code className="text-[#f4991a] text-xs flex-1 truncate font-mono">{token}</code>
+                <button onClick={() => copy('token')} className="text-white/40 hover:text-white transition-colors flex-shrink-0">
+                  {copied === 'token' ? <CheckCircle size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                </button>
+                <button onClick={generateToken} disabled={loading} title="Regenerate" className="text-white/40 hover:text-white transition-colors flex-shrink-0">
+                  {loading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                </button>
+              </div>
+            </div>
+            <p className="text-[10px] text-green-700">Keep this token private — it links your sheet to your account.</p>
           </div>
-        ))}
+        )}
       </div>
-      <button className="flex items-center gap-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-xl hover:bg-green-100 transition-all">
-        <FileSpreadsheet size={14} /> Open Template Sheet <ExternalLink size={12} />
-      </button>
+
+      {/* Step 2 — Apps Script */}
+      {token && (
+        <div className="space-y-3">
+          <p className="text-xs font-bold text-gray-700">Step 2 — Install Apps Script in your Google Sheet</p>
+          <div className="space-y-1.5">
+            {[
+              'Open your Google Sheet → Extensions → Apps Script',
+              'Delete everything and paste the script below',
+              'Click Save, then Run → setup() (accept permissions once)',
+              'Done — every new row syncs automatically',
+            ].map((step, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
+                <span className="text-xs text-gray-600">{step}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-[#1a1c3a] rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <Code2 size={13} className="text-[#f4991a]" />
+                <span className="text-white/60 text-[10px] font-mono">Apps Script — paste this in your Sheet</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setScriptVisible(v => !v)}
+                  className="text-white/40 hover:text-white text-[10px] transition-colors"
+                >
+                  {scriptVisible ? 'Hide' : 'Show'}
+                </button>
+                <button onClick={() => copy('script')} className="flex items-center gap-1.5 px-3 py-1 bg-[#f4991a] hover:bg-orange-500 text-white text-[10px] font-semibold rounded-lg transition-all">
+                  {copied === 'script' ? <><CheckCircle size={11} /> Copied!</> : <><Copy size={11} /> Copy Script</>}
+                </button>
+              </div>
+            </div>
+            {scriptVisible && (
+              <pre className="text-[10px] text-green-300 font-mono p-4 overflow-x-auto max-h-64 leading-relaxed">
+                {appsScript}
+              </pre>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -429,6 +605,12 @@ export default function SellerIntegrationsPage() {
 
   const connect = (id: string) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'connected' as const } : i))
+    // auto-expand so seller sees setup guide immediately
+    if (id === 'google_sheets') {
+      setTimeout(() => {
+        document.getElementById('integration-google_sheets')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
   }
 
   const filtered = activeCategory === 'all' ? items : items.filter(i => i.category === activeCategory)
