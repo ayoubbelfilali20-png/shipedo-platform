@@ -219,9 +219,8 @@ export function renderInvoiceEmail(row: BillingRow, period: Period): {
       <td style="background:linear-gradient(135deg,#1a1c3a 0%,#252750 100%);padding:28px 32px;">
         <table role="presentation" width="100%"><tr>
           <td>
-            <div style="display:inline-block;background:#f4991a;width:44px;height:44px;border-radius:12px;text-align:center;line-height:44px;color:#fff;font-size:22px;font-weight:800;">S</div>
+            <img src="https://shipedo.com/logo.png" alt="Shipedo" height="40" style="display:inline-block;vertical-align:middle;height:40px;width:auto;" />
             <div style="display:inline-block;margin-left:10px;vertical-align:middle;">
-              <div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:-.3px;">Shipedo</div>
               <div style="color:rgba(255,255,255,.5);font-size:11px;">Logistics &amp; COD Platform</div>
             </div>
           </td>

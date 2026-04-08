@@ -172,21 +172,30 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
     setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }))
 
   return (
-    <aside className={cn(
-      'fixed left-0 top-0 h-full bg-[#1a1c3a] flex flex-col transition-all duration-300 z-40 select-none',
-      collapsed ? 'w-[68px]' : 'w-60'
-    )}>
+    <aside
+      onMouseEnter={() => setCollapsed(false)}
+      onMouseLeave={() => setCollapsed(true)}
+      className={cn(
+        'fixed left-0 top-0 h-full bg-[#1a1c3a] flex flex-col transition-all duration-300 z-40 select-none',
+        collapsed ? 'w-[68px]' : 'w-60'
+      )}
+    >
       {/* Logo */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-white/10 min-h-[60px]">
-        <Link href={role === 'seller' ? '/seller' : role === 'agent' ? '/agent' : '/dashboard'} className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 bg-[#f4991a] rounded-lg flex items-center justify-center flex-shrink-0">
-            <TruckIcon size={16} className="text-white" />
-          </div>
-          {!collapsed && <span className="text-white font-bold text-lg tracking-tight whitespace-nowrap overflow-hidden">Shipedo</span>}
-        </Link>
-        <button onClick={() => setCollapsed(!collapsed)} className="text-white/30 hover:text-white transition-colors flex-shrink-0 ml-1">
-          {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-        </button>
+      <div className="flex items-center justify-center px-4 border-b border-white/10 h-[65px]">
+        <div className="relative group">
+          <Link href={role === 'seller' ? '/seller' : role === 'agent' ? '/agent' : '/dashboard'} className="flex items-center justify-center">
+            {collapsed ? (
+              <img src="/logo2.png" alt="Shipedo" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+            ) : (
+              <img src="/logo.png" alt="Shipedo" className="h-28 w-auto object-contain max-w-[210px]" />
+            )}
+          </Link>
+          {collapsed && (
+            <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 bg-[#f4991a] text-white text-xs font-bold px-2.5 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+              Dashboard
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Nav */}
@@ -211,7 +220,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                       className={cn(
                         'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group relative',
                         collapsed && 'justify-center px-2',
-                        isActive ? 'bg-[#f4991a]/15 text-[#f4991a]' : 'text-white/55 hover:text-white hover:bg-white/5'
+                        isActive ? 'bg-[#f4991a]/15 text-[#f4991a]' : 'text-white/55 hover:text-[#f4991a] hover:bg-[#f4991a]/10'
                       )}
                     >
                       <item.icon size={18} className="flex-shrink-0" />
@@ -241,7 +250,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                       title={itemLabel}
                       className={cn(
                         'flex items-center justify-center px-2 py-2.5 rounded-xl transition-all group relative',
-                        isGroupActive ? 'bg-[#f4991a]/15 text-[#f4991a]' : 'text-white/55 hover:text-white hover:bg-white/5'
+                        isGroupActive ? 'bg-[#f4991a]/15 text-[#f4991a]' : 'text-white/55 hover:text-[#f4991a] hover:bg-[#f4991a]/10'
                       )}
                     >
                       <item.icon size={18} />
@@ -258,7 +267,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                       onClick={() => toggleGroup(item.labelKey)}
                       className={cn(
                         'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all',
-                        isGroupActive ? 'text-[#f4991a]' : 'text-white/55 hover:text-white hover:bg-white/5'
+                        isGroupActive ? 'text-[#f4991a]' : 'text-white/55 hover:text-[#f4991a] hover:bg-[#f4991a]/10'
                       )}
                     >
                       <item.icon size={18} className="flex-shrink-0" />
@@ -275,7 +284,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
                               href={s.href}
                               className={cn(
                                 'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all',
-                                isSubActive ? 'bg-[#f4991a]/15 text-[#f4991a]' : 'text-white/40 hover:text-white hover:bg-white/5'
+                                isSubActive ? 'bg-[#f4991a]/15 text-[#f4991a]' : 'text-white/40 hover:text-[#f4991a] hover:bg-[#f4991a]/10'
                               )}
                             >
                               <s.icon size={13} className="flex-shrink-0" />
