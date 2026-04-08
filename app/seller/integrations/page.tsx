@@ -368,7 +368,7 @@ function syncNewRows_() {
         <p className="text-xs font-bold text-green-800">Step 1 — Generate your secret token</p>
         {!token ? (
           <button
-            onClick={() => { fetchToken().then(t => { if (!t) generateToken() }) || generateToken() }}
+            onClick={generateToken}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 disabled:opacity-60 text-white text-xs font-semibold rounded-xl transition-all"
           >
