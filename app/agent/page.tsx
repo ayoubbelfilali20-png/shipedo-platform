@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import {
   Phone, CheckCircle, XCircle, Package, Truck, TrendingUp,
   Clock, DollarSign, ArrowRight, Search, Calendar, RotateCcw,
-  AlertCircle, User, MapPin, Send, Check, X
+  AlertCircle, User, MapPin, Send, Check, X, MessageCircle
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -33,7 +33,17 @@ type OrderRow = {
   created_at: string
 }
 
-type Period = 'today' | 'week' | 'month' | 'all'
+type Period = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'all' | 'custom'
+
+type CallLog = {
+  id: string
+  order_id: string
+  agent_name: string | null
+  action: string
+  note: string | null
+  reminded_at: string | null
+  created_at: string
+}
 
 const statusFlow: Record<string, { next?: string; label: string; color: string }> = {
   pending:   { next: 'confirmed', label: 'Confirm',  color: 'bg-emerald-500 hover:bg-emerald-600' },
@@ -53,13 +63,53 @@ const statusColors: Record<string, string> = {
   returned:  'bg-red-50 text-red-700 border-red-200',
 }
 
-function startOf(period: Period): Date | null {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  if (period === 'today') return d
-  if (period === 'week')  { d.setDate(d.getDate() - 7);  return d }
-  if (period === 'month') { d.setDate(d.getDate() - 30); return d }
-  return null
+function getRange(period: Period, customFrom: string, customTo: string): { from: Date | null; to: Date | null } {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (period === 'today') {
+    const end = new Date(today); end.setDate(end.getDate() + 1)
+    return { from: today, to: end }
+  }
+  if (period === 'yesterday') {
+    const start = new Date(today); start.setDate(start.getDate() - 1)
+    return { from: start, to: today }
+  }
+  if (period === 'this_week') {
+    const start = new Date(today)
+    const dow = (start.getDay() + 6) % 7 // Monday = 0
+    start.setDate(start.getDate() - dow)
+    const end = new Date(start); end.setDate(end.getDate() + 7)
+    return { from: start, to: end }
+  }
+  if (period === 'last_week') {
+    const start = new Date(today)
+    const dow = (start.getDay() + 6) % 7
+    start.setDate(start.getDate() - dow - 7)
+    const end = new Date(start); end.setDate(end.getDate() + 7)
+    return { from: start, to: end }
+  }
+  if (period === 'this_month') {
+    const start = new Date(today.getFullYear(), today.getMonth(), 1)
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    return { from: start, to: end }
+  }
+  if (period === 'custom') {
+    return {
+      from: customFrom ? new Date(customFrom) : null,
+      to: customTo ? new Date(new Date(customTo).getTime() + 24 * 60 * 60 * 1000) : null,
+    }
+  }
+  return { from: null, to: null }
+}
+
+const periodLabels: Record<Period, string> = {
+  today:      'Today',
+  yesterday:  'Yesterday',
+  this_week:  'This week',
+  last_week:  'Last week',
+  this_month: 'This month',
+  all:        'All time',
+  custom:     'Custom',
 }
 
 export default function AgentDashboard() {
@@ -70,26 +120,35 @@ export default function AgentDashboard() {
   const [pending, setPending]   = useState<OrderRow[]>([])
   const [loading, setLoading]   = useState(true)
   const [period, setPeriod]     = useState<Period>('today')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo]     = useState('')
   const [search, setSearch]     = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [busyId, setBusyId]     = useState<string | null>(null)
+  const [recallOrder, setRecallOrder] = useState<OrderRow | null>(null)
+  const [historyOrder, setHistoryOrder] = useState<OrderRow | null>(null)
+  const [historyLogs, setHistoryLogs] = useState<CallLog[]>([])
 
-  const load = async (_aid: string | null) => {
+  const load = async (aid: string | null) => {
     setLoading(true)
+    if (!aid) { setLoading(false); return }
     const nowIso = new Date().toISOString()
 
+    // Pending = my queue only
     const { data: pen } = await supabase
       .from('orders')
       .select('*')
       .eq('status', 'pending')
+      .eq('assigned_agent_id', aid)
       .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
       .order('created_at', { ascending: true })
     setPending((pen || []) as OrderRow[])
 
-    // Agent sees ALL non-pending orders so they can manage the full pipeline
+    // Pipeline = all my non-pending orders
     const { data } = await supabase
       .from('orders')
       .select('*')
+      .eq('assigned_agent_id', aid)
       .neq('status', 'pending')
       .order('created_at', { ascending: false })
     setOrders((data || []) as OrderRow[])
@@ -113,15 +172,16 @@ export default function AgentDashboard() {
   }, [])
 
   const filteredByPeriod = useMemo(() => {
-    const since = startOf(period)
-    if (!since) return orders
+    if (period === 'all') return orders
+    const { from, to } = getRange(period, customFrom, customTo)
+    if (!from && !to) return orders
     return orders.filter(o => {
-      // Use the most recent activity (last call OR creation) so freshly
-      // confirmed orders show up under "Today" even if they were created earlier.
       const ref = new Date(o.last_call_at || o.created_at)
-      return ref >= since
+      if (from && ref < from) return false
+      if (to && ref >= to) return false
+      return true
     })
-  }, [orders, period])
+  }, [orders, period, customFrom, customTo])
 
   const stats = useMemo(() => {
     const f = filteredByPeriod
@@ -211,6 +271,28 @@ export default function AgentDashboard() {
     setBusyId(null)
   }
 
+  const reopenForCall = async (o: OrderRow) => {
+    setBusyId(o.id)
+    await supabase
+      .from('orders')
+      .update({ status: 'pending', reminded_at: null })
+      .eq('id', o.id)
+    setBusyId(null)
+    router.push('/agent/calls')
+  }
+
+  const openHistory = async (o: OrderRow) => {
+    setHistoryOrder(o)
+    const { data } = await supabase
+      .from('call_logs')
+      .select('*')
+      .eq('order_id', o.id)
+      .order('created_at', { ascending: false })
+    setHistoryLogs((data || []) as CallLog[])
+  }
+
+  const cleanPhone = (p: string) => (p || '').replace(/[^\d+]/g, '')
+
   return (
     <div className="min-h-screen bg-[#f5f7fa]">
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
@@ -238,18 +320,35 @@ export default function AgentDashboard() {
       <div className="px-6 pt-5 pb-10 space-y-5">
         <div className="flex items-center gap-2 flex-wrap">
           <Calendar size={14} className="text-gray-400" />
-          {(['today','week','month','all'] as Period[]).map(p => (
+          {(['today','yesterday','this_week','last_week','this_month','all','custom'] as Period[]).map(p => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize',
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
                 period === p ? 'bg-[#1a1c3a] text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
               )}
             >
-              {p === 'all' ? 'All time' : p === 'today' ? 'Today' : p === 'week' ? 'Last 7 days' : 'Last 30 days'}
+              {periodLabels[p]}
             </button>
           ))}
+          {period === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customFrom}
+                onChange={e => setCustomFrom(e.target.value)}
+                className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]"
+              />
+              <span className="text-xs text-gray-400">→</span>
+              <input
+                type="date"
+                value={customTo}
+                onChange={e => setCustomTo(e.target.value)}
+                className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]"
+              />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
@@ -433,7 +532,38 @@ export default function AgentDashboard() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 justify-end">
+                        <div className="flex items-center gap-1.5 justify-end flex-wrap">
+                          <a
+                            href={`tel:${cleanPhone(o.customer_phone)}`}
+                            title="Call customer"
+                            className="w-7 h-7 rounded-lg bg-[#f4991a] hover:bg-orange-500 text-white flex items-center justify-center"
+                          >
+                            <Phone size={12} />
+                          </a>
+                          <a
+                            href={`https://wa.me/${cleanPhone(o.customer_phone).replace(/^\+/, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="WhatsApp"
+                            className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center"
+                          >
+                            <MessageCircle size={12} />
+                          </a>
+                          <button
+                            disabled={busyId === o.id}
+                            onClick={() => reopenForCall(o)}
+                            title="Reopen & call again"
+                            className="w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 flex items-center justify-center disabled:opacity-50"
+                          >
+                            <RotateCcw size={11} />
+                          </button>
+                          <button
+                            onClick={() => openHistory(o)}
+                            title="Call history"
+                            className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-500 flex items-center justify-center"
+                          >
+                            <Clock size={11} />
+                          </button>
                           {!isFinal && flow?.next && (
                             <button
                               disabled={busyId === o.id}
@@ -472,10 +602,79 @@ export default function AgentDashboard() {
             </table>
           </div>
           <div className="px-6 py-3 border-t border-gray-50 text-xs text-gray-400">
-            Showing {tableRows.length} of {filteredByPeriod.length} orders ({period})
+            Showing {tableRows.length} of {filteredByPeriod.length} orders ({periodLabels[period]})
           </div>
         </div>
       </div>
+
+      {/* Call History Modal */}
+      {historyOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => setHistoryOrder(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]"
+          >
+            <div className="flex items-center justify-between px-6 py-4 bg-[#1a1c3a] text-white">
+              <div>
+                <p className="text-white/50 text-[10px] uppercase tracking-wider">Call History</p>
+                <p className="font-bold font-mono">{historyOrder.tracking_number}</p>
+              </div>
+              <button
+                onClick={() => setHistoryOrder(null)}
+                className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {historyLogs.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-8">No calls logged yet</p>
+              ) : historyLogs.map(log => (
+                <div key={log.id} className="border border-gray-100 rounded-xl p-3 bg-gray-50/50">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={cn(
+                      'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase',
+                      log.action === 'confirmed'   && 'bg-emerald-100 text-emerald-700',
+                      log.action === 'not_reached' && 'bg-red-100 text-red-700',
+                      log.action === 'cancelled'   && 'bg-gray-200 text-gray-600',
+                      log.action === 'rescheduled' && 'bg-blue-100 text-blue-700',
+                    )}>
+                      {log.action.replace('_', ' ')}
+                    </span>
+                    <span className="text-[10px] text-gray-400">{new Date(log.created_at).toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-gray-600">
+                    By <span className="font-semibold">{log.agent_name || 'Agent'}</span>
+                  </p>
+                  {log.note && <p className="text-xs text-gray-500 mt-1 italic">"{log.note}"</p>}
+                  {log.reminded_at && (
+                    <p className="text-[10px] text-blue-600 mt-1">
+                      Reminder: {new Date(log.reminded_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 flex justify-between gap-2">
+              <button
+                onClick={() => { reopenForCall(historyOrder); setHistoryOrder(null) }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-lg"
+              >
+                <Phone size={12} /> Call again
+              </button>
+              <button
+                onClick={() => setHistoryOrder(null)}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

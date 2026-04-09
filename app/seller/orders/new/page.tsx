@@ -330,10 +330,37 @@ export default function SellerNewOrderPage() {
       product_id: r.productId, name: r.name, sku: r.sku,
       quantity: parseInt(r.quantity) || 0, unit_price: parseFloat(r.unitPrice) || 0,
     }))
+    // Round-robin assign to least-loaded active agent
+    let assignedAgentId: string | null = null
+    try {
+      const { data: agents } = await supabase.from('agents').select('id').eq('status', 'active')
+      if (agents && agents.length > 0) {
+        if (agents.length === 1) {
+          assignedAgentId = agents[0].id
+        } else {
+          const { data: pendingOrders } = await supabase
+            .from('orders')
+            .select('assigned_agent_id')
+            .eq('status', 'pending')
+            .not('assigned_agent_id', 'is', null)
+          const counts = new Map<string, number>()
+          agents.forEach(a => counts.set(a.id, 0))
+          ;(pendingOrders || []).forEach((o: any) => {
+            if (counts.has(o.assigned_agent_id)) counts.set(o.assigned_agent_id, (counts.get(o.assigned_agent_id) || 0) + 1)
+          })
+          let best = Infinity
+          for (const [id, c] of counts.entries()) {
+            if (c < best) { best = c; assignedAgentId = id }
+          }
+        }
+      }
+    } catch {}
+
     const { error } = await supabase.from('orders').insert({
       tracking_number: newId,
       seller_id: sellerId,
       seller_name: sellerName,
+      assigned_agent_id: assignedAgentId,
       customer_name: fullName,
       customer_phone: phone,
       customer_city: city,

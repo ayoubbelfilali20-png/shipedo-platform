@@ -46,13 +46,16 @@ export default function AgentCallsPage() {
   const [waText, setWaText] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // load agent + queue
-  const loadQueue = async () => {
+  // load queue — only orders assigned to this agent
+  const loadQueue = async (aid?: string | null) => {
+    const id = aid ?? agentId
+    if (!id) { setLoading(false); return }
     const nowIso = new Date().toISOString()
     const { data } = await supabase
       .from('orders')
       .select('*')
       .eq('status', 'pending')
+      .eq('assigned_agent_id', id)
       .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
       .order('created_at', { ascending: true })
     setOrders((data || []) as OrderRow[])
@@ -64,10 +67,14 @@ export default function AgentCallsPage() {
       const u = localStorage.getItem('shipedo_agent')
       if (u) {
         const parsed = JSON.parse(u)
-        if (parsed.role === 'agent') setAgentId(parsed.id)
+        if (parsed.role === 'agent') {
+          setAgentId(parsed.id)
+          loadQueue(parsed.id)
+          return
+        }
       }
     } catch {}
-    loadQueue()
+    setLoading(false)
   }, [])
 
   const order = orders[0] ?? null
@@ -92,10 +99,10 @@ export default function AgentCallsPage() {
       last_call_agent_id: agentId,
       call_attempts: (order.call_attempts || 0) + 1,
     }
+    let logRemindedAt: string | null = null
     if (action === 'confirmed') {
       patch.status = 'confirmed'
       patch.reminded_at = null
-      // Decrement seller stock for each item in this order
       await decrementStockForOrderItems(order.items as any[])
     } else if (action === 'cancelled') {
       patch.status = 'cancelled'
@@ -104,14 +111,38 @@ export default function AgentCallsPage() {
       if (!rescheduleDate) { setBusy(false); return }
       patch.status = 'pending'
       patch.reminded_at = new Date(rescheduleDate).toISOString()
+      logRemindedAt = patch.reminded_at
     } else if (action === 'not_reached') {
       patch.status = 'pending'
-      // auto-bump 2h forward if not reached
-      patch.reminded_at = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+      // auto-bump 1 hour forward if not reached
+      patch.reminded_at = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+      logRemindedAt = patch.reminded_at
+      // auto-open WhatsApp message to the customer
+      try {
+        if (typeof window !== 'undefined') {
+          window.open(whatsappLink(order.customer_phone, waText), '_blank')
+        }
+      } catch {}
     }
     await supabase.from('orders').update(patch).eq('id', order.id)
+
+    // Append a row to call_logs (full history)
+    let agentName: string | null = null
+    try {
+      const u = localStorage.getItem('shipedo_agent')
+      if (u) agentName = JSON.parse(u).name || null
+    } catch {}
+    await supabase.from('call_logs').insert({
+      order_id: order.id,
+      agent_id: agentId,
+      agent_name: agentName,
+      action,
+      note: note || null,
+      reminded_at: logRemindedAt,
+    })
+
     setBusy(false)
-    await loadQueue()
+    await loadQueue(agentId)
   }
 
   const statTotalToday = useMemo(() => orders.length, [orders])
@@ -124,7 +155,7 @@ export default function AgentCallsPage() {
           <p className="text-xs text-gray-400 mt-0.5">{pendingCount} order(s) waiting</p>
         </div>
         <button
-          onClick={() => { setLoading(true); loadQueue() }}
+          onClick={() => { setLoading(true); loadQueue(agentId) }}
           className="text-xs font-semibold text-[#f4991a] hover:text-orange-600"
         >
           Refresh

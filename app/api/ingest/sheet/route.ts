@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { pickAgentForOrder } from '@/lib/agentAssignment'
 
 /**
  * Ingest a new row from a seller's Google Sheet.
@@ -79,12 +80,15 @@ export async function POST(req: NextRequest) {
     },
   ]
 
+  const assignedAgentId = await pickAgentForOrder(supabaseAdmin)
+
   const { data, error } = await supabaseAdmin
     .from('orders')
     .insert({
       tracking_number: trackingNumber,
       seller_id: seller.id,
       seller_name: seller.name,
+      assigned_agent_id: assignedAgentId,
       customer_name: fullName,
       customer_phone: phone,
       customer_city: String(body.city || ''),
