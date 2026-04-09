@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/dashboard/Header'
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT, type TKey } from '@/lib/i18n'
+import OrderItemsDetails from '@/components/OrderItemsDetails'
 
 type OrderRow = {
   id: string
@@ -292,7 +293,8 @@ export default function SellerOrdersPage() {
                     const isExpanded = expandedDetails === order.id
 
                     return (
-                      <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <Fragment key={order.id}>
+                      <tr className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="px-4 py-4">
                           <span className="text-xs font-mono text-gray-700">{order.tracking_number}</span>
                         </td>
@@ -321,16 +323,6 @@ export default function SellerOrdersPage() {
                               <ChevronDown size={11} className={cn('transition-transform', isExpanded && 'rotate-180')} />
                             </div>
                           </button>
-                          {isExpanded && Array.isArray(order.items) && order.items.length > 0 && (
-                            <div className="mt-2 space-y-1 bg-gray-50 rounded-lg p-2 max-w-[220px]">
-                              {order.items.map((it: any, i: number) => (
-                                <div key={i} className="flex items-center justify-between text-[11px]">
-                                  <span className="text-gray-600 truncate">{it.name || it.product_id || 'Item'}</span>
-                                  <span className="text-gray-400 font-semibold ml-2">×{it.quantity || 1}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-sm font-bold text-gray-700">{(order.total_amount || 0).toLocaleString()}</span>
@@ -378,6 +370,19 @@ export default function SellerOrdersPage() {
                           </div>
                         </td>
                       </tr>
+                      {isExpanded && Array.isArray(order.items) && order.items.length > 0 && (
+                        <tr className="border-b border-gray-50 bg-orange-50/20">
+                          <td colSpan={9} className="px-6 py-4">
+                            <div className="max-w-3xl">
+                              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-3">
+                                {t('products')} ({order.items.length})
+                              </p>
+                              <OrderItemsDetails items={order.items} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     )
                   })
                 )}

@@ -8,6 +8,7 @@ import {
   Phone, CheckCircle, XCircle, Clock, MapPin, Package,
   AlertCircle, Calendar, MessageSquare, PhoneOff, MessageCircle
 } from 'lucide-react'
+import OrderItemsDetails from '@/components/OrderItemsDetails'
 
 type OrderRow = {
   id: string
@@ -156,7 +157,7 @@ export default function AgentCallsPage() {
 
               <div className="p-6 space-y-4">
                 {/* Customer + actions */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div className="bg-gray-50 rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-100 to-blue-100 flex items-center justify-center font-bold text-[#1a1c3a]">
@@ -200,17 +201,15 @@ export default function AgentCallsPage() {
                     )}
                   </div>
 
-                  <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <Package size={12} /> Order
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                      <Package size={12} /> Order Details
                     </p>
-                    {(Array.isArray(order.items) ? order.items : []).map((p: any, i: number) => (
-                      <div key={i} className="flex justify-between text-xs">
-                        <span className="text-gray-600 truncate flex-1 mr-2">{p.name || 'Item'} ×{p.quantity || 1}</span>
-                        <span className="font-semibold text-[#1a1c3a]">KES {((p.price || 0) * (p.quantity || 1)).toLocaleString()}</span>
-                      </div>
-                    ))}
-                    <div className="pt-2 border-t border-gray-100 flex justify-between text-xs font-bold">
+                    <OrderItemsDetails
+                      items={Array.isArray(order.items) ? order.items : []}
+                      showSeller
+                    />
+                    <div className="pt-2 border-t border-gray-200 flex justify-between text-xs font-bold">
                       <span className="text-gray-600">Total</span>
                       <span className="text-[#f4991a]">KES {(order.total_amount || 0).toLocaleString()}</span>
                     </div>
