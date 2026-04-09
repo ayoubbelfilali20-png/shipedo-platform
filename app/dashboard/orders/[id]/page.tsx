@@ -118,6 +118,12 @@ export default function AdminOrderDetailPage() {
       <Header title="Order Detail" subtitle={order.tracking_number} role="admin" />
 
       <div className="px-6 pt-6 pb-10 max-w-4xl space-y-5">
+        {order.status === 'cancelled' && (order as any).cancel_reason && (
+          <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700 flex items-start gap-2">
+            <span className="font-bold uppercase tracking-wide">Cancel reason:</span>
+            <span>{(order as any).cancel_reason}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3">
           <button onClick={() => router.push('/dashboard/orders')} className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#1a1c3a]">
             <ArrowLeft size={16} /> Back to orders

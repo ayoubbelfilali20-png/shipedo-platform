@@ -42,13 +42,12 @@ const statusConfig: Record<string, { labelKey: TKey; color: string; bg: string; 
   cancelled: { labelKey: 'ord_filter_cancelled', color: 'text-gray-500',    bg: 'bg-white', border: 'border-gray-300'   },
 }
 
+const CONFIRMATION_STATUSES = ['pending', 'confirmed', 'cancelled']
+
 const statusFilters: { value: string; labelKey: TKey }[] = [
   { value: 'all',       labelKey: 'ord_filter_all'       },
   { value: 'pending',   labelKey: 'ord_filter_pending'   },
   { value: 'confirmed', labelKey: 'ord_filter_confirmed' },
-  { value: 'shipped',   labelKey: 'ord_filter_shipped'   },
-  { value: 'delivered', labelKey: 'ord_filter_delivered' },
-  { value: 'returned',  labelKey: 'ord_filter_returned'  },
   { value: 'cancelled', labelKey: 'ord_filter_cancelled' },
 ]
 
@@ -94,7 +93,7 @@ export default function SellerOrdersPage() {
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
-    supabase.from('orders').select('*').eq('seller_id', sellerId).order('created_at', { ascending: false }).then(({ data }) => {
+    supabase.from('orders').select('*').eq('seller_id', sellerId).in('status', CONFIRMATION_STATUSES).order('created_at', { ascending: false }).then(({ data }) => {
       setOrders((data || []) as OrderRow[])
       setLoading(false)
     })

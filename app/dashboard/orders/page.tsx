@@ -23,6 +23,7 @@ type OrderRow = {
   status: string
   payment_method: string
   notes?: string | null
+  cancel_reason?: string | null
   created_at: string
   seller_id?: string | null
 }
@@ -189,6 +190,11 @@ export default function OrdersPage() {
                         </td>
                         <td className="px-4 py-4">
                           <StatusBadge status={order.status as any} />
+                          {order.status === 'cancelled' && order.cancel_reason && (
+                            <div className="mt-1 text-[10px] text-red-500 max-w-[160px] truncate" title={order.cancel_reason}>
+                              {order.cancel_reason}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-4 hidden xl:table-cell">
                           <span className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString()}</span>

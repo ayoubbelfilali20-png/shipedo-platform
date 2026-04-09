@@ -24,6 +24,7 @@ type OrderRow = {
   call_attempts?: number | null
   reminded_at?: string | null
   last_call_note?: string | null
+  cancel_reason?: string | null
   created_at: string
 }
 
@@ -45,6 +46,18 @@ export default function AgentCallsPage() {
   const [showReschedule, setShowReschedule] = useState(false)
   const [waText, setWaText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showCancel, setShowCancel] = useState(false)
+  const [cancelReason, setCancelReason] = useState<string>('')
+  const [cancelOther, setCancelOther] = useState('')
+
+  const CANCEL_REASONS = [
+    'Wrong number',
+    'Client refused the product',
+    'Price too high',
+    'Duplicate order',
+    'Already bought elsewhere',
+    'Other',
+  ]
 
   // load queue — only orders assigned to this agent
   const loadQueue = async (aid?: string | null) => {
@@ -86,6 +99,9 @@ export default function AgentCallsPage() {
       setNote('')
       setRescheduleDate('')
       setShowReschedule(false)
+      setShowCancel(false)
+      setCancelReason('')
+      setCancelOther('')
     }
   }, [order?.id])
 
@@ -105,8 +121,11 @@ export default function AgentCallsPage() {
       patch.reminded_at = null
       await decrementStockForOrderItems(order.items as any[])
     } else if (action === 'cancelled') {
+      const reasonFinal = cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason
+      if (!reasonFinal) { setBusy(false); return }
       patch.status = 'cancelled'
       patch.reminded_at = null
+      patch.cancel_reason = reasonFinal
     } else if (action === 'rescheduled') {
       if (!rescheduleDate) { setBusy(false); return }
       patch.status = 'pending'
@@ -114,15 +133,11 @@ export default function AgentCallsPage() {
       logRemindedAt = patch.reminded_at
     } else if (action === 'not_reached') {
       patch.status = 'pending'
-      // auto-bump 1 hour forward if not reached
-      patch.reminded_at = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+      // attempts-based bump: 1st = 1h, 2nd+ = 2h. No WhatsApp auto-open.
+      const attempts = (order.call_attempts || 0) + 1
+      const delayMs = attempts <= 1 ? 60 * 60 * 1000 : 2 * 60 * 60 * 1000
+      patch.reminded_at = new Date(Date.now() + delayMs).toISOString()
       logRemindedAt = patch.reminded_at
-      // auto-open WhatsApp message to the customer
-      try {
-        if (typeof window !== 'undefined') {
-          window.open(whatsappLink(order.customer_phone, waText), '_blank')
-        }
-      } catch {}
     }
     await supabase.from('orders').update(patch).eq('id', order.id)
 
@@ -132,6 +147,9 @@ export default function AgentCallsPage() {
       const u = localStorage.getItem('shipedo_agent')
       if (u) agentName = JSON.parse(u).name || null
     } catch {}
+    const cancelReasonFinal = action === 'cancelled'
+      ? (cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason)
+      : null
     await supabase.from('call_logs').insert({
       order_id: order.id,
       agent_id: agentId,
@@ -139,6 +157,7 @@ export default function AgentCallsPage() {
       action,
       note: note || null,
       reminded_at: logRemindedAt,
+      cancel_reason: cancelReasonFinal,
     })
 
     setBusy(false)
@@ -309,10 +328,67 @@ export default function AgentCallsPage() {
                   <button disabled={busy} onClick={() => setShowReschedule(v => !v)} className="flex flex-col items-center gap-1.5 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-600 rounded-xl font-bold text-xs transition-all disabled:opacity-50">
                     <Calendar size={18} /> Remind
                   </button>
-                  <button disabled={busy} onClick={() => submit('cancelled')} className="flex flex-col items-center gap-1.5 py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-500 rounded-xl font-bold text-xs transition-all disabled:opacity-50">
+                  <button disabled={busy} onClick={() => setShowCancel(true)} className="flex flex-col items-center gap-1.5 py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-500 rounded-xl font-bold text-xs transition-all disabled:opacity-50">
                     <XCircle size={18} /> Cancel
                   </button>
                 </div>
+
+                {/* Cancel reason modal */}
+                {showCancel && (
+                  <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-bold text-[#1a1c3a]">Cancel order</h3>
+                          <p className="text-[11px] text-gray-400 mt-0.5">Pick a reason — the admin will see it.</p>
+                        </div>
+                        <button onClick={() => { setShowCancel(false); setCancelReason(''); setCancelOther('') }} className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                          <XCircle size={15} className="text-gray-500" />
+                        </button>
+                      </div>
+                      <div className="p-5 space-y-2">
+                        {CANCEL_REASONS.map(r => (
+                          <button
+                            key={r}
+                            onClick={() => setCancelReason(r)}
+                            className={cn(
+                              'w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all',
+                              cancelReason === r
+                                ? 'bg-red-50 border-red-300 text-red-700'
+                                : 'bg-gray-50 border-gray-100 text-gray-600 hover:border-gray-200'
+                            )}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                        {cancelReason === 'Other' && (
+                          <textarea
+                            value={cancelOther}
+                            onChange={e => setCancelOther(e.target.value)}
+                            placeholder="Describe the reason…"
+                            rows={2}
+                            className="w-full mt-2 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 resize-none"
+                          />
+                        )}
+                      </div>
+                      <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+                        <button
+                          onClick={() => { setShowCancel(false); setCancelReason(''); setCancelOther('') }}
+                          className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-50"
+                        >
+                          Back
+                        </button>
+                        <button
+                          disabled={busy || !cancelReason || (cancelReason === 'Other' && !cancelOther.trim())}
+                          onClick={async () => { await submit('cancelled'); setShowCancel(false) }}
+                          className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl"
+                        >
+                          Confirm cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {showReschedule && rescheduleDate && (
                   <button disabled={busy} onClick={() => submit('rescheduled')} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all disabled:opacity-50">

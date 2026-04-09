@@ -57,10 +57,8 @@ export default function SellersPage() {
   const [form, setForm] = useState({
     storeName: '', name: '', email: '', phone: '',
     city: '', password: genPassword(), notes: '',
-    confirmation_fee_usd: 0.5,
     upsell_fee_usd: 0.3,
     cross_sell_fee_usd: 0.3,
-    shipping_fee_usd: 1.5,
   })
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -120,10 +118,8 @@ export default function SellersPage() {
       password: form.password,
       status: 'pending',
       notes: form.notes || null,
-      confirmation_fee_usd: form.confirmation_fee_usd,
       upsell_fee_usd: form.upsell_fee_usd,
       cross_sell_fee_usd: form.cross_sell_fee_usd,
-      shipping_fee_usd: form.shipping_fee_usd,
     }).select().single()
 
     if (error) {
@@ -152,7 +148,7 @@ export default function SellersPage() {
       setSellers(prev => [newSeller, ...prev])
       setSavedSeller(newSeller)
       setDrawerOpen(false)
-      setForm({ storeName: '', name: '', email: '', phone: '', city: '', password: genPassword(), notes: '', confirmation_fee_usd: 0.5, upsell_fee_usd: 0.3, cross_sell_fee_usd: 0.3, shipping_fee_usd: 1.5 })
+      setForm({ storeName: '', name: '', email: '', phone: '', city: '', password: genPassword(), notes: '', upsell_fee_usd: 0.3, cross_sell_fee_usd: 0.3 })
     }
     setSaving(false)
   }
@@ -169,8 +165,8 @@ export default function SellersPage() {
     setSellers(prev => prev.map(s => s.id === id ? { ...s, status: next } : s))
   }
 
-  const viewAsSeller = (_seller: Seller) => {
-    alert('Admin cannot impersonate sellers. Each role has its own login.')
+  const viewAsSeller = (seller: Seller) => {
+    router.push(`/dashboard/sellers/${seller.id}`)
   }
 
   const removeSeller = async (id: string) => {
@@ -499,10 +495,8 @@ export default function SellersPage() {
                 <p className="text-xs font-bold text-[#1a1c3a] uppercase tracking-wide mb-3">Service fees (USD)</p>
                 <div className="grid grid-cols-2 gap-3">
                   {([
-                    { key: 'confirmation_fee_usd', label: 'Confirmation' },
-                    { key: 'shipping_fee_usd',     label: 'Shipping' },
-                    { key: 'upsell_fee_usd',       label: 'Upsell' },
-                    { key: 'cross_sell_fee_usd',   label: 'Cross-sell' },
+                    { key: 'upsell_fee_usd',     label: 'Upsell' },
+                    { key: 'cross_sell_fee_usd', label: 'Cross-sell' },
                   ] as const).map(f => (
                     <div key={f.key}>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{f.label}</label>

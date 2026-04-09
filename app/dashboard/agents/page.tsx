@@ -159,8 +159,8 @@ export default function AgentsPage() {
     setAgents(prev => prev.map(a => a.id === id ? { ...a, status: next } : a))
   }
 
-  const viewAsAgent = (_agent: Agent) => {
-    alert('Admin cannot impersonate agents. Each role has its own login.')
+  const viewAsAgent = (agent: Agent) => {
+    router.push(`/dashboard/agents/${agent.id}`)
   }
 
   const removeAgent = async (id: string) => {
