@@ -84,6 +84,7 @@ const translations = {
   nav_my_wallet: { en: 'My Wallet', fr: 'Mon Portefeuille', ar: 'محفظتي' },
   nav_invoices: { en: 'Invoices', fr: 'Factures', ar: 'الفواتير' },
   nav_billing: { en: 'Weekly Billing', fr: 'Facturation hebdo', ar: 'الفوترة الأسبوعية' },
+  nav_withdrawals: { en: 'Withdrawals', fr: 'Retraits', ar: 'السحوبات' },
   nav_integrations: { en: 'Integrations', fr: 'Intégrations', ar: 'التكاملات' },
   nav_settings: { en: 'Settings', fr: 'Paramètres', ar: 'الإعدادات' },
   nav_call_queue: { en: 'Call Queue', fr: "File d'appels", ar: 'قائمة المكالمات' },

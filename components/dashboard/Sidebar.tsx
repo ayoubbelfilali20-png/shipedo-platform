@@ -42,6 +42,7 @@ const adminNav: NavSection[] = [
       { href: '/dashboard/agents',      icon: UserCog,      labelKey: 'nav_agents'      },
       { href: '/dashboard/expeditions', icon: PlaneTakeoff, labelKey: 'nav_expeditions' },
       { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'     },
+      { href: '/dashboard/withdrawals', icon: Wallet,       labelKey: 'nav_withdrawals' },
       { href: '/dashboard/settings',    icon: Settings,     labelKey: 'nav_settings'    },
     ],
   },
@@ -81,7 +82,7 @@ const sellerNav: NavSection[] = [
   {
     labelKey: 'nav_finance',
     items: [
-      { href: '/seller/transactions', icon: Wallet,   labelKey: 'nav_my_wallet' },
+      { href: '/seller/wallet',       icon: Wallet,   labelKey: 'nav_my_wallet' },
       { href: '/seller/invoices',     icon: FileText, labelKey: 'nav_invoices'  },
     ],
   },

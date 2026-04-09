@@ -57,6 +57,10 @@ export default function SellersPage() {
   const [form, setForm] = useState({
     storeName: '', name: '', email: '', phone: '',
     city: '', password: genPassword(), notes: '',
+    confirmation_fee_usd: 0.5,
+    upsell_fee_usd: 0.3,
+    cross_sell_fee_usd: 0.3,
+    shipping_fee_usd: 1.5,
   })
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -116,6 +120,10 @@ export default function SellersPage() {
       password: form.password,
       status: 'pending',
       notes: form.notes || null,
+      confirmation_fee_usd: form.confirmation_fee_usd,
+      upsell_fee_usd: form.upsell_fee_usd,
+      cross_sell_fee_usd: form.cross_sell_fee_usd,
+      shipping_fee_usd: form.shipping_fee_usd,
     }).select().single()
 
     if (error) {
@@ -144,7 +152,7 @@ export default function SellersPage() {
       setSellers(prev => [newSeller, ...prev])
       setSavedSeller(newSeller)
       setDrawerOpen(false)
-      setForm({ storeName: '', name: '', email: '', phone: '', city: '', password: genPassword(), notes: '' })
+      setForm({ storeName: '', name: '', email: '', phone: '', city: '', password: genPassword(), notes: '', confirmation_fee_usd: 0.5, upsell_fee_usd: 0.3, cross_sell_fee_usd: 0.3, shipping_fee_usd: 1.5 })
     }
     setSaving(false)
   }
@@ -485,6 +493,32 @@ export default function SellersPage() {
                   rows={2}
                   className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] transition-all resize-none"
                 />
+              </div>
+
+              <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                <p className="text-xs font-bold text-[#1a1c3a] uppercase tracking-wide mb-3">Service fees (USD)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: 'confirmation_fee_usd', label: 'Confirmation' },
+                    { key: 'shipping_fee_usd',     label: 'Shipping' },
+                    { key: 'upsell_fee_usd',       label: 'Upsell' },
+                    { key: 'cross_sell_fee_usd',   label: 'Cross-sell' },
+                  ] as const).map(f => (
+                    <div key={f.key}>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">{f.label}</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold">$</span>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={(form as any)[f.key]}
+                          onChange={e => setForm(prev => ({ ...prev, [f.key]: parseFloat(e.target.value) || 0 }))}
+                          className="w-full pl-7 pr-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-3">You can change these later from the seller's profile.</p>
               </div>
 
               <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-600 leading-relaxed">
