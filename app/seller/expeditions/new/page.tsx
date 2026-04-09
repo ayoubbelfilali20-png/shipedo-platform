@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
 import { Expedition } from '@/lib/types'
-import { addStoredExpedition } from '@/lib/expeditionStore'
+import { addExpedition } from '@/lib/expeditionStore'
 import {
   ArrowLeft, Package, Save, Plus, Trash2, ChevronDown, User, Truck,
 } from 'lucide-react'
@@ -142,7 +142,7 @@ export default function SellerNewExpeditionPage() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
-    addStoredExpedition(exp)
+    await addExpedition(exp)
     setSaving(false)
     router.push('/seller/expeditions')
   }

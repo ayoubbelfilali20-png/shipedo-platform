@@ -6,7 +6,7 @@ import Header from '@/components/dashboard/Header'
 import { mockExpeditions } from '@/lib/data'
 import { Expedition, ExpeditionStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
-import { loadStoredExpeditions, updateStoredExpeditionStatus } from '@/lib/expeditionStore'
+import { fetchExpeditions, updateExpeditionStatus } from '@/lib/expeditionStore'
 import { receiveStock } from '@/lib/stock'
 import {
   PlaneTakeoff, Ship, Package, Clock, CheckCircle, AlertTriangle,
@@ -198,15 +198,23 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
   const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
-    setStored(loadStoredExpeditions())
+    let sid: string | null = null
     try {
-      const u = localStorage.getItem('shipedo_admin')
+      const u = localStorage.getItem('shipedo_seller') || localStorage.getItem('shipedo_admin')
       if (u) {
         const parsed = JSON.parse(u)
-        if (parsed.role === 'seller') setSellerId(parsed.id)
+        if (parsed.role === 'seller') sid = parsed.id
       }
     } catch {}
-  }, [])
+    setSellerId(sid)
+    const effectiveSeller = role === 'seller' ? sid || undefined : undefined
+    fetchExpeditions(effectiveSeller ? { sellerId: effectiveSeller } : undefined).then(setStored)
+  }, [role])
+
+  const reload = async () => {
+    const effectiveSeller = role === 'seller' ? sellerId || undefined : undefined
+    setStored(await fetchExpeditions(effectiveSeller ? { sellerId: effectiveSeller } : undefined))
+  }
 
   const openAccept = (exp: Expedition) => {
     setAcceptModal(exp)
@@ -227,14 +235,14 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
         defective: r.defective || 0,
       })
     }
-    updateStoredExpeditionStatus(acceptModal.id, 'received')
-    setStored(loadStoredExpeditions())
+    await updateExpeditionStatus(acceptModal.id, 'received')
+    await reload()
     setConfirming(false)
     setAcceptModal(null)
   }
 
   const allExpeditions: Expedition[] = role === 'seller'
-    ? stored.filter(e => e.createdBy === sellerId)
+    ? stored
     : [...stored, ...mockExpeditions]
 
   const filtered = allExpeditions.filter(exp => {
