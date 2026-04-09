@@ -31,6 +31,7 @@ type OrderRow = {
   created_at: string
   call_attempts?: number
   reminded_at?: string | null
+  cancel_reason?: string | null
 }
 
 const statusConfig: Record<string, { labelKey: TKey; color: string; bg: string; border: string }> = {
@@ -346,6 +347,11 @@ export default function SellerOrdersPage() {
                             {order.status === 'pending' && order.reminded_at && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 text-[10px] font-semibold text-indigo-600 whitespace-nowrap">
                                 <Clock size={10} /> Reminded (To: {formatDateTime(order.reminded_at)})
+                              </span>
+                            )}
+                            {order.status === 'cancelled' && order.cancel_reason && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 text-[10px] font-semibold text-red-600 max-w-[180px] truncate" title={order.cancel_reason}>
+                                {order.cancel_reason}
                               </span>
                             )}
                           </div>

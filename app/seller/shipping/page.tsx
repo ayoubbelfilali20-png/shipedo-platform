@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type ShipStatus = 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
+type ShipStatus = 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned'
 
 type OrderRow = {
   id: string
@@ -33,10 +33,9 @@ const statusConfig: Record<ShipStatus, { label: string; color: string; border: s
   shipped:     { label: 'Shipped',     color: 'text-blue-600',    border: 'border-blue-400',    dot: 'bg-blue-400'    },
   delivered:   { label: 'Delivered',   color: 'text-sky-600',     border: 'border-sky-400',     dot: 'bg-sky-400'     },
   returned:    { label: 'Returned',    color: 'text-red-500',     border: 'border-red-400',     dot: 'bg-red-400'     },
-  cancelled:   { label: 'Cancelled',   color: 'text-gray-500',    border: 'border-gray-300',    dot: 'bg-gray-400'    },
 }
 
-const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned', 'cancelled']
+const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned']
 
 export default function SellerShippingPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
@@ -75,7 +74,7 @@ export default function SellerShippingPage() {
   ), [orders, filterStatus])
 
   const counts = useMemo(() => {
-    const c: Record<ShipStatus, number> = { confirmed: 0, prepared: 0, shipped: 0, delivered: 0, returned: 0, cancelled: 0 }
+    const c: Record<ShipStatus, number> = { confirmed: 0, prepared: 0, shipped: 0, delivered: 0, returned: 0 }
     orders.forEach(o => { if (o.status in c) c[o.status as ShipStatus]++ })
     return c
   }, [orders])
@@ -313,7 +312,7 @@ function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
             <div>
               <p className="text-xs font-bold text-blue-700">Status managed by call center</p>
               <p className="text-xs text-blue-500 mt-0.5 leading-relaxed">
-                Order status (delivered, returned, cancelled) is updated by our call agents.
+                Order status (delivered, returned) is updated by our call agents.
               </p>
             </div>
           </div>
