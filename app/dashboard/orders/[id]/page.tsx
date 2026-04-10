@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Phone, MapPin, Package, Save, Pencil } from 'lucide-react'
+import { ArrowLeft, Phone, MapPin, Package, Save, Pencil, Printer } from 'lucide-react'
+import { printOrderLabel } from '@/components/PrintLabel'
 import { cn } from '@/lib/utils'
 
 type OrderRow = {
@@ -132,6 +133,44 @@ export default function AdminOrderDetailPage() {
             <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold border-2 whitespace-nowrap', statusColors[order.status] || statusColors.pending)}>
               {order.status}
             </span>
+            {order.status === 'confirmed' && (
+              <button
+                onClick={async () => {
+                  await supabase.from('orders').update({ status: 'prepared' }).eq('id', order.id)
+                  printOrderLabel({
+                    tracking: order.tracking_number,
+                    customerName: order.customer_name,
+                    customerPhone: order.customer_phone,
+                    customerAddress: order.customer_address,
+                    customerCity: order.customer_city,
+                    items: Array.isArray(order.items) ? order.items : [],
+                    totalAmount: order.total_amount,
+                    paymentMethod: order.payment_method,
+                  })
+                  refresh()
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-all"
+              >
+                <Printer size={13} /> Prepare & Print
+              </button>
+            )}
+            <button
+              onClick={() => {
+                printOrderLabel({
+                  tracking: order.tracking_number,
+                  customerName: order.customer_name,
+                  customerPhone: order.customer_phone,
+                  customerAddress: order.customer_address,
+                  customerCity: order.customer_city,
+                  items: Array.isArray(order.items) ? order.items : [],
+                  totalAmount: order.total_amount,
+                  paymentMethod: order.payment_method,
+                })
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all"
+            >
+              <Printer size={13} /> Print
+            </button>
             {!editing ? (
               <button
                 onClick={() => setEditing(true)}

@@ -7,8 +7,9 @@ import StatusBadge from '@/components/dashboard/StatusBadge'
 import { supabase } from '@/lib/supabase'
 import { OrderStatus } from '@/lib/types'
 import {
-  Search, Download, Eye, Package, MapPin, FileText, X,
+  Search, Download, Eye, Package, MapPin, FileText, X, Printer,
 } from 'lucide-react'
+import { printOrderLabel } from '@/components/PrintLabel'
 import Link from 'next/link'
 
 type OrderRow = {
@@ -207,6 +208,22 @@ export default function OrdersPage() {
                               title="View details"
                             >
                               <Eye size={13} />
+                            </button>
+                            <button
+                              onClick={() => printOrderLabel({
+                                tracking: order.tracking_number,
+                                customerName: order.customer_name,
+                                customerPhone: order.customer_phone,
+                                customerAddress: order.customer_address || '',
+                                customerCity: order.customer_city,
+                                items: Array.isArray(order.items) ? order.items : [],
+                                totalAmount: order.total_amount,
+                                paymentMethod: order.payment_method,
+                              })}
+                              className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-indigo-50 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-all"
+                              title="Print label"
+                            >
+                              <Printer size={13} />
                             </button>
                             <Link
                               href={`/dashboard/invoices?order=${order.id}`}

@@ -9,6 +9,7 @@ import {
   AlertCircle, Calendar, MessageSquare, PhoneOff, MessageCircle
 } from 'lucide-react'
 import OrderItemsDetails from '@/components/OrderItemsDetails'
+import { printOrderLabel } from '@/components/PrintLabel'
 
 type OrderRow = {
   id: string
@@ -120,6 +121,17 @@ export default function AgentCallsPage() {
       patch.status = 'confirmed'
       patch.reminded_at = null
       await decrementStockForOrderItems(order.items as any[])
+      // Auto-print shipping label
+      printOrderLabel({
+        tracking: order.tracking_number,
+        customerName: order.customer_name,
+        customerPhone: order.customer_phone,
+        customerAddress: order.customer_address,
+        customerCity: order.customer_city,
+        items: Array.isArray(order.items) ? order.items : [],
+        totalAmount: order.total_amount,
+        paymentMethod: 'COD',
+      })
     } else if (action === 'cancelled') {
       const reasonFinal = cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason
       if (!reasonFinal) { setBusy(false); return }
