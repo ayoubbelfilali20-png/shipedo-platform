@@ -26,6 +26,7 @@ type OrderRow = {
   payment_method: string
   notes?: string | null
   cancel_reason?: string | null
+  printed?: boolean
   created_at: string
   seller_id?: string | null
 }
@@ -42,6 +43,7 @@ const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
 
 function orderToLabel(o: OrderRow): PrintLabelProps {
   return {
+    id: o.id,
     tracking: o.tracking_number,
     customerName: o.customer_name,
     customerPhone: o.customer_phone,
@@ -59,21 +61,36 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
-  const [printQueue, setPrintQueue] = useState<PrintLabelProps[]>([])
-  const [printSelected, setPrintSelected] = useState<Set<number>>(new Set())
-  const [showPrintPanel, setShowPrintPanel] = useState(false)
+  const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
-  // Print queue helpers
-  const addToPrintQueue = (label: PrintLabelProps) => setPrintQueue(prev => [...prev, label])
-  const togglePrintSelect = (i: number) => setPrintSelected(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n })
-  const toggleSelectAll = () => setPrintSelected(prev => prev.size === printQueue.length ? new Set() : new Set(printQueue.map((_, i) => i)))
-  const removePrintItem = (i: number) => { setPrintQueue(prev => prev.filter((_, idx) => idx !== i)); setPrintSelected(prev => { const n = new Set<number>(); prev.forEach(v => { if (v < i) n.add(v); else if (v > i) n.add(v - 1) }); return n }) }
+  // Print helpers — manual select
+  const addToPrintQueue = (id: string) => {
+    const o = orders.find(x => x.id === id)
+    if (!o || o.printed) return
+    setPrintQueue(prev => { const n = new Set(prev); n.add(id); return n })
+  }
+  const removeFromPrintQueue = (id: string) => setPrintQueue(prev => { const n = new Set(prev); n.delete(id); return n })
+  const queuedOrders = orders.filter(o => printQueue.has(o.id))
+  const toggleSelectAll = () => {
+    if (printQueue.size === queuedOrders.length && queuedOrders.length > 0) setPrintQueue(new Set())
+    // already all selected — keep as is
+  }
+  const doPrint = async (ids: string[]) => {
+    const toPrint = orders.filter(o => ids.includes(o.id))
+    if (toPrint.length === 0) return
+    printOrderLabels(toPrint.map(orderToLabel))
+    await Promise.all(ids.map(id => supabase.from('orders').update({ printed: true }).eq('id', id)))
+    // Update local state: mark as printed + remove from queue
+    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, printed: true } : o))
+    setPrintQueue(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n })
+  }
 
   useEffect(() => {
-    supabase.from('orders').select('*').order('created_at', { ascending: false }).then(({ data }) => {
-      setOrders((data || []) as OrderRow[])
-      setLoading(false)
-    })
+    supabase.from('orders').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setOrders((data || []) as OrderRow[])
+        setLoading(false)
+      })
   }, [])
 
   const filtered = orders.filter((order) => {
@@ -130,17 +147,6 @@ export default function OrdersPage() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => setShowPrintPanel(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
-                showPrintPanel || printQueue.length > 0
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              <Printer size={13} />
-              Print queue {printQueue.length > 0 && `(${printQueue.length})`}
-            </button>
             <button className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 transition-all shadow-sm">
               <Download size={13} />
               Export
@@ -154,6 +160,9 @@ export default function OrdersPage() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50/70 border-b border-gray-100">
+                  <th className="text-center text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 py-3.5 w-10">
+                    <Printer size={13} className="mx-auto" />
+                  </th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-6 py-3.5">Tracking</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5">Customer</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 hidden md:table-cell">Items</th>
@@ -166,10 +175,10 @@ export default function OrdersPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
-                  <tr><td colSpan={8} className="text-center py-16 text-gray-400 text-sm">Loading…</td></tr>
+                  <tr><td colSpan={9} className="text-center py-16 text-gray-400 text-sm">Loading…</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-16 text-gray-400">
+                    <td colSpan={9} className="text-center py-16 text-gray-400">
                       <Package size={40} className="mx-auto mb-3 opacity-30" />
                       <p className="text-sm">No orders found</p>
                     </td>
@@ -183,6 +192,18 @@ export default function OrdersPage() {
                         className="table-row-hover cursor-pointer"
                         onClick={() => router.push(`/dashboard/orders/${order.id}`)}
                       >
+                        <td className="px-3 py-4 text-center" onClick={e => e.stopPropagation()}>
+                          {order.printed ? (
+                            <span className="inline-block text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Printed</span>
+                          ) : (
+                            <button
+                              onClick={() => printQueue.has(order.id) ? removeFromPrintQueue(order.id) : addToPrintQueue(order.id)}
+                              className="text-gray-300 hover:text-blue-600 transition-colors"
+                            >
+                              {printQueue.has(order.id) ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
+                            </button>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <div className="text-xs font-mono font-semibold text-[#1a1c3a]">{order.tracking_number}</div>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-1 inline-block ${
@@ -246,9 +267,11 @@ export default function OrdersPage() {
                               <Eye size={13} />
                             </button>
                             <button
-                              onClick={() => addToPrintQueue(orderToLabel(order))}
+                              onClick={() => {
+                                printOrderLabel(orderToLabel(order))
+                              }}
                               className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-blue-50 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all"
-                              title="Add to print queue"
+                              title="Print label"
                             >
                               <Printer size={13} />
                             </button>
@@ -277,79 +300,43 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Print Queue Panel */}
-      {showPrintPanel && (
-        <>
-          <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm" onClick={() => setShowPrintPanel(false)} />
-          <div className="fixed right-0 top-0 h-full w-full max-w-sm bg-blue-50 border-l border-blue-200 shadow-2xl z-50 flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-blue-200 bg-blue-600">
-              <h2 className="font-bold text-white flex items-center gap-2">
-                <Printer size={16} /> Print Queue ({printQueue.length})
-              </h2>
-              <button onClick={() => setShowPrintPanel(false)} className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center text-white">
-                <X size={15} />
+      {/* Print Orders — inline section below table */}
+      <div className="px-6 pb-6">
+        <div className="bg-blue-50 rounded-2xl border border-blue-200 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-bold text-blue-900 text-base flex items-center gap-2">
+              <Printer size={16} /> Print Orders ({queuedOrders.length} selected)
+            </h2>
+            {queuedOrders.length > 0 && (
+              <button
+                onClick={() => doPrint(queuedOrders.map(o => o.id))}
+                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
+              >
+                <Printer size={13} /> Print selected ({queuedOrders.length})
               </button>
-            </div>
-
-            {printQueue.length > 0 && (
-              <div className="px-5 py-2.5 border-b border-blue-200 flex items-center justify-between">
-                <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900">
-                  {printSelected.size === printQueue.length ? <CheckSquare size={13} /> : <Square size={13} />}
-                  {printSelected.size === printQueue.length ? 'Deselect all' : 'Select all'}
-                </button>
-                <span className="text-xs text-blue-500">{printSelected.size} selected</span>
-              </div>
             )}
+          </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-2">
-              {printQueue.length === 0 ? (
-                <div className="text-center py-10 text-blue-400">
-                  <Printer size={32} className="mx-auto mb-3 opacity-40" />
-                  <p className="text-sm font-semibold">No labels in queue</p>
-                  <p className="text-xs mt-1">Click the printer icon on orders to add them here.</p>
-                </div>
-              ) : printQueue.map((label, i) => (
-                <div key={i} className="flex items-center gap-2.5 p-3 bg-white rounded-xl border border-blue-100 shadow-sm">
-                  <button onClick={() => togglePrintSelect(i)} className="text-blue-500 flex-shrink-0">
-                    {printSelected.has(i) ? <CheckSquare size={15} /> : <Square size={15} />}
-                  </button>
+          {queuedOrders.length === 0 ? (
+            <p className="text-sm text-blue-400 text-center py-6">Select orders from the table above using the checkboxes to add them here.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+              {queuedOrders.map((o) => (
+                <div key={o.id} className="flex items-center gap-2.5 p-3 bg-white rounded-xl border border-blue-100 shadow-sm">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[#1a1c3a] truncate">{label.customerName}</p>
-                    <p className="text-[10px] text-gray-400 font-mono">{label.tracking}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{label.customerCity}</p>
+                    <p className="text-xs font-bold text-[#1a1c3a] truncate">{o.customer_name}</p>
+                    <p className="text-[10px] text-gray-400 font-mono">{o.tracking_number}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{o.customer_city}</p>
                   </div>
-                  <button onClick={() => removePrintItem(i)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
+                  <button onClick={() => removeFromPrintQueue(o.id)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
                     <X size={13} />
                   </button>
                 </div>
               ))}
             </div>
-
-            {printQueue.length > 0 && (
-              <div className="px-5 py-4 border-t border-blue-200 bg-white space-y-2">
-                {printSelected.size > 0 && (
-                  <button
-                    onClick={() => { const labels = printQueue.filter((_, i) => printSelected.has(i)); if (labels.length) printOrderLabels(labels) }}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all"
-                  >
-                    <Printer size={14} /> Print selected ({printSelected.size})
-                  </button>
-                )}
-                <button
-                  onClick={() => printOrderLabels(printQueue)}
-                  className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold rounded-xl transition-all ${
-                    printSelected.size > 0
-                      ? 'bg-blue-100 hover:bg-blue-200 text-blue-700'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
-                >
-                  <Printer size={14} /> Print all ({printQueue.length})
-                </button>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </div>
     </div>
   )
 }

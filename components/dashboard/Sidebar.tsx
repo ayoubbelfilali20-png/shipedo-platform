@@ -8,7 +8,7 @@ import {
   LogOut, ChevronRight, Truck as TruckIcon, PlaneTakeoff,
   ShieldCheck, Store, Headphones, PanelLeftClose, PanelLeftOpen,
   ShoppingBag, Search, ChevronDown, Plus, List, Clock, UserCog,
-  Send
+  Send, RotateCcw
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
@@ -40,6 +40,7 @@ const adminNav: NavSection[] = [
     items: [
       { href: '/dashboard/sellers',     icon: Store,        labelKey: 'nav_sellers'     },
       { href: '/dashboard/agents',      icon: UserCog,      labelKey: 'nav_agents'      },
+      { href: '/dashboard/returns',      icon: RotateCcw,    labelKey: 'nav_returns'      },
       { href: '/dashboard/expeditions', icon: PlaneTakeoff, labelKey: 'nav_expeditions' },
       { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'     },
       { href: '/dashboard/withdrawals', icon: Wallet,       labelKey: 'nav_withdrawals' },

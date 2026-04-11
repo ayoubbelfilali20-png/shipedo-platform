@@ -60,9 +60,8 @@ export default function AgentCallsPage() {
   const [editAddress, setEditAddress] = useState('')
   const [editCity, setEditCity] = useState('')
 
-  // Print queue
-  const [printQueue, setPrintQueue] = useState<PrintLabelProps[]>([])
-  const [printSelected, setPrintSelected] = useState<Set<number>>(new Set())
+  // Print queue — manual select
+  const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
   const CANCEL_REASONS = [
     'Wrong number',
@@ -73,18 +72,21 @@ export default function AgentCallsPage() {
     'Other',
   ]
 
+  // Confirmed orders for the print sidebar
+  const [confirmedOrders, setConfirmedOrders] = useState<OrderRow[]>([])
+
   const loadQueue = async (aid?: string | null) => {
     const id = aid ?? agentId
     if (!id) { setLoading(false); return }
     const nowIso = new Date().toISOString()
-    const { data } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('status', 'pending')
-      .eq('assigned_agent_id', id)
-      .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
-      .order('created_at', { ascending: true })
+    const [{ data }, { data: confData }] = await Promise.all([
+      supabase.from('orders').select('*').eq('status', 'pending').eq('assigned_agent_id', id)
+        .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`).order('created_at', { ascending: true }),
+      supabase.from('orders').select('*').eq('status', 'confirmed').eq('printed', false)
+        .order('created_at', { ascending: true }),
+    ])
     setOrders((data || []) as OrderRow[])
+    setConfirmedOrders((confData || []) as OrderRow[])
     setLoading(false)
   }
 
@@ -144,17 +146,6 @@ export default function AgentCallsPage() {
     setBusy(false)
   }
 
-  const getOrderLabel = (o: OrderRow): PrintLabelProps => ({
-    tracking: o.tracking_number,
-    customerName: o.id === order?.id && editing ? editName : o.customer_name,
-    customerPhone: o.id === order?.id && editing ? editPhone : o.customer_phone,
-    customerAddress: o.id === order?.id && editing ? editAddress : o.customer_address,
-    customerCity: o.id === order?.id && editing ? editCity : o.customer_city,
-    items: Array.isArray(o.items) ? o.items : [],
-    totalAmount: o.total_amount,
-    paymentMethod: o.payment_method || 'COD',
-  })
-
   const submit = async (action: 'confirmed' | 'not_reached' | 'cancelled' | 'rescheduled') => {
     if (!order || busy) return
     setBusy(true)
@@ -181,11 +172,6 @@ export default function AgentCallsPage() {
       patch.status = 'confirmed'
       patch.reminded_at = null
       await decrementStockForOrderItems(order.items as any[])
-      // Add to print queue
-      const label = getOrderLabel(order)
-      setPrintQueue(prev => [...prev, label])
-      // Auto-print
-      printOrderLabel(label)
     } else if (action === 'cancelled') {
       const reasonFinal = cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason
       if (!reasonFinal) { setBusy(false); return }
@@ -228,35 +214,32 @@ export default function AgentCallsPage() {
     await loadQueue(agentId)
   }
 
-  // Print queue helpers
-  const togglePrintSelect = (i: number) => {
-    setPrintSelected(prev => {
-      const next = new Set(prev)
-      next.has(i) ? next.delete(i) : next.add(i)
-      return next
-    })
+  // Print helpers — manual select from confirmed orders
+  const togglePrintQueue = (id: string) => {
+    setPrintQueue(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
   const toggleSelectAll = () => {
-    if (printSelected.size === printQueue.length) {
-      setPrintSelected(new Set())
-    } else {
-      setPrintSelected(new Set(printQueue.map((_, i) => i)))
-    }
+    setPrintQueue(prev => prev.size === confirmedOrders.length ? new Set() : new Set(confirmedOrders.map(o => o.id)))
   }
-  const printSelectedLabels = () => {
-    const labels = printQueue.filter((_, i) => printSelected.has(i))
-    if (labels.length > 0) printOrderLabels(labels)
-  }
-  const printAllLabels = () => {
-    if (printQueue.length > 0) printOrderLabels(printQueue)
-  }
-  const removePrintItem = (i: number) => {
-    setPrintQueue(prev => prev.filter((_, idx) => idx !== i))
-    setPrintSelected(prev => {
-      const next = new Set<number>()
-      prev.forEach(v => { if (v < i) next.add(v); else if (v > i) next.add(v - 1) })
-      return next
-    })
+  const queuedOrders = confirmedOrders.filter(o => printQueue.has(o.id))
+  const orderToLabel = (o: OrderRow): PrintLabelProps => ({
+    id: o.id,
+    tracking: o.tracking_number,
+    customerName: o.customer_name,
+    customerPhone: o.customer_phone,
+    customerAddress: o.customer_address,
+    customerCity: o.customer_city,
+    items: Array.isArray(o.items) ? o.items : [],
+    totalAmount: o.total_amount,
+    paymentMethod: o.payment_method || 'COD',
+  })
+  const doPrint = async (ids: string[]) => {
+    const toPrint = confirmedOrders.filter(o => ids.includes(o.id))
+    if (toPrint.length === 0) return
+    printOrderLabels(toPrint.map(orderToLabel))
+    await Promise.all(ids.map(id => supabase.from('orders').update({ printed: true }).eq('id', id)))
+    setConfirmedOrders(prev => prev.filter(o => !ids.includes(o.id)))
+    setPrintQueue(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n })
   }
 
   const inputCls = "w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
@@ -546,65 +529,6 @@ export default function AgentCallsPage() {
 
         {/* Right sidebar */}
         <div className="space-y-4">
-          {/* Print Queue — blue sidebar */}
-          <div className="bg-blue-50 rounded-2xl border border-blue-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-blue-900 text-sm flex items-center gap-1.5">
-                <Printer size={14} /> Print Queue ({printQueue.length})
-              </h3>
-              {printQueue.length > 0 && (
-                <button onClick={toggleSelectAll} className="text-[10px] font-bold text-blue-600 hover:text-blue-800">
-                  {printSelected.size === printQueue.length ? 'Deselect all' : 'Select all'}
-                </button>
-              )}
-            </div>
-
-            {printQueue.length === 0 ? (
-              <p className="text-xs text-blue-400 text-center py-4">Confirmed orders will appear here for printing.</p>
-            ) : (
-              <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                {printQueue.map((label, i) => (
-                  <div key={i} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-100">
-                    <button onClick={() => togglePrintSelect(i)} className="text-blue-500 flex-shrink-0">
-                      {printSelected.has(i) ? <CheckSquare size={14} /> : <Square size={14} />}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-[#1a1c3a] truncate">{label.customerName}</p>
-                      <p className="text-[10px] text-gray-400 font-mono">{label.tracking}</p>
-                    </div>
-                    <button onClick={() => removePrintItem(i)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {printQueue.length > 0 && (
-              <div className="mt-3 flex gap-2">
-                {printSelected.size > 0 && (
-                  <button
-                    onClick={printSelectedLabels}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
-                  >
-                    <Printer size={12} /> Print selected ({printSelected.size})
-                  </button>
-                )}
-                <button
-                  onClick={printAllLabels}
-                  className={cn(
-                    'flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all',
-                    printSelected.size > 0
-                      ? 'flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700'
-                      : 'w-full bg-blue-600 hover:bg-blue-700 text-white'
-                  )}
-                >
-                  <Printer size={12} /> Print all ({printQueue.length})
-                </button>
-              </div>
-            )}
-          </div>
-
           {/* Up next */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-[#1a1c3a] text-sm mb-3">Up Next ({Math.max(0, pendingCount - 1)})</h3>
@@ -623,6 +547,50 @@ export default function AgentCallsPage() {
               ))}
               {pendingCount === 0 && <p className="text-xs text-gray-400 text-center py-4">Empty</p>}
             </div>
+          </div>
+
+          {/* Print Orders — below call history */}
+          <div className="bg-blue-50 rounded-2xl border border-blue-200 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-blue-900 text-sm flex items-center gap-1.5">
+                <Printer size={14} /> Print Orders ({confirmedOrders.length})
+              </h3>
+              {confirmedOrders.length > 0 && (
+                <button onClick={toggleSelectAll} className="text-[10px] font-bold text-blue-600 hover:text-blue-800">
+                  {printQueue.size === confirmedOrders.length ? 'Deselect all' : 'Select all'}
+                </button>
+              )}
+            </div>
+
+            {confirmedOrders.length === 0 ? (
+              <p className="text-xs text-blue-400 text-center py-4">Confirmed orders will appear here for printing.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                {confirmedOrders.map(o => (
+                  <div key={o.id} className="flex items-center gap-2 p-2.5 bg-white rounded-lg border border-blue-100">
+                    <button onClick={() => togglePrintQueue(o.id)} className="text-blue-500 flex-shrink-0">
+                      {printQueue.has(o.id) ? <CheckSquare size={14} /> : <Square size={14} />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#1a1c3a] truncate">{o.customer_name}</p>
+                      <p className="text-[10px] text-gray-400 font-mono">{o.tracking_number}</p>
+                      <p className="text-[10px] text-gray-400">{o.customer_city}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {queuedOrders.length > 0 && (
+              <div className="mt-3">
+                <button
+                  onClick={() => doPrint(queuedOrders.map(o => o.id))}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
+                >
+                  <Printer size={12} /> Print selected ({queuedOrders.length})
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

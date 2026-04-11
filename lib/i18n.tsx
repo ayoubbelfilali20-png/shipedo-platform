@@ -96,6 +96,7 @@ const translations = {
   nav_customers: { en: 'Customers', fr: 'Clients', ar: 'العملاء' },
   nav_sellers: { en: 'Sellers', fr: 'Vendeurs', ar: 'البائعون' },
   nav_agents: { en: 'Agents', fr: 'Agents', ar: 'الوكلاء' },
+  nav_returns: { en: 'Returns', fr: 'Retours', ar: 'المرتجعات' },
 
   /* ── Periods ── */
   period_today: { en: 'Today', fr: "Aujourd'hui", ar: 'اليوم' },

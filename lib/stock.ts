@@ -55,6 +55,30 @@ export async function decrementStockForOrderItems(items: any[]) {
 }
 
 /**
+ * Increment stock back when an order is returned.
+ * Reverses the decrement done at confirmation.
+ */
+export async function incrementStockForOrderItems(items: any[]) {
+  if (!Array.isArray(items)) return
+  for (const it of items) {
+    const pid = it?.product_id
+    const qty = Number(it?.quantity) || 0
+    if (!pid || qty <= 0) continue
+    const { data: rows } = await supabase
+      .from('products')
+      .select('id, stock')
+      .eq('id', pid)
+      .limit(1)
+    const row = rows?.[0]
+    if (!row) continue
+    await supabase
+      .from('products')
+      .update({ stock: (row.stock || 0) + qty })
+      .eq('id', row.id)
+  }
+}
+
+/**
  * Decrement total_quantity for each item when an order is delivered/paid.
  */
 export async function decrementTotalQuantityForOrderItems(items: any[]) {
