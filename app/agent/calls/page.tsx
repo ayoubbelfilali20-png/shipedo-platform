@@ -6,10 +6,11 @@ import { decrementStockForOrderItems } from '@/lib/stock'
 import { cn } from '@/lib/utils'
 import {
   Phone, CheckCircle, XCircle, Clock, MapPin, Package,
-  AlertCircle, Calendar, MessageSquare, PhoneOff, MessageCircle
+  AlertCircle, Calendar, MessageSquare, PhoneOff, MessageCircle,
+  Printer, Pencil, Save, X, CheckSquare, Square,
 } from 'lucide-react'
 import OrderItemsDetails from '@/components/OrderItemsDetails'
-import { printOrderLabel } from '@/components/PrintLabel'
+import { printOrderLabel, printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 
 type OrderRow = {
   id: string
@@ -21,6 +22,7 @@ type OrderRow = {
   items: any[]
   total_amount: number
   status: string
+  payment_method?: string
   notes?: string | null
   call_attempts?: number | null
   reminded_at?: string | null
@@ -51,6 +53,17 @@ export default function AgentCallsPage() {
   const [cancelReason, setCancelReason] = useState<string>('')
   const [cancelOther, setCancelOther] = useState('')
 
+  // Editable customer fields
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [editCity, setEditCity] = useState('')
+
+  // Print queue
+  const [printQueue, setPrintQueue] = useState<PrintLabelProps[]>([])
+  const [printSelected, setPrintSelected] = useState<Set<number>>(new Set())
+
   const CANCEL_REASONS = [
     'Wrong number',
     'Client refused the product',
@@ -60,7 +73,6 @@ export default function AgentCallsPage() {
     'Other',
   ]
 
-  // load queue — only orders assigned to this agent
   const loadQueue = async (aid?: string | null) => {
     const id = aid ?? agentId
     if (!id) { setLoading(false); return }
@@ -103,12 +115,60 @@ export default function AgentCallsPage() {
       setShowCancel(false)
       setCancelReason('')
       setCancelOther('')
+      setEditing(false)
+      setEditName(order.customer_name)
+      setEditPhone(order.customer_phone)
+      setEditAddress(order.customer_address)
+      setEditCity(order.customer_city)
     }
   }, [order?.id])
+
+  const saveEdits = async () => {
+    if (!order) return
+    setBusy(true)
+    await supabase.from('orders').update({
+      customer_name: editName,
+      customer_phone: editPhone,
+      customer_address: editAddress,
+      customer_city: editCity,
+    }).eq('id', order.id)
+    // Update local state
+    setOrders(prev => prev.map(o => o.id === order.id ? {
+      ...o,
+      customer_name: editName,
+      customer_phone: editPhone,
+      customer_address: editAddress,
+      customer_city: editCity,
+    } : o))
+    setEditing(false)
+    setBusy(false)
+  }
+
+  const getOrderLabel = (o: OrderRow): PrintLabelProps => ({
+    tracking: o.tracking_number,
+    customerName: o.id === order?.id && editing ? editName : o.customer_name,
+    customerPhone: o.id === order?.id && editing ? editPhone : o.customer_phone,
+    customerAddress: o.id === order?.id && editing ? editAddress : o.customer_address,
+    customerCity: o.id === order?.id && editing ? editCity : o.customer_city,
+    items: Array.isArray(o.items) ? o.items : [],
+    totalAmount: o.total_amount,
+    paymentMethod: o.payment_method || 'COD',
+  })
 
   const submit = async (action: 'confirmed' | 'not_reached' | 'cancelled' | 'rescheduled') => {
     if (!order || busy) return
     setBusy(true)
+
+    // If editing, save edits first
+    if (editing) {
+      await supabase.from('orders').update({
+        customer_name: editName,
+        customer_phone: editPhone,
+        customer_address: editAddress,
+        customer_city: editCity,
+      }).eq('id', order.id)
+    }
+
     const nowIso = new Date().toISOString()
     const patch: any = {
       last_call_at: nowIso,
@@ -121,17 +181,11 @@ export default function AgentCallsPage() {
       patch.status = 'confirmed'
       patch.reminded_at = null
       await decrementStockForOrderItems(order.items as any[])
-      // Auto-print shipping label
-      printOrderLabel({
-        tracking: order.tracking_number,
-        customerName: order.customer_name,
-        customerPhone: order.customer_phone,
-        customerAddress: order.customer_address,
-        customerCity: order.customer_city,
-        items: Array.isArray(order.items) ? order.items : [],
-        totalAmount: order.total_amount,
-        paymentMethod: 'COD',
-      })
+      // Add to print queue
+      const label = getOrderLabel(order)
+      setPrintQueue(prev => [...prev, label])
+      // Auto-print
+      printOrderLabel(label)
     } else if (action === 'cancelled') {
       const reasonFinal = cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason
       if (!reasonFinal) { setBusy(false); return }
@@ -145,7 +199,6 @@ export default function AgentCallsPage() {
       logRemindedAt = patch.reminded_at
     } else if (action === 'not_reached') {
       patch.status = 'pending'
-      // attempts-based bump: 1st = 1h, 2nd+ = 2h. No WhatsApp auto-open.
       const attempts = (order.call_attempts || 0) + 1
       const delayMs = attempts <= 1 ? 60 * 60 * 1000 : 2 * 60 * 60 * 1000
       patch.reminded_at = new Date(Date.now() + delayMs).toISOString()
@@ -153,7 +206,6 @@ export default function AgentCallsPage() {
     }
     await supabase.from('orders').update(patch).eq('id', order.id)
 
-    // Append a row to call_logs (full history)
     let agentName: string | null = null
     try {
       const u = localStorage.getItem('shipedo_agent')
@@ -176,7 +228,38 @@ export default function AgentCallsPage() {
     await loadQueue(agentId)
   }
 
-  const statTotalToday = useMemo(() => orders.length, [orders])
+  // Print queue helpers
+  const togglePrintSelect = (i: number) => {
+    setPrintSelected(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
+  }
+  const toggleSelectAll = () => {
+    if (printSelected.size === printQueue.length) {
+      setPrintSelected(new Set())
+    } else {
+      setPrintSelected(new Set(printQueue.map((_, i) => i)))
+    }
+  }
+  const printSelectedLabels = () => {
+    const labels = printQueue.filter((_, i) => printSelected.has(i))
+    if (labels.length > 0) printOrderLabels(labels)
+  }
+  const printAllLabels = () => {
+    if (printQueue.length > 0) printOrderLabels(printQueue)
+  }
+  const removePrintItem = (i: number) => {
+    setPrintQueue(prev => prev.filter((_, idx) => idx !== i))
+    setPrintSelected(prev => {
+      const next = new Set<number>()
+      prev.forEach(v => { if (v < i) next.add(v); else if (v > i) next.add(v - 1) })
+      return next
+    })
+  }
+
+  const inputCls = "w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
 
   return (
     <div className="min-h-screen">
@@ -194,6 +277,7 @@ export default function AgentCallsPage() {
       </div>
 
       <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Main calling area */}
         <div className="lg:col-span-2 space-y-4">
           {loading ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center text-sm text-gray-400">
@@ -218,75 +302,123 @@ export default function AgentCallsPage() {
               </div>
 
               <div className="p-6 space-y-4">
-                {/* Customer + actions */}
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="flex items-center gap-3 mb-3">
+                {/* Customer info — editable */}
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-100 to-blue-100 flex items-center justify-center font-bold text-[#1a1c3a]">
-                        {(order.customer_name || '?')[0]}
+                        {(editing ? editName : order.customer_name || '?')[0]}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-[#1a1c3a] text-sm truncate">{order.customer_name}</p>
-                        <p className="text-xs text-gray-500">{order.customer_phone}</p>
+                        {!editing ? (
+                          <>
+                            <p className="font-bold text-[#1a1c3a] text-sm truncate">{order.customer_name}</p>
+                            <p className="text-xs text-gray-500">{order.customer_phone}</p>
+                          </>
+                        ) : (
+                          <p className="text-xs font-semibold text-blue-600">Editing customer info</p>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
-                      <MapPin size={12} className="text-gray-400 flex-shrink-0" />
-                      {order.customer_address}, {order.customer_city}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <a
-                        href={`tel:${cleanPhone(order.customer_phone)}`}
-                        className="flex items-center justify-center gap-1.5 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-lg transition-all"
-                      >
-                        <Phone size={13} /> Call
-                      </a>
-                      <a
-                        href={whatsappLink(order.customer_phone, waText)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-1.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all"
-                      >
-                        <MessageCircle size={13} /> WhatsApp
-                      </a>
-                    </div>
-                    {(order.call_attempts || 0) > 0 && (
-                      <div className="mt-2 flex items-center gap-1 text-xs text-orange-500">
-                        <AlertCircle size={11} />
-                        {order.call_attempts} previous attempt{(order.call_attempts || 0) > 1 ? 's' : ''}
-                      </div>
-                    )}
-                    {order.reminded_at && (
-                      <div className="mt-1 flex items-center gap-1 text-xs text-indigo-500">
-                        <Clock size={11} /> Reminder was set: {new Date(order.reminded_at).toLocaleString()}
+                    {!editing ? (
+                      <button onClick={() => setEditing(true)} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold rounded-lg transition-all">
+                        <Pencil size={11} /> Edit
+                      </button>
+                    ) : (
+                      <div className="flex gap-1.5">
+                        <button onClick={() => { setEditing(false); setEditName(order.customer_name); setEditPhone(order.customer_phone); setEditAddress(order.customer_address); setEditCity(order.customer_city) }} className="px-2.5 py-1.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-lg hover:bg-gray-200">
+                          Cancel
+                        </button>
+                        <button disabled={busy} onClick={saveEdits} className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                          <Save size={11} /> Save
+                        </button>
                       </div>
                     )}
                   </div>
 
-                  <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-                      <Package size={12} /> Order Details
-                    </p>
-                    <OrderItemsDetails
-                      items={Array.isArray(order.items) ? order.items : []}
-                      showSeller
-                    />
-                    <div className="pt-2 border-t border-gray-200 flex justify-between text-xs font-bold">
-                      <span className="text-gray-600">Total</span>
-                      <span className="text-[#f4991a]">KES {(order.total_amount || 0).toLocaleString()}</span>
+                  {editing ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Name</label>
+                          <input value={editName} onChange={e => setEditName(e.target.value)} className={inputCls} />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Phone</label>
+                          <input value={editPhone} onChange={e => setEditPhone(e.target.value)} className={inputCls} />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Address</label>
+                        <input value={editAddress} onChange={e => setEditAddress(e.target.value)} className={inputCls} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">City</label>
+                        <input value={editCity} onChange={e => setEditCity(e.target.value)} className={inputCls} />
+                      </div>
                     </div>
-                    {order.notes && (
-                      <div className="flex items-start gap-1 text-xs text-amber-600 bg-amber-50 rounded-lg p-2 mt-2">
-                        <AlertCircle size={11} className="mt-0.5" />
-                        {order.notes}
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+                        <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                        {order.customer_address}, {order.customer_city}
                       </div>
-                    )}
-                    {order.last_call_note && (
-                      <div className="text-xs text-gray-500 bg-white rounded-lg p-2 mt-2 border border-gray-100">
-                        <span className="font-semibold text-gray-600">Last note:</span> {order.last_call_note}
+                      <div className="grid grid-cols-2 gap-2">
+                        <a
+                          href={`tel:${cleanPhone(order.customer_phone)}`}
+                          className="flex items-center justify-center gap-1.5 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-lg transition-all"
+                        >
+                          <Phone size={13} /> Call
+                        </a>
+                        <a
+                          href={whatsappLink(order.customer_phone, waText)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-1.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all"
+                        >
+                          <MessageCircle size={13} /> WhatsApp
+                        </a>
                       </div>
-                    )}
+                    </>
+                  )}
+
+                  {(order.call_attempts || 0) > 0 && (
+                    <div className="mt-2 flex items-center gap-1 text-xs text-orange-500">
+                      <AlertCircle size={11} />
+                      {order.call_attempts} previous attempt{(order.call_attempts || 0) > 1 ? 's' : ''}
+                    </div>
+                  )}
+                  {order.reminded_at && (
+                    <div className="mt-1 flex items-center gap-1 text-xs text-indigo-500">
+                      <Clock size={11} /> Reminder was set: {new Date(order.reminded_at).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Order details */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <Package size={12} /> Order Details
+                  </p>
+                  <OrderItemsDetails
+                    items={Array.isArray(order.items) ? order.items : []}
+                    showSeller
+                  />
+                  <div className="pt-2 border-t border-gray-200 flex justify-between text-xs font-bold">
+                    <span className="text-gray-600">Total</span>
+                    <span className="text-[#f4991a]">KES {(order.total_amount || 0).toLocaleString()}</span>
                   </div>
+                  {order.notes && (
+                    <div className="flex items-start gap-1 text-xs text-amber-600 bg-amber-50 rounded-lg p-2 mt-2">
+                      <AlertCircle size={11} className="mt-0.5" />
+                      {order.notes}
+                    </div>
+                  )}
+                  {order.last_call_note && (
+                    <div className="text-xs text-gray-500 bg-white rounded-lg p-2 mt-2 border border-gray-100">
+                      <span className="font-semibold text-gray-600">Last note:</span> {order.last_call_note}
+                    </div>
+                  )}
                 </div>
 
                 {/* WhatsApp message editor */}
@@ -412,8 +544,68 @@ export default function AgentCallsPage() {
           )}
         </div>
 
-        {/* Up next */}
+        {/* Right sidebar */}
         <div className="space-y-4">
+          {/* Print Queue — blue sidebar */}
+          <div className="bg-blue-50 rounded-2xl border border-blue-200 shadow-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-blue-900 text-sm flex items-center gap-1.5">
+                <Printer size={14} /> Print Queue ({printQueue.length})
+              </h3>
+              {printQueue.length > 0 && (
+                <button onClick={toggleSelectAll} className="text-[10px] font-bold text-blue-600 hover:text-blue-800">
+                  {printSelected.size === printQueue.length ? 'Deselect all' : 'Select all'}
+                </button>
+              )}
+            </div>
+
+            {printQueue.length === 0 ? (
+              <p className="text-xs text-blue-400 text-center py-4">Confirmed orders will appear here for printing.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                {printQueue.map((label, i) => (
+                  <div key={i} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-100">
+                    <button onClick={() => togglePrintSelect(i)} className="text-blue-500 flex-shrink-0">
+                      {printSelected.has(i) ? <CheckSquare size={14} /> : <Square size={14} />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#1a1c3a] truncate">{label.customerName}</p>
+                      <p className="text-[10px] text-gray-400 font-mono">{label.tracking}</p>
+                    </div>
+                    <button onClick={() => removePrintItem(i)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {printQueue.length > 0 && (
+              <div className="mt-3 flex gap-2">
+                {printSelected.size > 0 && (
+                  <button
+                    onClick={printSelectedLabels}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-all"
+                  >
+                    <Printer size={12} /> Print selected ({printSelected.size})
+                  </button>
+                )}
+                <button
+                  onClick={printAllLabels}
+                  className={cn(
+                    'flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all',
+                    printSelected.size > 0
+                      ? 'flex-1 bg-blue-100 hover:bg-blue-200 text-blue-700'
+                      : 'w-full bg-blue-600 hover:bg-blue-700 text-white'
+                  )}
+                >
+                  <Printer size={12} /> Print all ({printQueue.length})
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Up next */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-[#1a1c3a] text-sm mb-3">Up Next ({Math.max(0, pendingCount - 1)})</h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">

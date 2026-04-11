@@ -8,8 +8,9 @@ import { supabase } from '@/lib/supabase'
 import { OrderStatus } from '@/lib/types'
 import {
   Search, Download, Eye, Package, MapPin, FileText, X, Printer,
+  CheckSquare, Square, ChevronRight,
 } from 'lucide-react'
-import { printOrderLabel } from '@/components/PrintLabel'
+import { printOrderLabel, printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import Link from 'next/link'
 
 type OrderRow = {
@@ -39,12 +40,34 @@ const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
   { value: 'cancelled', label: 'Cancelled' },
 ]
 
+function orderToLabel(o: OrderRow): PrintLabelProps {
+  return {
+    tracking: o.tracking_number,
+    customerName: o.customer_name,
+    customerPhone: o.customer_phone,
+    customerAddress: o.customer_address || '',
+    customerCity: o.customer_city,
+    items: Array.isArray(o.items) ? o.items : [],
+    totalAmount: o.total_amount,
+    paymentMethod: o.payment_method,
+  }
+}
+
 export default function OrdersPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
+  const [printQueue, setPrintQueue] = useState<PrintLabelProps[]>([])
+  const [printSelected, setPrintSelected] = useState<Set<number>>(new Set())
+  const [showPrintPanel, setShowPrintPanel] = useState(false)
+
+  // Print queue helpers
+  const addToPrintQueue = (label: PrintLabelProps) => setPrintQueue(prev => [...prev, label])
+  const togglePrintSelect = (i: number) => setPrintSelected(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n })
+  const toggleSelectAll = () => setPrintSelected(prev => prev.size === printQueue.length ? new Set() : new Set(printQueue.map((_, i) => i)))
+  const removePrintItem = (i: number) => { setPrintQueue(prev => prev.filter((_, idx) => idx !== i)); setPrintSelected(prev => { const n = new Set<number>(); prev.forEach(v => { if (v < i) n.add(v); else if (v > i) n.add(v - 1) }); return n }) }
 
   useEffect(() => {
     supabase.from('orders').select('*').order('created_at', { ascending: false }).then(({ data }) => {
@@ -106,10 +129,23 @@ export default function OrdersPage() {
             ))}
           </div>
 
-          <button className="ml-auto flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 transition-all shadow-sm flex-shrink-0">
-            <Download size={13} />
-            Export
-          </button>
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowPrintPanel(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm ${
+                showPrintPanel || printQueue.length > 0
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              <Printer size={13} />
+              Print queue {printQueue.length > 0 && `(${printQueue.length})`}
+            </button>
+            <button className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 transition-all shadow-sm">
+              <Download size={13} />
+              Export
+            </button>
+          </div>
         </div>
 
         {/* Orders Table */}
@@ -210,18 +246,9 @@ export default function OrdersPage() {
                               <Eye size={13} />
                             </button>
                             <button
-                              onClick={() => printOrderLabel({
-                                tracking: order.tracking_number,
-                                customerName: order.customer_name,
-                                customerPhone: order.customer_phone,
-                                customerAddress: order.customer_address || '',
-                                customerCity: order.customer_city,
-                                items: Array.isArray(order.items) ? order.items : [],
-                                totalAmount: order.total_amount,
-                                paymentMethod: order.payment_method,
-                              })}
-                              className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-indigo-50 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-all"
-                              title="Print label"
+                              onClick={() => addToPrintQueue(orderToLabel(order))}
+                              className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-blue-50 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all"
+                              title="Add to print queue"
                             >
                               <Printer size={13} />
                             </button>
@@ -249,6 +276,80 @@ export default function OrdersPage() {
           </div>
         </div>
       </div>
+
+      {/* Print Queue Panel */}
+      {showPrintPanel && (
+        <>
+          <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm" onClick={() => setShowPrintPanel(false)} />
+          <div className="fixed right-0 top-0 h-full w-full max-w-sm bg-blue-50 border-l border-blue-200 shadow-2xl z-50 flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-blue-200 bg-blue-600">
+              <h2 className="font-bold text-white flex items-center gap-2">
+                <Printer size={16} /> Print Queue ({printQueue.length})
+              </h2>
+              <button onClick={() => setShowPrintPanel(false)} className="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center text-white">
+                <X size={15} />
+              </button>
+            </div>
+
+            {printQueue.length > 0 && (
+              <div className="px-5 py-2.5 border-b border-blue-200 flex items-center justify-between">
+                <button onClick={toggleSelectAll} className="flex items-center gap-1.5 text-xs font-bold text-blue-700 hover:text-blue-900">
+                  {printSelected.size === printQueue.length ? <CheckSquare size={13} /> : <Square size={13} />}
+                  {printSelected.size === printQueue.length ? 'Deselect all' : 'Select all'}
+                </button>
+                <span className="text-xs text-blue-500">{printSelected.size} selected</span>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-2">
+              {printQueue.length === 0 ? (
+                <div className="text-center py-10 text-blue-400">
+                  <Printer size={32} className="mx-auto mb-3 opacity-40" />
+                  <p className="text-sm font-semibold">No labels in queue</p>
+                  <p className="text-xs mt-1">Click the printer icon on orders to add them here.</p>
+                </div>
+              ) : printQueue.map((label, i) => (
+                <div key={i} className="flex items-center gap-2.5 p-3 bg-white rounded-xl border border-blue-100 shadow-sm">
+                  <button onClick={() => togglePrintSelect(i)} className="text-blue-500 flex-shrink-0">
+                    {printSelected.has(i) ? <CheckSquare size={15} /> : <Square size={15} />}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[#1a1c3a] truncate">{label.customerName}</p>
+                    <p className="text-[10px] text-gray-400 font-mono">{label.tracking}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{label.customerCity}</p>
+                  </div>
+                  <button onClick={() => removePrintItem(i)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {printQueue.length > 0 && (
+              <div className="px-5 py-4 border-t border-blue-200 bg-white space-y-2">
+                {printSelected.size > 0 && (
+                  <button
+                    onClick={() => { const labels = printQueue.filter((_, i) => printSelected.has(i)); if (labels.length) printOrderLabels(labels) }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all"
+                  >
+                    <Printer size={14} /> Print selected ({printSelected.size})
+                  </button>
+                )}
+                <button
+                  onClick={() => printOrderLabels(printQueue)}
+                  className={`w-full flex items-center justify-center gap-1.5 py-2.5 text-sm font-bold rounded-xl transition-all ${
+                    printSelected.size > 0
+                      ? 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  <Printer size={14} /> Print all ({printQueue.length})
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
