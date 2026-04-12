@@ -23,65 +23,82 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      setUser({ role: 'admin', email: ADMIN_EMAIL, name: 'Admin' })
-      router.push('/dashboard')
-      setLoading(false)
-      return
-    }
-
-    const { data: sellers, error: sellerErr } = await supabase
-      .from('sellers')
-      .select('id, email, password, status, name, company')
-      .eq('email', email)
-      .limit(1)
-    const seller = sellers?.[0] || null
-
-    if (sellerErr) {
-      console.error('Seller query error:', sellerErr)
-    }
-
-    if (seller && seller.password === password) {
-      if (seller.status === 'suspended') {
-        setError('Your account is suspended. Contact admin.')
+    try {
+      // Admin hardcoded login
+      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+        setUser({ role: 'admin', email: ADMIN_EMAIL, name: 'Admin' })
+        router.push('/dashboard')
         setLoading(false)
         return
       }
-      setUser({
-        role: 'seller', id: seller.id, email: seller.email,
-        name: seller.company || seller.name, fullName: seller.name,
-      })
-      router.push('/seller')
-      setLoading(false)
-      return
-    }
 
-    const { data: agents, error: agentErr } = await supabase
-      .from('agents')
-      .select('id, email, password, status, name')
-      .eq('email', email)
-      .limit(1)
-    const agent = agents?.[0] || null
+      // Try seller
+      let seller: any = null
+      let sellerErr: any = null
+      try {
+        const res = await supabase
+          .from('sellers')
+          .select('id, email, password, status, name, company')
+          .eq('email', email)
+          .limit(1)
+        seller = res.data?.[0] || null
+        sellerErr = res.error
+      } catch (ex) {
+        console.error('Seller query crash:', ex)
+        sellerErr = ex
+      }
 
-    if (agentErr) {
-      console.error('Agent query error:', agentErr)
-    }
-
-    if (agent && agent.password === password) {
-      if (agent.status === 'inactive' || agent.status === 'suspended') {
-        setError('Your account is inactive. Contact admin.')
+      if (seller && seller.password === password) {
+        if (seller.status === 'suspended') {
+          setError('Your account is suspended. Contact admin.')
+          setLoading(false)
+          return
+        }
+        setUser({
+          role: 'seller', id: seller.id, email: seller.email,
+          name: seller.company || seller.name, fullName: seller.name,
+        })
+        router.push('/seller')
         setLoading(false)
         return
       }
-      setUser({ role: 'agent', id: agent.id, email: agent.email, name: agent.name })
-      router.push('/agent')
-      setLoading(false)
-      return
-    }
 
-    setLoading(false)
-    const dbErr = sellerErr || agentErr
-    setError(dbErr ? `Database error: ${dbErr.message}` : 'Invalid email or password.')
+      // Try agent
+      let agent: any = null
+      let agentErr: any = null
+      try {
+        const res = await supabase
+          .from('agents')
+          .select('id, email, password, status, name')
+          .eq('email', email)
+          .limit(1)
+        agent = res.data?.[0] || null
+        agentErr = res.error
+      } catch (ex) {
+        console.error('Agent query crash:', ex)
+        agentErr = ex
+      }
+
+      if (agent && agent.password === password) {
+        if (agent.status === 'inactive' || agent.status === 'suspended') {
+          setError('Your account is inactive. Contact admin.')
+          setLoading(false)
+          return
+        }
+        setUser({ role: 'agent', id: agent.id, email: agent.email, name: agent.name })
+        router.push('/agent')
+        setLoading(false)
+        return
+      }
+
+      setLoading(false)
+      const dbErr = sellerErr || agentErr
+      setError(dbErr ? `Database error: ${dbErr.message || dbErr}` : 'Invalid email or password.')
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setLoading(false)
+      setError(`Error: ${err.message || err}`)
+    }
   }
 
   return (
