@@ -102,10 +102,11 @@ const agentNav: NavSection[] = [
   {
     labelKey: 'nav_main',
     items: [
-      { href: '/agent',           icon: LayoutDashboard, labelKey: 'nav_dashboard'    },
-      { href: '/agent/calls',     icon: Phone,           labelKey: 'nav_call_queue'   },
-      { href: '/agent/history',   icon: Clock,           labelKey: 'nav_call_history' },
-      { href: '/agent/shipping',  icon: TruckIcon,       labelKey: 'nav_shipping'     },
+      { href: '/agent',              icon: LayoutDashboard, labelKey: 'nav_dashboard'    },
+      { href: '/agent/calls',        icon: Phone,           labelKey: 'nav_call_queue'   },
+      { href: '/agent/history',      icon: Clock,           labelKey: 'nav_call_history' },
+      { href: '/agent/shipping',     icon: TruckIcon,       labelKey: 'nav_shipping'     },
+      { href: '/agent/orders/new',   icon: Plus,            labelKey: 'nav_new_order'    },
     ],
   },
   {

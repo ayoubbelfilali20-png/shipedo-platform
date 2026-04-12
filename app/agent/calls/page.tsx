@@ -44,6 +44,7 @@ export default function AgentCallsPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [agentId, setAgentId] = useState<string | null>(null)
+  const [agentName, setAgentName] = useState('')
   const [note, setNote] = useState('')
   const [rescheduleDate, setRescheduleDate] = useState('')
   const [showReschedule, setShowReschedule] = useState(false)
@@ -59,6 +60,10 @@ export default function AgentCallsPage() {
   const [editPhone, setEditPhone] = useState('')
   const [editAddress, setEditAddress] = useState('')
   const [editCity, setEditCity] = useState('')
+
+  // Client history + duplicate detection
+  const [clientHistory, setClientHistory] = useState<OrderRow[]>([])
+  const [isDuplicate, setIsDuplicate] = useState(false)
 
   // Print queue — manual select
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
@@ -97,6 +102,7 @@ export default function AgentCallsPage() {
         const parsed = JSON.parse(u)
         if (parsed.role === 'agent') {
           setAgentId(parsed.id)
+          setAgentName(parsed.name || '')
           loadQueue(parsed.id)
           return
         }
@@ -109,21 +115,56 @@ export default function AgentCallsPage() {
   const pendingCount = orders.length
 
   useEffect(() => {
-    if (order) {
-      setWaText(`Hello ${order.customer_name}, this is Shipedo regarding your order ${order.tracking_number}. Could you please confirm your delivery details?`)
-      setNote('')
-      setRescheduleDate('')
-      setShowReschedule(false)
-      setShowCancel(false)
-      setCancelReason('')
-      setCancelOther('')
-      setEditing(false)
-      setEditName(order.customer_name)
-      setEditPhone(order.customer_phone)
-      setEditAddress(order.customer_address)
-      setEditCity(order.customer_city)
+    if (!order) return
+
+    // Build product list for WhatsApp message
+    const items = Array.isArray(order.items) ? order.items : []
+    const productList = items.map((it: any) => {
+      const qty = Number(it.quantity) || 1
+      return qty > 1 ? `${it.name || 'Item'} (x${qty})` : (it.name || 'Item')
+    }).join(', ')
+    const agentFirst = agentName.split(' ')[0] || 'Agent'
+
+    setWaText(`Hello 👋 ${order.customer_name}, this is ${agentFirst} from Shipedo.\nWe received your order for ${productList}.\nI'm just calling to confirm your details before delivery 🚚.`)
+    setNote('')
+    setRescheduleDate('')
+    setShowReschedule(false)
+    setShowCancel(false)
+    setCancelReason('')
+    setCancelOther('')
+    setEditing(false)
+    setEditName(order.customer_name)
+    setEditPhone(order.customer_phone)
+    setEditAddress(order.customer_address)
+    setEditCity(order.customer_city)
+
+    // Load client history by phone number
+    const phone = order.customer_phone?.trim()
+    if (phone) {
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_phone', phone)
+        .neq('id', order.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+        .then(({ data }) => {
+          const history = (data || []) as OrderRow[]
+          setClientHistory(history)
+          // Detect duplicate: same phone + same product names
+          const currentProducts = items.map((it: any) => (it.name || '').toLowerCase()).sort().join('|')
+          const dup = history.some(h => {
+            const hItems = Array.isArray(h.items) ? h.items : []
+            const hProducts = hItems.map((it: any) => (it.name || '').toLowerCase()).sort().join('|')
+            return hProducts === currentProducts && ['pending', 'confirmed', 'prepared', 'shipped'].includes(h.status)
+          })
+          setIsDuplicate(dup)
+        })
+    } else {
+      setClientHistory([])
+      setIsDuplicate(false)
     }
-  }, [order?.id])
+  }, [order?.id, agentName])
 
   const saveEdits = async () => {
     if (!order) return
@@ -377,6 +418,55 @@ export default function AgentCallsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Duplicate warning */}
+                {isDuplicate && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
+                    <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-red-700">Possible duplicate order</p>
+                      <p className="text-[10px] text-red-500">This client has another active order with the same products.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Client history */}
+                {clientHistory.length > 0 && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wide mb-2 flex items-center gap-1">
+                      <Clock size={10} /> Returning client &middot; {clientHistory.length} previous order{clientHistory.length > 1 ? 's' : ''}
+                    </p>
+                    <div className="space-y-1 max-h-28 overflow-y-auto">
+                      {clientHistory.map(h => {
+                        const hItems = Array.isArray(h.items) ? h.items : []
+                        const statusColor: Record<string, string> = {
+                          pending: 'text-yellow-600 bg-yellow-50', confirmed: 'text-emerald-600 bg-emerald-50',
+                          prepared: 'text-indigo-600 bg-indigo-50', shipped: 'text-blue-600 bg-blue-50',
+                          delivered: 'text-sky-600 bg-sky-50', returned: 'text-red-600 bg-red-50',
+                          cancelled: 'text-gray-500 bg-gray-50',
+                        }
+                        return (
+                          <div key={h.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-purple-100 text-[10px]">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-mono font-bold text-[#1a1c3a]">{h.tracking_number}</span>
+                              <span className="text-gray-400 truncate">{hItems.map((it: any) => it.name || 'Item').join(', ')}</span>
+                            </div>
+                            <span className={cn('px-1.5 py-0.5 rounded font-bold flex-shrink-0', statusColor[h.status] || 'text-gray-500 bg-gray-50')}>
+                              {h.status}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {clientHistory.length === 0 && order && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-2.5 flex items-center gap-2">
+                    <CheckCircle size={12} className="text-green-500" />
+                    <p className="text-[10px] font-semibold text-green-700">New client &middot; First order</p>
+                  </div>
+                )}
 
                 {/* Order details */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">

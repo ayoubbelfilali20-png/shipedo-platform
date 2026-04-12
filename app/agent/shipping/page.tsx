@@ -244,7 +244,7 @@ export default function AgentShippingPage() {
                       <Phone size={13} />
                     </a>
                     <a
-                      href={whatsappLink(order.customer_phone, `Hello ${order.customer_name}, your order ${order.tracking_number} is on its way. Please confirm your availability for delivery.`)}
+                      href={whatsappLink(order.customer_phone, `Hello 👋 ${order.customer_name}, your order for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all"
