@@ -216,9 +216,12 @@ export default function SellerOrdersPage() {
               >
                 <Plus size={14} /> {t('ord_new_order')}
               </Link>
-              <button className="flex items-center gap-1.5 px-4 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-lg shadow-sm shadow-orange-500/20 transition-all">
+              <Link
+                href="/seller/orders/import"
+                className="flex items-center gap-1.5 px-4 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-lg shadow-sm shadow-orange-500/20 transition-all"
+              >
                 <Upload size={14} /> {t('ord_import')}
-              </button>
+              </Link>
               <button
                 onClick={handleExport}
                 disabled={filtered.length === 0}

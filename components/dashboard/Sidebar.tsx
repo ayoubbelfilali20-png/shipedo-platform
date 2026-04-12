@@ -8,7 +8,7 @@ import {
   LogOut, ChevronRight, Truck as TruckIcon, PlaneTakeoff,
   ShieldCheck, Store, Headphones, PanelLeftClose, PanelLeftOpen,
   ShoppingBag, Search, ChevronDown, Plus, List, Clock, UserCog,
-  Send, RotateCcw
+  Send, RotateCcw, Upload
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
@@ -57,8 +57,9 @@ const sellerNav: NavSection[] = [
     items: [
       { href: '/seller',          icon: LayoutDashboard, labelKey: 'nav_dashboard' },
       { icon: Package, labelKey: 'nav_orders', sub: [
-        { href: '/seller/orders',     icon: List, labelKey: 'nav_all_orders' },
-        { href: '/seller/orders/new', icon: Plus, labelKey: 'nav_new_order'  },
+        { href: '/seller/orders',        icon: List,   labelKey: 'nav_all_orders'    },
+        { href: '/seller/orders/new',    icon: Plus,   labelKey: 'nav_new_order'     },
+        { href: '/seller/orders/import', icon: Upload, labelKey: 'nav_import_orders' },
       ]},
       { href: '/seller/shipping',  icon: TruckIcon, labelKey: 'nav_shipping'  },
       { href: '/seller/analytics', icon: BarChart3, labelKey: 'nav_analytics' },
