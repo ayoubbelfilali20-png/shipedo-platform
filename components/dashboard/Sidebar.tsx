@@ -40,7 +40,8 @@ const adminNav: NavSection[] = [
     items: [
       { href: '/dashboard/sellers',     icon: Store,        labelKey: 'nav_sellers'     },
       { href: '/dashboard/agents',      icon: UserCog,      labelKey: 'nav_agents'      },
-      { href: '/dashboard/returns',      icon: RotateCcw,    labelKey: 'nav_returns'      },
+      { href: '/dashboard/shipping',    icon: TruckIcon,    labelKey: 'nav_shipping'    },
+      { href: '/dashboard/returns',     icon: RotateCcw,    labelKey: 'nav_returns'     },
       { href: '/dashboard/expeditions', icon: PlaneTakeoff, labelKey: 'nav_expeditions' },
       { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'     },
       { href: '/dashboard/withdrawals', icon: Wallet,       labelKey: 'nav_withdrawals' },
@@ -101,9 +102,10 @@ const agentNav: NavSection[] = [
   {
     labelKey: 'nav_main',
     items: [
-      { href: '/agent',         icon: LayoutDashboard, labelKey: 'nav_dashboard'    },
-      { href: '/agent/calls',   icon: Phone,           labelKey: 'nav_call_queue'   },
-      { href: '/agent/history', icon: Clock,           labelKey: 'nav_call_history' },
+      { href: '/agent',           icon: LayoutDashboard, labelKey: 'nav_dashboard'    },
+      { href: '/agent/calls',     icon: Phone,           labelKey: 'nav_call_queue'   },
+      { href: '/agent/history',   icon: Clock,           labelKey: 'nav_call_history' },
+      { href: '/agent/shipping',  icon: TruckIcon,       labelKey: 'nav_shipping'     },
     ],
   },
   {
