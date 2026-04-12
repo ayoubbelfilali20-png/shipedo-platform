@@ -30,11 +30,16 @@ export default function LoginPage() {
       return
     }
 
-    const { data: seller } = await supabase
+    const { data: sellers, error: sellerErr } = await supabase
       .from('sellers')
       .select('id, email, password, status, name, company')
       .eq('email', email)
-      .single()
+      .limit(1)
+    const seller = sellers?.[0] || null
+
+    if (sellerErr) {
+      console.error('Seller query error:', sellerErr)
+    }
 
     if (seller && seller.password === password) {
       if (seller.status === 'suspended') {
@@ -51,11 +56,16 @@ export default function LoginPage() {
       return
     }
 
-    const { data: agent } = await supabase
+    const { data: agents, error: agentErr } = await supabase
       .from('agents')
       .select('id, email, password, status, name')
       .eq('email', email)
-      .single()
+      .limit(1)
+    const agent = agents?.[0] || null
+
+    if (agentErr) {
+      console.error('Agent query error:', agentErr)
+    }
 
     if (agent && agent.password === password) {
       if (agent.status === 'inactive' || agent.status === 'suspended') {
@@ -70,7 +80,8 @@ export default function LoginPage() {
     }
 
     setLoading(false)
-    setError('Invalid email or password.')
+    const dbErr = sellerErr || agentErr
+    setError(dbErr ? `Database error: ${dbErr.message}` : 'Invalid email or password.')
   }
 
   return (
