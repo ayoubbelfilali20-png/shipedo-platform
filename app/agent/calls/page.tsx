@@ -7,9 +7,8 @@ import { cn } from '@/lib/utils'
 import {
   Phone, CheckCircle, XCircle, Clock, MapPin, Package,
   AlertCircle, Calendar, MessageSquare, PhoneOff, MessageCircle,
-  Printer, Pencil, Save, X, CheckSquare, Square,
+  Printer, Pencil, Save, X, CheckSquare, Square, Plus, Trash2, Search,
 } from 'lucide-react'
-import OrderItemsDetails from '@/components/OrderItemsDetails'
 import { printOrderLabel, printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 
 type OrderRow = {
@@ -29,6 +28,7 @@ type OrderRow = {
   last_call_note?: string | null
   cancel_reason?: string | null
   created_at: string
+  seller_id?: string | null
 }
 
 function cleanPhone(p: string) {
@@ -64,6 +64,14 @@ export default function AgentCallsPage() {
   // Client history + duplicate detection
   const [clientHistory, setClientHistory] = useState<OrderRow[]>([])
   const [isDuplicate, setIsDuplicate] = useState(false)
+
+  // Editable items
+  const [editItems, setEditItems] = useState<any[]>([])
+  const [itemsChanged, setItemsChanged] = useState(false)
+  const [sellerProducts, setSellerProducts] = useState<any[]>([])
+  const [showProductPicker, setShowProductPicker] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+  const [savingItems, setSavingItems] = useState(false)
 
   // Print queue — manual select
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
@@ -138,6 +146,19 @@ export default function AgentCallsPage() {
     setEditAddress(order.customer_address)
     setEditCity(order.customer_city)
 
+    // Init editable items
+    setEditItems(items.map((it: any, i: number) => ({ ...it, _id: `${Date.now()}-${i}` })))
+    setItemsChanged(false)
+
+    // Load seller products for adding
+    if (order.seller_id) {
+      supabase.from('products').select('id, name, sku, selling_price, stock, image_url')
+        .eq('seller_id', order.seller_id).eq('status', 'active')
+        .then(({ data }) => setSellerProducts((data || []) as any[]))
+    } else {
+      setSellerProducts([])
+    }
+
     // Load client history by phone number
     const phone = order.customer_phone?.trim()
     if (phone) {
@@ -165,6 +186,64 @@ export default function AgentCallsPage() {
       setIsDuplicate(false)
     }
   }, [order?.id, agentName])
+
+  // Item editing
+  const updateItemPrice = (idx: number, price: number) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, unit_price: price } : it))
+    setItemsChanged(true)
+  }
+  const updateItemQty = (idx: number, qty: number) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, qty) } : it))
+    setItemsChanged(true)
+  }
+  const removeItem = (idx: number) => {
+    setEditItems(prev => prev.filter((_, i) => i !== idx))
+    setItemsChanged(true)
+  }
+  const addSellerProduct = (p: any) => {
+    setEditItems(prev => [...prev, {
+      _id: `${Date.now()}`,
+      product_id: p.id,
+      name: p.name,
+      sku: p.sku || '',
+      quantity: 1,
+      unit_price: p.selling_price || 0,
+    }])
+    setItemsChanged(true)
+    setShowProductPicker(false)
+    setProductSearch('')
+  }
+  const addCustomItem = () => {
+    setEditItems(prev => [...prev, {
+      _id: `${Date.now()}`,
+      product_id: null,
+      name: '',
+      sku: '',
+      quantity: 1,
+      unit_price: 0,
+    }])
+    setItemsChanged(true)
+  }
+  const updateItemName = (idx: number, name: string) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, name } : it))
+    setItemsChanged(true)
+  }
+  const editItemsTotal = editItems.reduce((a: number, it: any) => a + (Number(it.unit_price) || 0) * (Number(it.quantity) || 0), 0)
+
+  const saveItems = async () => {
+    if (!order) return
+    setSavingItems(true)
+    const cleanItems = editItems.map(({ _id, ...rest }: any) => rest)
+    await supabase.from('orders').update({ items: cleanItems, total_amount: editItemsTotal }).eq('id', order.id)
+    setOrders(prev => prev.map(o => o.id === order.id ? { ...o, items: cleanItems, total_amount: editItemsTotal } : o))
+    setItemsChanged(false)
+    setSavingItems(false)
+  }
+
+  const filteredSellerProducts = sellerProducts.filter(p => {
+    const q = productSearch.toLowerCase()
+    return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)
+  })
 
   const saveEdits = async () => {
     if (!order) return
@@ -201,18 +280,23 @@ export default function AgentCallsPage() {
       }).eq('id', order.id)
     }
 
+    // Always save latest items/total
+    const cleanItems = editItems.map(({ _id, ...rest }: any) => rest)
+
     const nowIso = new Date().toISOString()
     const patch: any = {
       last_call_at: nowIso,
       last_call_note: note || null,
       last_call_agent_id: agentId,
       call_attempts: (order.call_attempts || 0) + 1,
+      items: cleanItems,
+      total_amount: editItemsTotal,
     }
     let logRemindedAt: string | null = null
     if (action === 'confirmed') {
       patch.status = 'confirmed'
       patch.reminded_at = null
-      await decrementStockForOrderItems(order.items as any[])
+      await decrementStockForOrderItems(cleanItems as any[])
     } else if (action === 'cancelled') {
       const reasonFinal = cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason
       if (!reasonFinal) { setBusy(false); return }
@@ -468,19 +552,80 @@ export default function AgentCallsPage() {
                   </div>
                 )}
 
-                {/* Order details */}
+                {/* Order details — editable items */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-                    <Package size={12} /> Order Details
-                  </p>
-                  <OrderItemsDetails
-                    items={Array.isArray(order.items) ? order.items : []}
-                    showSeller
-                  />
-                  <div className="pt-2 border-t border-gray-200 flex justify-between text-xs font-bold">
-                    <span className="text-gray-600">Total</span>
-                    <span className="text-[#f4991a]">KES {(order.total_amount || 0).toLocaleString()}</span>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                      <Package size={12} /> Order Items ({editItems.length})
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      {sellerProducts.length > 0 && (
+                        <button onClick={() => setShowProductPicker(true)}
+                          className="flex items-center gap-1 px-2 py-1 bg-[#f4991a] hover:bg-orange-500 text-white text-[10px] font-bold rounded-lg transition-all">
+                          <Plus size={10} /> From catalog
+                        </button>
+                      )}
+                      <button onClick={addCustomItem}
+                        className="flex items-center gap-1 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-all">
+                        <Plus size={10} /> Custom
+                      </button>
+                    </div>
                   </div>
+
+                  <div className="space-y-1.5">
+                    {editItems.map((it: any, idx: number) => (
+                      <div key={it._id || idx} className="flex items-center gap-2 bg-white rounded-lg p-2.5 border border-gray-100">
+                        <div className="flex-1 min-w-0">
+                          {it.product_id ? (
+                            <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name}</p>
+                          ) : (
+                            <input
+                              value={it.name}
+                              onChange={e => updateItemName(idx, e.target.value)}
+                              placeholder="Product name..."
+                              className="w-full text-xs font-bold text-[#1a1c3a] bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-[#f4991a] pb-0.5"
+                            />
+                          )}
+                          {it.sku && <p className="text-[9px] text-gray-400 font-mono mt-0.5">{it.sku}</p>}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => updateItemQty(idx, (it.quantity || 1) - 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">-</button>
+                          <span className="text-xs font-bold text-[#1a1c3a] min-w-[16px] text-center">{it.quantity || 1}</span>
+                          <button onClick={() => updateItemQty(idx, (it.quantity || 1) + 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">+</button>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-gray-400">KES</span>
+                          <input
+                            type="number"
+                            value={it.unit_price || ''}
+                            onChange={e => updateItemPrice(idx, parseFloat(e.target.value) || 0)}
+                            className="w-16 px-1.5 py-1 border border-gray-200 rounded text-xs font-bold text-[#f4991a] text-right focus:outline-none focus:ring-1 focus:ring-[#f4991a]/30 focus:border-[#f4991a]"
+                            min={0}
+                          />
+                        </div>
+                        <button onClick={() => removeItem(idx)} className="w-6 h-6 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400">
+                          <Trash2 size={10} />
+                        </button>
+                      </div>
+                    ))}
+                    {editItems.length === 0 && (
+                      <p className="text-xs text-gray-400 text-center py-3">No items. Add from catalog or custom.</p>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
+                    <div className="text-xs font-bold">
+                      <span className="text-gray-600">Total: </span>
+                      <span className="text-[#f4991a]">KES {editItemsTotal.toLocaleString()}</span>
+                    </div>
+                    {itemsChanged && (
+                      <button onClick={saveItems} disabled={savingItems}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
+                        <Save size={10} /> {savingItems ? 'Saving...' : 'Save changes'}
+                      </button>
+                    )}
+                  </div>
+
                   {order.notes && (
                     <div className="flex items-start gap-1 text-xs text-amber-600 bg-amber-50 rounded-lg p-2 mt-2">
                       <AlertCircle size={11} className="mt-0.5" />
@@ -493,6 +638,50 @@ export default function AgentCallsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Product picker modal */}
+                {showProductPicker && (
+                  <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[70vh] flex flex-col">
+                      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                        <h3 className="font-bold text-[#1a1c3a]">Add Product from Catalog</h3>
+                        <button onClick={() => { setShowProductPicker(false); setProductSearch('') }} className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                          <X size={15} className="text-gray-500" />
+                        </button>
+                      </div>
+                      <div className="px-5 py-3 border-b border-gray-50">
+                        <div className="relative">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
+                            placeholder="Search products..." autoFocus
+                            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20" />
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-5 space-y-2">
+                        {filteredSellerProducts.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-8">No products found</p>
+                        ) : filteredSellerProducts.map(p => {
+                          const alreadyAdded = editItems.some((it: any) => it.product_id === p.id)
+                          return (
+                            <button key={p.id} onClick={() => !alreadyAdded && addSellerProduct(p)} disabled={alreadyAdded}
+                              className={cn('w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-all',
+                                alreadyAdded ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed' : 'border-gray-200 hover:border-[#f4991a]/60 hover:bg-orange-50/30')}>
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-50 to-blue-50 border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" /> : <Package size={16} className="text-gray-300" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-[#1a1c3a] truncate">{p.name}</p>
+                                <p className="text-[10px] text-gray-400 font-mono">{p.sku} · Stock: {p.stock}</p>
+                              </div>
+                              <span className="text-xs font-bold text-[#f4991a]">KES {(p.selling_price || 0).toLocaleString()}</span>
+                              {alreadyAdded && <span className="text-[9px] text-emerald-600 font-bold">Added</span>}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* WhatsApp message editor */}
                 <div>

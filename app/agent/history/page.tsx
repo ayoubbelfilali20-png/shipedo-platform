@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import {
   Phone, CheckCircle, Search, X, TrendingUp, Package, Truck, MapPin,
   ChevronDown, Pencil, Save, MessageCircle, Calendar, PhoneOff,
-  PhoneCall, Clock, FileText,
+  PhoneCall, Clock, FileText, Plus, Trash2,
 } from 'lucide-react'
 
 type OrderRow = {
@@ -31,6 +31,7 @@ type OrderRow = {
   shipped_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
+  seller_id?: string | null
 }
 
 type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
@@ -110,6 +111,15 @@ export default function AgentHistoryPage() {
   // Expanded call details
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Item editing per order
+  const [editItemsId, setEditItemsId] = useState<string | null>(null)
+  const [editItems, setEditItems] = useState<any[]>([])
+  const [itemsChanged, setItemsChanged] = useState(false)
+  const [savingItems, setSavingItems] = useState(false)
+  const [sellerProducts, setSellerProducts] = useState<any[]>([])
+  const [showProductPicker, setShowProductPicker] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+
   const load = async (aid: string | null) => {
     if (!aid) { setLoading(false); return }
     const { data } = await supabase
@@ -186,6 +196,55 @@ export default function AgentHistoryPage() {
     setSavingEdit(false)
     setEditingId(null)
   }
+
+  // Item editing functions
+  const startEditItems = (order: OrderRow) => {
+    setEditItemsId(order.id)
+    setEditItems((Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => ({ ...it, _id: `${Date.now()}-${i}` })))
+    setItemsChanged(false)
+    // Load seller products
+    if (order.seller_id) {
+      supabase.from('products').select('id, name, sku, selling_price, stock, image_url')
+        .eq('seller_id', order.seller_id).eq('status', 'active')
+        .then(({ data }) => setSellerProducts((data || []) as any[]))
+    } else {
+      setSellerProducts([])
+    }
+  }
+  const cancelEditItems = () => { setEditItemsId(null); setItemsChanged(false) }
+  const updateItemPrice = (idx: number, price: number) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, unit_price: price } : it)); setItemsChanged(true)
+  }
+  const updateItemQty = (idx: number, qty: number) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, quantity: Math.max(1, qty) } : it)); setItemsChanged(true)
+  }
+  const updateItemName = (idx: number, name: string) => {
+    setEditItems(prev => prev.map((it, i) => i === idx ? { ...it, name } : it)); setItemsChanged(true)
+  }
+  const removeItem = (idx: number) => {
+    setEditItems(prev => prev.filter((_, i) => i !== idx)); setItemsChanged(true)
+  }
+  const addSellerProduct = (p: any) => {
+    setEditItems(prev => [...prev, { _id: `${Date.now()}`, product_id: p.id, name: p.name, sku: p.sku || '', quantity: 1, unit_price: p.selling_price || 0 }])
+    setItemsChanged(true); setShowProductPicker(false); setProductSearch('')
+  }
+  const addCustomItem = () => {
+    setEditItems(prev => [...prev, { _id: `${Date.now()}`, product_id: null, name: '', sku: '', quantity: 1, unit_price: 0 }])
+    setItemsChanged(true)
+  }
+  const editItemsTotal = editItems.reduce((a: number, it: any) => a + (Number(it.unit_price) || 0) * (Number(it.quantity) || 0), 0)
+  const saveItems = async () => {
+    if (!editItemsId) return
+    setSavingItems(true)
+    const cleanItems = editItems.map(({ _id, ...rest }: any) => rest)
+    await supabase.from('orders').update({ items: cleanItems, total_amount: editItemsTotal }).eq('id', editItemsId)
+    setOrders(prev => prev.map(o => o.id === editItemsId ? { ...o, items: cleanItems, total_amount: editItemsTotal } : o))
+    setItemsChanged(false); setSavingItems(false); setEditItemsId(null)
+  }
+  const filteredSellerProducts = sellerProducts.filter(p => {
+    const q = productSearch.toLowerCase()
+    return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)
+  })
 
   // Filter by date
   const filterByDate = (o: OrderRow) => {
@@ -430,8 +489,12 @@ export default function AgentHistoryPage() {
                       <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400">
                         <Package size={10} />
                         {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
-                          <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{i < (o.items || []).length - 1 ? ',' : ''}</span>
+                          <span key={i}>{it.name || 'Item'} x{it.quantity || 1} (KES {(it.unit_price || 0).toLocaleString()}){i < (o.items || []).length - 1 ? ',' : ''}</span>
                         ))}
+                        <button onClick={() => { setExpandedId(o.id); startEditItems(o) }}
+                          className="ml-1 text-[#f4991a] hover:text-orange-600 font-bold">
+                          <Pencil size={9} />
+                        </button>
                       </div>
                     </div>
 
@@ -525,6 +588,143 @@ export default function AgentHistoryPage() {
                         {o.delivered_at && <TimelineItem label="Delivered" date={o.delivered_at} color="bg-sky-400" />}
                         {o.returned_at && <TimelineItem label="Returned" date={o.returned_at} color="bg-red-400" />}
                         {o.status === 'cancelled' && <TimelineItem label="Cancelled" date={o.last_call_at || o.created_at} color="bg-gray-400" />}
+                      </div>
+                    </div>
+
+                    {/* ── Edit Items ── */}
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Order Items</p>
+                        <div className="flex items-center gap-1.5">
+                          {editItemsId !== o.id ? (
+                            <button onClick={() => startEditItems(o)}
+                              className="flex items-center gap-1 px-2 py-1 bg-[#f4991a] hover:bg-orange-500 text-white text-[10px] font-bold rounded-lg transition-all">
+                              <Pencil size={9} /> Edit items
+                            </button>
+                          ) : (
+                            <>
+                              {sellerProducts.length > 0 && (
+                                <button onClick={() => setShowProductPicker(true)}
+                                  className="flex items-center gap-1 px-2 py-1 bg-[#f4991a] hover:bg-orange-500 text-white text-[10px] font-bold rounded-lg transition-all">
+                                  <Plus size={9} /> Catalog
+                                </button>
+                              )}
+                              <button onClick={addCustomItem}
+                                className="flex items-center gap-1 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-all">
+                                <Plus size={9} /> Custom
+                              </button>
+                              <button onClick={cancelEditItems}
+                                className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded-lg transition-all">
+                                Cancel
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {editItemsId === o.id ? (
+                        /* Editing mode */
+                        <div className="space-y-1.5">
+                          {editItems.map((it: any, idx: number) => (
+                            <div key={it._id || idx} className="flex items-center gap-2 bg-white rounded-lg p-2.5 border border-gray-100">
+                              <div className="flex-1 min-w-0">
+                                {it.product_id ? (
+                                  <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name}</p>
+                                ) : (
+                                  <input value={it.name} onChange={e => updateItemName(idx, e.target.value)}
+                                    placeholder="Product name..."
+                                    className="w-full text-xs font-bold text-[#1a1c3a] bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-[#f4991a] pb-0.5" />
+                                )}
+                                {it.sku && <p className="text-[9px] text-gray-400 font-mono mt-0.5">{it.sku}</p>}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => updateItemQty(idx, (it.quantity || 1) - 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">-</button>
+                                <span className="text-xs font-bold text-[#1a1c3a] min-w-[16px] text-center">{it.quantity || 1}</span>
+                                <button onClick={() => updateItemQty(idx, (it.quantity || 1) + 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">+</button>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-gray-400">KES</span>
+                                <input type="number" value={it.unit_price || ''} onChange={e => updateItemPrice(idx, parseFloat(e.target.value) || 0)}
+                                  className="w-16 px-1.5 py-1 border border-gray-200 rounded text-xs font-bold text-[#f4991a] text-right focus:outline-none focus:ring-1 focus:ring-[#f4991a]/30 focus:border-[#f4991a]" min={0} />
+                              </div>
+                              <button onClick={() => removeItem(idx)} className="w-6 h-6 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400">
+                                <Trash2 size={10} />
+                              </button>
+                            </div>
+                          ))}
+                          {editItems.length === 0 && (
+                            <p className="text-xs text-gray-400 text-center py-3">No items. Add from catalog or custom.</p>
+                          )}
+                          <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
+                            <div className="text-xs font-bold">
+                              <span className="text-gray-600">Total: </span>
+                              <span className="text-[#f4991a]">KES {editItemsTotal.toLocaleString()}</span>
+                            </div>
+                            {itemsChanged && (
+                              <button onClick={saveItems} disabled={savingItems}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
+                                <Save size={10} /> {savingItems ? 'Saving...' : 'Save changes'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        /* View mode */
+                        <div className="space-y-1">
+                          {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-gray-100 text-xs">
+                              <span className="text-[#1a1c3a] font-medium">{it.name || 'Item'} x{it.quantity || 1}</span>
+                              <span className="text-[#f4991a] font-bold">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                            </div>
+                          ))}
+                          <div className="pt-1 flex justify-end text-xs font-bold">
+                            <span className="text-[#f4991a]">Total: KES {(o.total_amount || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Product picker modal */}
+                {showProductPicker && editItemsId === o.id && (
+                  <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[70vh] flex flex-col">
+                      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                        <h3 className="font-bold text-[#1a1c3a]">Add Product from Catalog</h3>
+                        <button onClick={() => { setShowProductPicker(false); setProductSearch('') }} className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+                          <X size={15} className="text-gray-500" />
+                        </button>
+                      </div>
+                      <div className="px-5 py-3 border-b border-gray-50">
+                        <div className="relative">
+                          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input value={productSearch} onChange={e => setProductSearch(e.target.value)}
+                            placeholder="Search products..." autoFocus
+                            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20" />
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-5 space-y-2">
+                        {filteredSellerProducts.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-8">No products found</p>
+                        ) : filteredSellerProducts.map((p: any) => {
+                          const alreadyAdded = editItems.some((it: any) => it.product_id === p.id)
+                          return (
+                            <button key={p.id} onClick={() => !alreadyAdded && addSellerProduct(p)} disabled={alreadyAdded}
+                              className={cn('w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-all',
+                                alreadyAdded ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed' : 'border-gray-200 hover:border-[#f4991a]/60 hover:bg-orange-50/30')}>
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-50 to-blue-50 border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" /> : <Package size={16} className="text-gray-300" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-[#1a1c3a] truncate">{p.name}</p>
+                                <p className="text-[10px] text-gray-400 font-mono">{p.sku} · Stock: {p.stock}</p>
+                              </div>
+                              <span className="text-xs font-bold text-[#f4991a]">KES {(p.selling_price || 0).toLocaleString()}</span>
+                              {alreadyAdded && <span className="text-[9px] text-emerald-600 font-bold">Added</span>}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
