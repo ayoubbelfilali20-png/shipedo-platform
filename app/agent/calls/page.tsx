@@ -208,6 +208,7 @@ export default function AgentCallsPage() {
       product_id: p.id,
       name: p.name,
       sku: p.sku || '',
+      image_url: p.image_url || '',
       quantity: 1,
       unit_price: p.selling_price || 0,
     }])
@@ -589,13 +590,19 @@ export default function AgentCallsPage() {
                     /* ── Read-only view ── */
                     <div className="space-y-1.5">
                       {editItems.map((it: any, idx: number) => (
-                        <div key={it._id || idx} className="flex items-center justify-between bg-white rounded-lg p-2.5 border border-gray-100">
-                          <div className="min-w-0">
+                        <div key={it._id || idx} className="flex items-center gap-2.5 bg-white rounded-lg p-2.5 border border-gray-100">
+                          <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {it.image_url ? <img src={it.image_url} alt={it.name} className="w-full h-full object-cover" /> : <Package size={16} className="text-gray-300" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name || 'Item'}</p>
-                            {it.sku && <p className="text-[9px] text-gray-400 font-mono mt-0.5">{it.sku}</p>}
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {it.sku && <span className="text-[9px] text-gray-400 font-mono">{it.sku}</span>}
+                              <span className="text-[9px] text-gray-400">Unit: KES {(it.unit_price || 0).toLocaleString()}</span>
+                            </div>
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
-                            <span className="text-xs text-gray-500">x{it.quantity || 1}</span>
+                            <span className="text-xs text-gray-500 font-medium">x{it.quantity || 1}</span>
                             <span className="text-xs font-bold text-[#f4991a]">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
                           </div>
                         </div>
@@ -640,7 +647,7 @@ export default function AgentCallsPage() {
                   <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                     <div className="text-xs font-bold">
                       <span className="text-gray-600">Total: </span>
-                      <span className="text-[#f4991a]">KES {editItemsTotal.toLocaleString()}</span>
+                      <span className="text-[#f4991a]">KES {editingItems ? editItemsTotal.toLocaleString() : (order.total_amount || 0).toLocaleString()}</span>
                     </div>
                     {itemsChanged && editingItems && (
                       <button onClick={saveItems} disabled={savingItems}
