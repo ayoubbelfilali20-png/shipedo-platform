@@ -307,7 +307,7 @@ export default function AgentShippingPage() {
             const cfg = statusConfig[order.status] || statusConfig.confirmed
             const isEditing = editingId === order.id
             return (
-              <div key={order.id} className={cn('bg-white rounded-xl border shadow-sm overflow-hidden', cfg.border)}>
+              <div key={order.id} className={cn('bg-white rounded-xl border shadow-sm', cfg.border)}>
                 {/* Header */}
                 <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
                   <div className="flex items-center gap-2 min-w-0">
