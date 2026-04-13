@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, Printer, CheckSquare, Square,
-  MapPin, Clock, AlertCircle, PhoneOff,
+  MapPin, Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,19 +30,25 @@ type OrderRow = {
   returned_at?: string | null
   created_at: string
   seller_id?: string | null
+  call_attempts?: number
+  reminded_at?: string | null
+  cancel_reason?: string | null
 }
 
-type ShipStatus = 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned'
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
 
-const statusConfig: Record<ShipStatus, { label: string; color: string; border: string; bg: string }> = {
+const statusConfig: Record<string, { label: string; color: string; border: string; bg: string }> = {
+  pending:   { label: 'Pending',    color: 'text-rose-600',    border: 'border-rose-400',    bg: 'bg-rose-50'    },
   confirmed: { label: 'Confirmed',  color: 'text-emerald-600', border: 'border-emerald-400', bg: 'bg-emerald-50' },
   prepared:  { label: 'Prepared',   color: 'text-indigo-600',  border: 'border-indigo-400',  bg: 'bg-indigo-50'  },
   shipped:   { label: 'Shipped',    color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50'    },
   delivered: { label: 'Delivered',  color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50'     },
   returned:  { label: 'Returned',   color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50'     },
+  cancelled: { label: 'Cancelled',  color: 'text-gray-500',    border: 'border-gray-300',    bg: 'bg-gray-50'    },
 }
 
-const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned']
+const shippingStatuses: AllStatus[] = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned']
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped', 'delivered', 'returned', 'cancelled']
 
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
 function whatsappLink(phone: string, text: string) {
@@ -67,13 +74,21 @@ export default function AgentShippingPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState<ShipStatus | 'all'>('all')
+  const [filterStatus, setFilterStatus] = useState<AllStatus | 'all'>('all')
   const [processing, setProcessing] = useState<string | null>(null)
+
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editCity, setEditCity] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   // Print queue
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     const { data } = await supabase
       .from('orders')
       .select('*')
@@ -81,9 +96,38 @@ export default function AgentShippingPage() {
       .order('created_at', { ascending: false })
     setOrders((data || []) as OrderRow[])
     setLoading(false)
-  }
+  }, [])
 
-  useEffect(() => { loadOrders() }, [])
+  useEffect(() => { loadOrders() }, [loadOrders])
+
+  // Real-time subscription — auto-update when seller or anyone edits orders
+  useEffect(() => {
+    const channel = supabase
+      .channel('agent-shipping-orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const row = payload.new as OrderRow
+          if (['confirmed', 'prepared', 'shipped', 'delivered', 'returned'].includes(row.status)) {
+            setOrders(prev => [row, ...prev])
+          }
+        } else if (payload.eventType === 'UPDATE') {
+          const row = payload.new as OrderRow
+          setOrders(prev => {
+            const validStatus = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned'].includes(row.status)
+            const exists = prev.some(o => o.id === row.id)
+            if (exists && validStatus) return prev.map(o => o.id === row.id ? row : o)
+            if (exists && !validStatus) return prev.filter(o => o.id !== row.id)
+            if (!exists && validStatus) return [row, ...prev]
+            return prev
+          })
+        } else if (payload.eventType === 'DELETE') {
+          setOrders(prev => prev.filter(o => o.id !== (payload.old as any).id))
+        }
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const filtered = orders.filter(o => {
     const q = search.toLowerCase().trim()
@@ -96,10 +140,10 @@ export default function AgentShippingPage() {
     return matchesSearch && matchesStatus
   })
 
-  const counts = allStatuses.reduce((acc, s) => {
+  const counts = shippingStatuses.reduce((acc, s) => {
     acc[s] = orders.filter(o => o.status === s).length
     return acc
-  }, {} as Record<ShipStatus, number>)
+  }, {} as Record<string, number>)
 
   const changeStatus = async (orderId: string, newStatus: string) => {
     setProcessing(orderId)
@@ -112,10 +156,49 @@ export default function AgentShippingPage() {
       const order = orders.find(o => o.id === orderId)
       if (order) await incrementStockForOrderItems(order.items)
     }
+    // Reset timestamps when going back
+    if (newStatus === 'confirmed' || newStatus === 'prepared') {
+      patch.shipped_at = null
+      patch.delivered_at = null
+      patch.returned_at = null
+    }
+    if (newStatus === 'pending') {
+      patch.shipped_at = null
+      patch.delivered_at = null
+      patch.returned_at = null
+    }
 
     await supabase.from('orders').update(patch).eq('id', orderId)
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
     setProcessing(null)
+  }
+
+  // Edit client info
+  const startEdit = (order: OrderRow) => {
+    setEditingId(order.id)
+    setEditName(order.customer_name)
+    setEditPhone(order.customer_phone)
+    setEditCity(order.customer_city)
+    setEditAddress(order.customer_address || '')
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+  }
+
+  const saveEdit = async () => {
+    if (!editingId) return
+    setSavingEdit(true)
+    const patch = {
+      customer_name: editName.trim(),
+      customer_phone: editPhone.trim(),
+      customer_city: editCity.trim(),
+      customer_address: editAddress.trim(),
+    }
+    await supabase.from('orders').update(patch).eq('id', editingId)
+    setOrders(prev => prev.map(o => o.id === editingId ? { ...o, ...patch } : o))
+    setSavingEdit(false)
+    setEditingId(null)
   }
 
   // Print helpers
@@ -141,16 +224,16 @@ export default function AgentShippingPage() {
         </div>
         <button
           onClick={() => { setLoading(true); loadOrders() }}
-          className="text-xs font-semibold text-[#f4991a] hover:text-orange-600"
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#f4991a] hover:text-orange-600"
         >
-          Refresh
+          <RefreshCw size={12} /> Refresh
         </button>
       </div>
 
       <div className="p-6 space-y-4">
         {/* Stats */}
         <div className="grid grid-cols-5 gap-2">
-          {allStatuses.map(s => {
+          {shippingStatuses.map(s => {
             const cfg = statusConfig[s]
             return (
               <button
@@ -161,7 +244,7 @@ export default function AgentShippingPage() {
                   filterStatus === s ? `border-2 ${cfg.border}` : 'border-gray-100'
                 )}
               >
-                <p className={cn('text-lg font-bold', cfg.color)}>{counts[s]}</p>
+                <p className={cn('text-lg font-bold', cfg.color)}>{counts[s] || 0}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">{cfg.label}</p>
               </button>
             )
@@ -204,7 +287,8 @@ export default function AgentShippingPage() {
               <p className="text-sm">No orders found</p>
             </div>
           ) : filtered.map(order => {
-            const cfg = statusConfig[order.status as ShipStatus] || statusConfig.confirmed
+            const cfg = statusConfig[order.status] || statusConfig.confirmed
+            const isEditing = editingId === order.id
             return (
               <div key={order.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
                 <div className="flex items-start gap-3">
@@ -225,11 +309,83 @@ export default function AgentShippingPage() {
                       <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
                       <span className="text-[10px] text-gray-400">{order.payment_method}</span>
                     </div>
-                    <p className="text-sm font-semibold text-[#1a1c3a]">{order.customer_name}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                      <span className="flex items-center gap-1"><Phone size={10} /> {order.customer_phone}</span>
-                      <span className="flex items-center gap-1"><MapPin size={10} /> {order.customer_city}</span>
-                    </div>
+
+                    {isEditing ? (
+                      /* ── Edit mode ── */
+                      <div className="space-y-2 mt-2 bg-orange-50/50 border border-orange-200 rounded-xl p-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Name</label>
+                            <input
+                              value={editName}
+                              onChange={e => setEditName(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Phone</label>
+                            <input
+                              value={editPhone}
+                              onChange={e => setEditPhone(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">City</label>
+                            <input
+                              value={editCity}
+                              onChange={e => setEditCity(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Address</label>
+                            <input
+                              value={editAddress}
+                              onChange={e => setEditAddress(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={saveEdit}
+                            disabled={savingEdit}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[11px] font-bold rounded-lg transition-all"
+                          >
+                            <Save size={11} /> {savingEdit ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[11px] font-bold rounded-lg transition-all"
+                          >
+                            <XCircle size={11} /> Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Display mode ── */
+                      <>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-[#1a1c3a]">{order.customer_name}</p>
+                          <button
+                            onClick={() => startEdit(order)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] hover:bg-orange-50 transition-all"
+                            title="Edit client info"
+                          >
+                            <Pencil size={10} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          <span className="flex items-center gap-1"><Phone size={10} /> {order.customer_phone}</span>
+                          <span className="flex items-center gap-1"><MapPin size={10} /> {order.customer_city}</span>
+                        </div>
+                        {order.customer_address && (
+                          <p className="text-[10px] text-gray-400 mt-0.5">{order.customer_address}</p>
+                        )}
+                      </>
+                    )}
+
                     <p className="text-xs font-bold text-[#f4991a] mt-1">KES {(order.total_amount || 0).toLocaleString()}</p>
                   </div>
 
@@ -253,9 +409,9 @@ export default function AgentShippingPage() {
                       <MessageCircle size={13} />
                     </a>
 
-                    {/* Status dropdown */}
+                    {/* Status dropdown — all statuses */}
                     <StatusDropdown
-                      currentStatus={order.status as ShipStatus}
+                      currentStatus={order.status as AllStatus}
                       processing={processing === order.id}
                       onChangeStatus={(s) => changeStatus(order.id, s)}
                     />
@@ -310,7 +466,7 @@ export default function AgentShippingPage() {
 
 /* ── Status Dropdown Component ── */
 function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
-  currentStatus: ShipStatus
+  currentStatus: AllStatus
   processing: boolean
   onChangeStatus: (s: string) => void
 }) {
@@ -347,11 +503,13 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
                   )}
                 >
                   <span className={cn('w-2 h-2 rounded-full flex-shrink-0', {
+                    'bg-rose-500':    s === 'pending',
                     'bg-emerald-500': s === 'confirmed',
                     'bg-indigo-500':  s === 'prepared',
                     'bg-blue-500':    s === 'shipped',
                     'bg-sky-500':     s === 'delivered',
                     'bg-red-500':     s === 'returned',
+                    'bg-gray-400':    s === 'cancelled',
                   })} />
                   {c.label}
                   {currentStatus === s && <CheckCircle size={11} className="ml-auto" />}
