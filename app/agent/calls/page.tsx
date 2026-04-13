@@ -125,7 +125,7 @@ export default function AgentCallsPage() {
     }).join(', ')
     const agentFirst = agentName.split(' ')[0] || 'Agent'
 
-    setWaText(`Hello 👋 ${order.customer_name}, this is ${agentFirst} from Shipedo.\nWe received your order for ${productList}.\nI'm just calling to confirm your details before delivery 🚚.`)
+    setWaText(`Hello 👋 ${order.customer_name}, this is ${agentFirst} from Shipedo.\nWe received your order *${order.tracking_number}* for ${productList}.\nI'm just calling to confirm your details before delivery 🚚.`)
     setNote('')
     setRescheduleDate('')
     setShowReschedule(false)
