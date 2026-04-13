@@ -52,7 +52,7 @@ export default function AgentNewOrderPage() {
   const [city, setCity] = useState('')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
-  const [status, setStatus] = useState('pending')
+  const [status] = useState('confirmed')
 
   // State
   const [saving, setSaving] = useState(false)
@@ -194,7 +194,7 @@ export default function AgentNewOrderPage() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => { setGeneratedId(null); setFullName(''); setPhone(''); setCity(''); setAddress(''); setNotes(''); setRows([]); setStatus('pending'); setErrors({}) }}
+                onClick={() => { setGeneratedId(null); setFullName(''); setPhone(''); setCity(''); setAddress(''); setNotes(''); setRows([]); setErrors({}) }}
                 className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
               >
                 New Order
@@ -319,14 +319,6 @@ export default function AgentNewOrderPage() {
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Address</label>
               <input value={address} onChange={e => setAddress(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Order Status</label>
-              <select value={status} onChange={e => setStatus(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]">
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Notes</label>
