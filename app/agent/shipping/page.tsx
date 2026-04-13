@@ -8,7 +8,7 @@ import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, Printer, CheckSquare, Square,
   MapPin, Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
-  RefreshCw,
+  RefreshCw, FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +25,7 @@ type OrderRow = {
   payment_method: string
   printed?: boolean
   notes?: string | null
+  last_call_note?: string | null
   shipped_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
@@ -84,6 +85,9 @@ export default function AgentShippingPage() {
   const [editCity, setEditCity] = useState('')
   const [editAddress, setEditAddress] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [editNoteId, setEditNoteId] = useState<string | null>(null)
+  const [editNote, setEditNote] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
 
   // Print queue
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
@@ -199,6 +203,19 @@ export default function AgentShippingPage() {
     setOrders(prev => prev.map(o => o.id === editingId ? { ...o, ...patch } : o))
     setSavingEdit(false)
     setEditingId(null)
+  }
+
+  const startEditNote = (order: OrderRow) => {
+    setEditNoteId(order.id)
+    setEditNote(order.notes || '')
+  }
+  const saveNote = async () => {
+    if (!editNoteId) return
+    setSavingNote(true)
+    await supabase.from('orders').update({ notes: editNote.trim() || null }).eq('id', editNoteId)
+    setOrders(prev => prev.map(o => o.id === editNoteId ? { ...o, notes: editNote.trim() || null } : o))
+    setSavingNote(false)
+    setEditNoteId(null)
   }
 
   // Print helpers
@@ -424,6 +441,54 @@ export default function AgentShippingPage() {
                   {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
                     <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ',' : ''}</span>
                   ))}
+                </div>
+
+                {/* Notes section */}
+                <div className="mt-2">
+                  {editNoteId === order.id ? (
+                    <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5 space-y-2">
+                      <textarea
+                        value={editNote}
+                        onChange={e => setEditNote(e.target.value)}
+                        placeholder="Add a note..."
+                        rows={2}
+                        className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 resize-none"
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={saveNote} disabled={savingNote}
+                          className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
+                          <Save size={10} /> {savingNote ? 'Saving...' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditNoteId(null)}
+                          className="px-2.5 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded-lg transition-all">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1.5">
+                      {(order.notes || order.last_call_note) ? (
+                        <div className="flex-1 space-y-1">
+                          {order.last_call_note && (
+                            <div className="flex items-start gap-1 text-[10px] text-blue-600 bg-blue-50 rounded-lg px-2 py-1.5">
+                              <Phone size={9} className="mt-0.5 flex-shrink-0" />
+                              <span>{order.last_call_note}</span>
+                            </div>
+                          )}
+                          {order.notes && (
+                            <div className="flex items-start gap-1 text-[10px] text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
+                              <FileText size={9} className="mt-0.5 flex-shrink-0" />
+                              <span>{order.notes}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                      <button onClick={() => startEditNote(order)}
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all flex-shrink-0">
+                        <FileText size={9} /> {order.notes ? 'Edit note' : 'Add note'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )
