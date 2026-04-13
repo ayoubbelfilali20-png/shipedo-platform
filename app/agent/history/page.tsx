@@ -3,10 +3,11 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { decrementTotalQuantityForOrderItems } from '@/lib/stock'
+import { incrementStockForOrderItems } from '@/lib/stock'
 import { cn } from '@/lib/utils'
 import {
-  Phone, CheckCircle, XCircle, Calendar, PhoneOff,
-  Search, X, TrendingUp, Package, Truck, MapPin
+  Phone, CheckCircle, Search, X, TrendingUp, Package, Truck, MapPin,
+  ChevronDown, Pencil, Save, MessageCircle,
 } from 'lucide-react'
 
 type OrderRow = {
@@ -26,15 +27,29 @@ type OrderRow = {
   last_call_note?: string | null
   last_call_agent_id?: string | null
   created_at: string
+  shipped_at?: string | null
+  delivered_at?: string | null
+  returned_at?: string | null
 }
 
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
+
 const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  pending:   { label: 'Pending',   color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'    },
   confirmed: { label: 'Confirmed', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  prepared:  { label: 'Prepared',  color: 'text-indigo-700', bg: 'bg-indigo-50',  border: 'border-indigo-200'  },
-  shipped:   { label: 'Shipped',   color: 'text-blue-700',   bg: 'bg-blue-50',    border: 'border-blue-200'    },
-  delivered: { label: 'Delivered', color: 'text-sky-700',    bg: 'bg-sky-50',     border: 'border-sky-200'     },
-  cancelled: { label: 'Cancelled', color: 'text-gray-500',   bg: 'bg-gray-50',    border: 'border-gray-200'    },
-  pending:   { label: 'Pending',   color: 'text-rose-700',   bg: 'bg-rose-50',    border: 'border-rose-200'    },
+  prepared:  { label: 'Prepared',  color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200'  },
+  shipped:   { label: 'Shipped',   color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
+  delivered: { label: 'Delivered', color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200'     },
+  returned:  { label: 'Returned',  color: 'text-red-700',     bg: 'bg-red-50',     border: 'border-red-200'     },
+  cancelled: { label: 'Cancelled', color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
+}
+
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped', 'delivered', 'returned', 'cancelled']
+
+function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
+function whatsappLink(phone: string, text: string) {
+  const num = cleanPhone(phone).replace(/^\+/, '')
+  return `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`
 }
 
 export default function AgentHistoryPage() {
@@ -43,8 +58,16 @@ export default function AgentHistoryPage() {
   const [agentId, setAgentId] = useState<string | null>(null)
   const [agentName, setAgentName] = useState<string>('')
   const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState<'all' | 'confirmed' | 'prepared' | 'delivered' | 'cancelled'>('all')
+  const [filter, setFilter] = useState<string>('all')
   const [busy, setBusy] = useState<string | null>(null)
+
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editCity, setEditCity] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const load = async (aid: string | null) => {
     if (!aid) { setLoading(false); return }
@@ -73,21 +96,68 @@ export default function AgentHistoryPage() {
     setLoading(false)
   }, [])
 
-  const advance = async (o: OrderRow, next: 'prepared' | 'delivered' | 'cancelled') => {
-    if (!agentId) return
-    setBusy(o.id)
-    const patch: any = { status: next }
-    await supabase.from('orders').update(patch).eq('id', o.id)
-    if (next === 'delivered') {
-      await decrementTotalQuantityForOrderItems(o.items as any[])
+  const changeStatus = async (orderId: string, newStatus: string) => {
+    setBusy(orderId)
+    const patch: any = { status: newStatus }
+
+    if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
+    if (newStatus === 'delivered') {
+      patch.delivered_at = new Date().toISOString()
+      const order = orders.find(o => o.id === orderId)
+      if (order) await decrementTotalQuantityForOrderItems(order.items as any[])
     }
+    if (newStatus === 'returned') {
+      patch.returned_at = new Date().toISOString()
+      const order = orders.find(o => o.id === orderId)
+      if (order) await incrementStockForOrderItems(order.items)
+    }
+    if (newStatus === 'confirmed' || newStatus === 'prepared' || newStatus === 'pending') {
+      patch.shipped_at = null
+      patch.delivered_at = null
+      patch.returned_at = null
+    }
+    if (newStatus === 'cancelled') {
+      patch.shipped_at = null
+      patch.delivered_at = null
+      patch.returned_at = null
+    }
+
+    await supabase.from('orders').update(patch).eq('id', orderId)
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
     setBusy(null)
-    if (agentId) load(agentId)
+  }
+
+  // Edit client info
+  const startEdit = (order: OrderRow) => {
+    setEditingId(order.id)
+    setEditName(order.customer_name)
+    setEditPhone(order.customer_phone)
+    setEditCity(order.customer_city || '')
+    setEditAddress(order.customer_address || '')
+  }
+
+  const cancelEdit = () => { setEditingId(null) }
+
+  const saveEdit = async () => {
+    if (!editingId) return
+    setSavingEdit(true)
+    const patch = {
+      customer_name: editName.trim(),
+      customer_phone: editPhone.trim(),
+      customer_city: editCity.trim(),
+      customer_address: editAddress.trim(),
+    }
+    await supabase.from('orders').update(patch).eq('id', editingId)
+    setOrders(prev => prev.map(o => o.id === editingId ? { ...o, ...patch } : o))
+    setSavingEdit(false)
+    setEditingId(null)
   }
 
   const filtered = orders.filter(o => {
     const q = search.toLowerCase()
-    const matchSearch = o.tracking_number.toLowerCase().includes(q) || (o.customer_name || '').toLowerCase().includes(q)
+    const matchSearch = o.tracking_number.toLowerCase().includes(q) ||
+      (o.customer_name || '').toLowerCase().includes(q) ||
+      (o.customer_phone || '').includes(q)
     const matchFilter = filter === 'all' || o.status === filter
     return matchSearch && matchFilter
   })
@@ -144,7 +214,7 @@ export default function AgentHistoryPage() {
             {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300"><X size={13} /></button>}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(['all','confirmed','prepared','delivered','cancelled'] as const).map(f => (
+            {(['all','pending','confirmed','prepared','shipped','delivered','returned','cancelled'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -157,92 +227,208 @@ export default function AgentHistoryPage() {
         </div>
 
         {/* Orders list */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50/70 border-b border-gray-100">
-                  {['Order','Customer','Status','Total','Actions'].map(h => (
-                    <th key={h} className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 first:px-6">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loading ? (
-                  <tr><td colSpan={5} className="text-center py-16 text-gray-400 text-sm">Loading…</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-16 text-gray-400 text-sm">No orders yet</td></tr>
-                ) : filtered.map(o => {
-                  const cfg = statusConfig[o.status] || statusConfig.pending
-                  return (
-                    <tr key={o.id} className="hover:bg-gray-50/40 transition-colors">
-                      <td className="px-6 py-4">
-                        <p className="text-xs font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</p>
-                        <p className="text-[10px] text-gray-400">{new Date(o.last_call_at || o.created_at).toLocaleString()}</p>
-                      </td>
-                      <td className="px-4 py-4">
+        <div className="space-y-2">
+          {loading ? (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
+              <Package size={40} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No orders found</p>
+            </div>
+          ) : filtered.map(o => {
+            const isEditing = editingId === o.id
+            return (
+              <div key={o.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+                <div className="flex items-start gap-3">
+                  {/* Order info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</span>
+                      <span className="text-[10px] text-gray-400">{new Date(o.last_call_at || o.created_at).toLocaleString()}</span>
+                    </div>
+
+                    {isEditing ? (
+                      /* ── Edit mode ── */
+                      <div className="space-y-2 mt-2 bg-orange-50/50 border border-orange-200 rounded-xl p-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Name</label>
+                            <input
+                              value={editName}
+                              onChange={e => setEditName(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Phone</label>
+                            <input
+                              value={editPhone}
+                              onChange={e => setEditPhone(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">City</label>
+                            <input
+                              value={editCity}
+                              onChange={e => setEditCity(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Address</label>
+                            <input
+                              value={editAddress}
+                              onChange={e => setEditAddress(e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={saveEdit}
+                            disabled={savingEdit}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[11px] font-bold rounded-lg transition-all"
+                          >
+                            <Save size={11} /> {savingEdit ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[11px] font-bold rounded-lg transition-all"
+                          >
+                            <X size={11} /> Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Display mode ── */
+                      <>
                         <div className="flex items-center gap-2">
                           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-100 to-blue-100 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
                             {(o.customer_name || '?')[0]}
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-[#1a1c3a] truncate">{o.customer_name}</p>
-                            <p className="text-[10px] text-gray-400 flex items-center gap-1"><MapPin size={9} />{o.customer_city}</p>
-                          </div>
+                          <p className="text-sm font-semibold text-[#1a1c3a]">{o.customer_name}</p>
+                          <button
+                            onClick={() => startEdit(o)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] hover:bg-orange-50 transition-all"
+                            title="Edit client info"
+                          >
+                            <Pencil size={10} />
+                          </button>
                         </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className={cn('inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full border', cfg.color, cfg.bg, cfg.border)}>
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <p className="text-xs font-bold text-[#1a1c3a]">KES {(o.total_amount || 0).toLocaleString()}</p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-1.5">
-                          {o.status === 'confirmed' && (
-                            <button
-                              disabled={busy === o.id}
-                              onClick={() => advance(o, 'prepared')}
-                              className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg disabled:opacity-50"
-                            >
-                              <Package size={10} className="inline mr-1" /> Prepare
-                            </button>
-                          )}
-                          {o.status === 'prepared' && (
-                            <button
-                              disabled={busy === o.id}
-                              onClick={() => advance(o, 'delivered')}
-                              className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-700 text-[10px] font-bold rounded-lg disabled:opacity-50"
-                            >
-                              <Truck size={10} className="inline mr-1" /> Deliver
-                            </button>
-                          )}
-                          {(o.status === 'confirmed' || o.status === 'prepared') && (
-                            <button
-                              disabled={busy === o.id}
-                              onClick={() => advance(o, 'cancelled')}
-                              className="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-500 text-[10px] font-bold rounded-lg disabled:opacity-50"
-                            >
-                              <XCircle size={10} className="inline mr-1" /> Cancel
-                            </button>
-                          )}
-                          {o.status === 'delivered' && (
-                            <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
-                              <CheckCircle size={11} /> Done
-                            </span>
-                          )}
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          <span className="flex items-center gap-1"><Phone size={10} /> {o.customer_phone}</span>
+                          <span className="flex items-center gap-1"><MapPin size={10} /> {o.customer_city}</span>
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {o.customer_address && (
+                          <p className="text-[10px] text-gray-400 mt-0.5">{o.customer_address}</p>
+                        )}
+                      </>
+                    )}
+
+                    <p className="text-xs font-bold text-[#f4991a] mt-1">KES {(o.total_amount || 0).toLocaleString()}</p>
+
+                    {/* Items preview */}
+                    <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400">
+                      <Package size={10} />
+                      {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
+                        <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{i < (o.items || []).length - 1 ? ',' : ''}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Call & WhatsApp */}
+                    <a
+                      href={`tel:${cleanPhone(o.customer_phone)}`}
+                      className="w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all"
+                      title="Call"
+                    >
+                      <Phone size={13} />
+                    </a>
+                    <a
+                      href={whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all"
+                      title="WhatsApp"
+                    >
+                      <MessageCircle size={13} />
+                    </a>
+
+                    {/* Status dropdown */}
+                    <StatusDropdown
+                      currentStatus={o.status as AllStatus}
+                      processing={busy === o.id}
+                      onChangeStatus={(s) => changeStatus(o.id, s)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
+    </div>
+  )
+}
+
+/* ── Status Dropdown ── */
+function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
+  currentStatus: AllStatus
+  processing: boolean
+  onChangeStatus: (s: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const cfg = statusConfig[currentStatus] || statusConfig.pending
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        disabled={processing}
+        className={cn(
+          'flex items-center gap-1 px-2.5 py-1.5 rounded-full border-2 text-[11px] font-semibold transition-all',
+          cfg.color, cfg.border, processing && 'opacity-50'
+        )}
+      >
+        {cfg.label}
+        <ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1 min-w-[150px]">
+            {allStatuses.map(s => {
+              const c = statusConfig[s]
+              return (
+                <button
+                  key={s}
+                  onClick={() => { onChangeStatus(s); setOpen(false) }}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold hover:bg-gray-50 transition-colors text-left',
+                    currentStatus === s ? c.color : 'text-gray-600'
+                  )}
+                >
+                  <span className={cn('w-2 h-2 rounded-full flex-shrink-0', {
+                    'bg-rose-500':    s === 'pending',
+                    'bg-emerald-500': s === 'confirmed',
+                    'bg-indigo-500':  s === 'prepared',
+                    'bg-blue-500':    s === 'shipped',
+                    'bg-sky-500':     s === 'delivered',
+                    'bg-red-500':     s === 'returned',
+                    'bg-gray-400':    s === 'cancelled',
+                  })} />
+                  {c.label}
+                  {currentStatus === s && <CheckCircle size={11} className="ml-auto" />}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
     </div>
   )
 }
