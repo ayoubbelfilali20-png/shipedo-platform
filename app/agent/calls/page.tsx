@@ -99,9 +99,24 @@ export default function AgentCallsPage() {
       supabase.from('orders').select('*').eq('status', 'confirmed').eq('printed', false)
         .order('created_at', { ascending: true }),
     ])
-    setOrders((data || []) as OrderRow[])
+    const rows = (data || []) as OrderRow[]
+    setOrders(rows)
     setConfirmedOrders((confData || []) as OrderRow[])
     setLoading(false)
+    // Enrich items with product images
+    const sellerIds = [...new Set(rows.map(r => r.seller_id).filter(Boolean))]
+    if (sellerIds.length > 0) {
+      const { data: prods } = await supabase.from('products').select('id, image_url').in('seller_id', sellerIds)
+      if (prods && prods.length > 0) {
+        const imgMap = new Map(prods.map((p: any) => [p.id, p.image_url]))
+        setOrders(prev => prev.map(o => ({
+          ...o,
+          items: Array.isArray(o.items) ? o.items.map((it: any) =>
+            it.product_id && !it.image_url && imgMap.has(it.product_id) ? { ...it, image_url: imgMap.get(it.product_id) } : it
+          ) : o.items
+        })))
+      }
+    }
   }
 
   useEffect(() => {
@@ -147,16 +162,24 @@ export default function AgentCallsPage() {
     setEditAddress(order.customer_address)
     setEditCity(order.customer_city)
 
-    // Init editable items
-    setEditItems(items.map((it: any, i: number) => ({ ...it, _id: `${Date.now()}-${i}` })))
+    // Init editable items & enrich with product images
+    const initItems = items.map((it: any, i: number) => ({ ...it, _id: `${Date.now()}-${i}` }))
+    setEditItems(initItems)
     setEditingItems(false)
     setItemsChanged(false)
 
-    // Load seller products for adding
+    // Load seller products for adding + enrich item images
     if (order.seller_id) {
       supabase.from('products').select('id, name, sku, selling_price, stock, image_url')
         .eq('seller_id', order.seller_id).eq('status', 'active')
-        .then(({ data }) => setSellerProducts((data || []) as any[]))
+        .then(({ data }) => {
+          const prods = (data || []) as any[]
+          setSellerProducts(prods)
+          // Enrich items missing image_url
+          const imgMap = new Map(prods.map((p: any) => [p.id, p.image_url]))
+          setEditItems(prev => prev.map(it => it.product_id && !it.image_url && imgMap.has(it.product_id)
+            ? { ...it, image_url: imgMap.get(it.product_id) } : it))
+        })
     } else {
       setSellerProducts([])
     }
@@ -598,12 +621,14 @@ export default function AgentCallsPage() {
                             <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name || 'Item'}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               {it.sku && <span className="text-[9px] text-gray-400 font-mono">{it.sku}</span>}
-                              <span className="text-[9px] text-gray-400">Unit: KES {(it.unit_price || 0).toLocaleString()}</span>
+                              {(it.unit_price || 0) > 0 && <span className="text-[9px] text-gray-400">Unit: KES {it.unit_price.toLocaleString()}</span>}
                             </div>
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
                             <span className="text-xs text-gray-500 font-medium">x{it.quantity || 1}</span>
-                            <span className="text-xs font-bold text-[#f4991a]">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                            {((it.unit_price || 0) * (it.quantity || 1)) > 0 && (
+                              <span className="text-xs font-bold text-[#f4991a]">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                            )}
                           </div>
                         </div>
                       ))}
