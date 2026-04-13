@@ -7,7 +7,7 @@ import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, Printer, CheckSquare, Square,
-  MapPin, Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
+  Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
   RefreshCw, FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -294,12 +294,12 @@ export default function AgentShippingPage() {
           )}
         </div>
 
-        {/* Orders list */}
-        <div className="space-y-2">
+        {/* Orders grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
           {loading ? (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
+            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
           ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
+            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
               <Truck size={40} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">No orders found</p>
             </div>
@@ -307,126 +307,32 @@ export default function AgentShippingPage() {
             const cfg = statusConfig[order.status] || statusConfig.confirmed
             const isEditing = editingId === order.id
             return (
-              <div key={order.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <div className="flex items-start gap-3">
-                  {/* Print checkbox */}
-                  <div className="pt-1">
+              <div key={order.id} className={cn('bg-white rounded-xl border shadow-sm overflow-hidden', cfg.border)}>
+                {/* Header: tracking + print + status + actions */}
+                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50 bg-gray-50/50">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     {order.printed ? (
-                      <span className="inline-block text-[8px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded">Printed</span>
+                      <span className="text-[7px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded">✓</span>
                     ) : (
                       <button onClick={() => togglePrintQueue(order.id)} className="text-gray-300 hover:text-blue-600">
-                        {printQueue.has(order.id) ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} />}
+                        {printQueue.has(order.id) ? <CheckSquare size={12} className="text-blue-600" /> : <Square size={12} />}
                       </button>
                     )}
-                  </div>
-
-                  {/* Order info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
-                      <span className="text-[10px] text-gray-400">{order.payment_method}</span>
-                    </div>
-
-                    {isEditing ? (
-                      /* ── Edit mode ── */
-                      <div className="space-y-2 mt-2 bg-orange-50/50 border border-orange-200 rounded-xl p-3">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase">Name</label>
-                            <input
-                              value={editName}
-                              onChange={e => setEditName(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase">Phone</label>
-                            <input
-                              value={editPhone}
-                              onChange={e => setEditPhone(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase">City</label>
-                            <input
-                              value={editCity}
-                              onChange={e => setEditCity(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase">Address</label>
-                            <input
-                              value={editAddress}
-                              onChange={e => setEditAddress(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 pt-1">
-                          <button
-                            onClick={saveEdit}
-                            disabled={savingEdit}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[11px] font-bold rounded-lg transition-all"
-                          >
-                            <Save size={11} /> {savingEdit ? 'Saving...' : 'Save'}
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[11px] font-bold rounded-lg transition-all"
-                          >
-                            <XCircle size={11} /> Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* ── Display mode ── */
-                      <>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-[#1a1c3a]">{order.customer_name}</p>
-                          <button
-                            onClick={() => startEdit(order)}
-                            className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] hover:bg-orange-50 transition-all"
-                            title="Edit client info"
-                          >
-                            <Pencil size={10} />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                          <span className="flex items-center gap-1"><Phone size={10} /> {order.customer_phone}</span>
-                          <span className="flex items-center gap-1"><MapPin size={10} /> {order.customer_city}</span>
-                        </div>
-                        {order.customer_address && (
-                          <p className="text-[10px] text-gray-400 mt-0.5">{order.customer_address}</p>
-                        )}
-                      </>
+                    <span className="text-[10px] font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+                    {(order.total_amount || 0) > 0 && (
+                      <span className="text-[10px] font-bold text-[#f4991a]">KES {order.total_amount.toLocaleString()}</span>
                     )}
-
-                    <p className="text-xs font-bold text-[#f4991a] mt-1">KES {(order.total_amount || 0).toLocaleString()}</p>
                   </div>
-
-                  {/* Status + Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Call & WhatsApp */}
-                    <a
-                      href={`tel:${cleanPhone(order.customer_phone)}`}
-                      className="w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all"
-                      title="Call"
-                    >
-                      <Phone size={13} />
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <a href={`tel:${cleanPhone(order.customer_phone)}`}
+                      className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
+                      <Phone size={10} />
                     </a>
-                    <a
-                      href={whatsappLink(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all"
-                      title="WhatsApp"
-                    >
-                      <MessageCircle size={13} />
+                    <a href={whatsappLink(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)}
+                      target="_blank" rel="noopener noreferrer"
+                      className="w-6 h-6 rounded-md bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
+                      <MessageCircle size={10} />
                     </a>
-
-                    {/* Status dropdown — all statuses */}
                     <StatusDropdown
                       currentStatus={order.status as AllStatus}
                       processing={processing === order.id}
@@ -435,57 +341,87 @@ export default function AgentShippingPage() {
                   </div>
                 </div>
 
-                {/* Items preview */}
-                <div className="mt-2 flex items-center gap-2 text-[10px] text-gray-400">
-                  <Package size={10} />
-                  {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
-                    <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ',' : ''}</span>
-                  ))}
-                </div>
-
-                {/* Notes section */}
-                <div className="mt-2">
-                  {editNoteId === order.id ? (
-                    <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5 space-y-2">
-                      <textarea
-                        value={editNote}
-                        onChange={e => setEditNote(e.target.value)}
-                        placeholder="Add a note..."
-                        rows={2}
-                        className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 resize-none"
-                      />
-                      <div className="flex items-center gap-1.5">
-                        <button onClick={saveNote} disabled={savingNote}
-                          className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
-                          <Save size={10} /> {savingNote ? 'Saving...' : 'Save'}
+                {/* Body */}
+                <div className="px-3 py-2 space-y-1.5">
+                  {isEditing ? (
+                    <div className="space-y-1.5 bg-orange-50/50 border border-orange-200 rounded-lg p-2">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Name"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={saveEdit} disabled={savingEdit}
+                          className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded transition-all">
+                          {savingEdit ? '...' : 'Save'}
                         </button>
-                        <button onClick={() => setEditNoteId(null)}
-                          className="px-2.5 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded-lg transition-all">
+                        <button onClick={cancelEdit}
+                          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded transition-all">
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-start gap-1.5">
-                      {(order.notes || order.last_call_note) ? (
-                        <div className="flex-1 space-y-1">
-                          {order.last_call_note && (
-                            <div className="flex items-start gap-1 text-[10px] text-blue-600 bg-blue-50 rounded-lg px-2 py-1.5">
-                              <Phone size={9} className="mt-0.5 flex-shrink-0" />
-                              <span>{order.last_call_note}</span>
-                            </div>
-                          )}
-                          {order.notes && (
-                            <div className="flex items-start gap-1 text-[10px] text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
-                              <FileText size={9} className="mt-0.5 flex-shrink-0" />
-                              <span>{order.notes}</span>
-                            </div>
-                          )}
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-[#1a1c3a] truncate">{order.customer_name}</p>
+                      <span className="text-[10px] text-gray-400 truncate">{order.customer_phone}</span>
+                      <span className="text-[10px] text-gray-400 truncate">{order.customer_city}</span>
+                      <button onClick={() => startEdit(order)}
+                        className="w-4 h-4 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] flex-shrink-0">
+                        <Pencil size={8} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Items inline */}
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 flex-wrap">
+                    <Package size={9} />
+                    {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
+                      <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ',' : ''}</span>
+                    ))}
+                  </div>
+
+                  {/* Call note */}
+                  {order.last_call_note && (
+                    <div className="flex items-start gap-1 text-[9px] text-blue-600 bg-blue-50 rounded px-1.5 py-1">
+                      <Phone size={8} className="mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-2">{order.last_call_note}</span>
+                    </div>
+                  )}
+
+                  {/* Order note */}
+                  {editNoteId === order.id ? (
+                    <div className="bg-amber-50/50 border border-amber-200 rounded p-1.5 space-y-1">
+                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
+                        placeholder="Add a note..." rows={2}
+                        className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-[10px] focus:outline-none focus:border-amber-400 resize-none" />
+                      <div className="flex items-center gap-1">
+                        <button onClick={saveNote} disabled={savingNote}
+                          className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[9px] font-bold rounded">
+                          {savingNote ? '...' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditNoteId(null)}
+                          className="px-2 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[9px] font-bold rounded">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1">
+                      {order.notes && (
+                        <div className="flex-1 flex items-start gap-1 text-[9px] text-amber-700 bg-amber-50 rounded px-1.5 py-1">
+                          <FileText size={8} className="mt-0.5 flex-shrink-0" />
+                          <span className="line-clamp-2">{order.notes}</span>
                         </div>
-                      ) : null}
+                      )}
                       <button onClick={() => startEditNote(order)}
-                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all flex-shrink-0">
-                        <FileText size={9} /> {order.notes ? 'Edit note' : 'Add note'}
+                        className="text-[9px] font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-1">
+                        {order.notes ? <Pencil size={8} /> : <span className="flex items-center gap-0.5"><FileText size={8} /> +</span>}
                       </button>
                     </div>
                   )}

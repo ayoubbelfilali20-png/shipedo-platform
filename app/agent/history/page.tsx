@@ -6,7 +6,7 @@ import { decrementTotalQuantityForOrderItems } from '@/lib/stock'
 import { incrementStockForOrderItems } from '@/lib/stock'
 import { cn } from '@/lib/utils'
 import {
-  Phone, CheckCircle, Search, X, TrendingUp, Package, Truck, MapPin,
+  Phone, CheckCircle, Search, X, TrendingUp, Package, Truck,
   ChevronDown, Pencil, Save, MessageCircle, Calendar, PhoneOff,
   PhoneCall, Clock, FileText, Plus, Trash2,
 } from 'lucide-react'
@@ -122,6 +122,8 @@ export default function AgentHistoryPage() {
   const [editNoteId, setEditNoteId] = useState<string | null>(null)
   const [editNote, setEditNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [editRemindId, setEditRemindId] = useState<string | null>(null)
+  const [editRemindDate, setEditRemindDate] = useState('')
 
   const load = async (aid: string | null) => {
     if (!aid) { setLoading(false); return }
@@ -278,6 +280,19 @@ export default function AgentHistoryPage() {
     setSavingNote(false)
     setEditNoteId(null)
   }
+  const saveRemindDate = async (orderId: string) => {
+    if (!editRemindDate) return
+    const reminded_at = new Date(editRemindDate).toISOString()
+    await supabase.from('orders').update({ reminded_at }).eq('id', orderId)
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, reminded_at } : o))
+    setEditRemindId(null)
+    setEditRemindDate('')
+  }
+  const clearRemind = async (orderId: string) => {
+    await supabase.from('orders').update({ reminded_at: null }).eq('id', orderId)
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, reminded_at: null } : o))
+    setEditRemindId(null)
+  }
   const filteredSellerProducts = sellerProducts.filter(p => {
     const q = productSearch.toLowerCase()
     return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q)
@@ -404,12 +419,12 @@ export default function AgentHistoryPage() {
           </div>
         </div>
 
-        {/* Orders list */}
-        <div className="space-y-2">
+        {/* Orders grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
           {loading ? (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
+            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
           ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
+            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
               <Package size={40} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">No orders found</p>
             </div>
@@ -418,245 +433,179 @@ export default function AgentHistoryPage() {
             const isExpanded = expandedId === o.id
             const callCount = o.call_attempts || 0
             const wasCalled = callCount > 0 || !!o.last_call_at
+            const cfg = statusConfig[o.status] || statusConfig.pending
             return (
-              <div key={o.id} className="bg-white rounded-xl border border-gray-100 shadow-sm">
-                <div className="p-4">
-                  <div className="flex items-start gap-3">
-                    {/* Order info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-xs font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</span>
-
-                        {/* Call badge */}
-                        {wasCalled ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700">
-                            <PhoneCall size={9} /> Called ({callCount})
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200 text-[10px] font-bold text-gray-400">
-                            <PhoneOff size={9} /> Not called
-                          </span>
-                        )}
-
-                        {/* Reminded badge */}
-                        {o.reminded_at && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-[10px] font-bold text-indigo-600">
-                            <Clock size={9} /> Reminded
-                          </span>
-                        )}
-                      </div>
-
-                      {isEditing ? (
-                        /* ── Edit mode ── */
-                        <div className="space-y-2 mt-2 bg-orange-50/50 border border-orange-200 rounded-xl p-3">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="text-[10px] font-bold text-gray-500 uppercase">Name</label>
-                              <input value={editName} onChange={e => setEditName(e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400" />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold text-gray-500 uppercase">Phone</label>
-                              <input value={editPhone} onChange={e => setEditPhone(e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400" />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold text-gray-500 uppercase">City</label>
-                              <input value={editCity} onChange={e => setEditCity(e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400" />
-                            </div>
-                            <div>
-                              <label className="text-[10px] font-bold text-gray-500 uppercase">Address</label>
-                              <input value={editAddress} onChange={e => setEditAddress(e.target.value)}
-                                className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400" />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 pt-1">
-                            <button onClick={saveEdit} disabled={savingEdit}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[11px] font-bold rounded-lg transition-all">
-                              <Save size={11} /> {savingEdit ? 'Saving...' : 'Save'}
-                            </button>
-                            <button onClick={cancelEdit}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-[11px] font-bold rounded-lg transition-all">
-                              <X size={11} /> Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        /* ── Display mode ── */
-                        <>
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-100 to-blue-100 flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
-                              {(o.customer_name || '?')[0]}
-                            </div>
-                            <p className="text-sm font-semibold text-[#1a1c3a]">{o.customer_name}</p>
-                            <button onClick={() => startEdit(o)}
-                              className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] hover:bg-orange-50 transition-all"
-                              title="Edit client info">
-                              <Pencil size={10} />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                            <span className="flex items-center gap-1"><Phone size={10} /> {o.customer_phone}</span>
-                            <span className="flex items-center gap-1"><MapPin size={10} /> {o.customer_city}</span>
-                          </div>
-                          {o.customer_address && (
-                            <p className="text-[10px] text-gray-400 mt-0.5">{o.customer_address}</p>
-                          )}
-                        </>
-                      )}
-
-                      <div className="flex items-center gap-3 mt-1">
-                        {(o.total_amount || 0) > 0 && (
-                          <>
-                            <p className="text-xs font-bold text-[#f4991a]">KES {o.total_amount.toLocaleString()}</p>
-                            <span className="text-[10px] text-gray-300">&middot;</span>
-                          </>
-                        )}
-                        <span className="text-[10px] text-gray-400">
-                          Created {formatDate(o.created_at)}
-                        </span>
-                        {o.last_call_at && (
-                          <>
-                            <span className="text-[10px] text-gray-300">&middot;</span>
-                            <span className="text-[10px] text-gray-400">
-                              Last call {formatDate(o.last_call_at)} {formatTime(o.last_call_at)}
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Items preview */}
-                      <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400">
-                        <Package size={10} />
-                        {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
-                          <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{(it.unit_price || 0) > 0 ? ` (KES ${it.unit_price.toLocaleString()})` : ''}{i < (o.items || []).length - 1 ? ',' : ''}</span>
-                        ))}
-                        <button onClick={() => { setExpandedId(o.id); startEditItems(o) }}
-                          className="ml-1 text-[#f4991a] hover:text-orange-600 font-bold">
-                          <Pencil size={9} />
-                        </button>
-                      </div>
-
-                      {/* Call note + Order note — always visible */}
-                      {o.last_call_note && (
-                        <div className="mt-1.5 flex items-start gap-1 text-[10px] text-blue-600 bg-blue-50 rounded-lg px-2 py-1.5">
-                          <Phone size={9} className="mt-0.5 flex-shrink-0" />
-                          <span><strong>Call note:</strong> {o.last_call_note}</span>
-                        </div>
-                      )}
-                      <div className="mt-1.5">
-                        {editNoteId === o.id ? (
-                          <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5 space-y-2">
-                            <textarea
-                              value={editNote}
-                              onChange={e => setEditNote(e.target.value)}
-                              placeholder="Add a note..."
-                              rows={2}
-                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 resize-none"
-                            />
-                            <div className="flex items-center gap-1.5">
-                              <button onClick={saveNote} disabled={savingNote}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
-                                <Save size={10} /> {savingNote ? 'Saving...' : 'Save'}
-                              </button>
-                              <button onClick={() => setEditNoteId(null)}
-                                className="px-2.5 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded-lg transition-all">
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-1.5">
-                            {o.notes && (
-                              <div className="flex-1 flex items-start gap-1 text-[10px] text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
-                                <FileText size={9} className="mt-0.5 flex-shrink-0" />
-                                <span>{o.notes}</span>
-                              </div>
-                            )}
-                            <button onClick={() => startEditNote(o)}
-                              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all flex-shrink-0">
-                              <FileText size={9} /> {o.notes ? 'Edit' : 'Add note'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {/* Expand call details */}
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? null : o.id)}
-                        className={cn(
-                          'w-8 h-8 rounded-lg flex items-center justify-center transition-all',
-                          isExpanded ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 hover:bg-gray-100 text-gray-400'
-                        )}
-                        title="Call details"
-                      >
-                        <FileText size={13} />
-                      </button>
-
-                      <a href={`tel:${cleanPhone(o.customer_phone)}`}
-                        className="w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all"
-                        title="Call">
-                        <Phone size={13} />
-                      </a>
-                      <a href={whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}
-                        target="_blank" rel="noopener noreferrer"
-                        className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all"
-                        title="WhatsApp">
-                        <MessageCircle size={13} />
-                      </a>
-
-                      <StatusDropdown
-                        currentStatus={o.status as AllStatus}
-                        processing={busy === o.id}
-                        onChangeStatus={(s) => changeStatus(o.id, s)}
-                      />
-                    </div>
+              <div key={o.id} className={cn('bg-white rounded-xl border shadow-sm overflow-hidden', cfg.border)}>
+                {/* Header row: tracking + status + actions */}
+                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50 bg-gray-50/50">
+                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                    <span className="text-[10px] font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</span>
+                    {wasCalled ? (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-50 text-[8px] font-bold text-emerald-700">
+                        <PhoneCall size={7} /> {callCount}x
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-100 text-[8px] font-bold text-gray-400">
+                        <PhoneOff size={7} />
+                      </span>
+                    )}
+                    {(o.total_amount || 0) > 0 && (
+                      <span className="text-[10px] font-bold text-[#f4991a]">KES {o.total_amount.toLocaleString()}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => setExpandedId(isExpanded ? null : o.id)}
+                      className={cn('w-6 h-6 rounded-md flex items-center justify-center transition-all',
+                        isExpanded ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 hover:bg-gray-100 text-gray-400')}
+                      title="Details">
+                      <ChevronDown size={10} className={cn('transition-transform', isExpanded && 'rotate-180')} />
+                    </button>
+                    <a href={`tel:${cleanPhone(o.customer_phone)}`}
+                      className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
+                      <Phone size={10} />
+                    </a>
+                    <a href={whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}
+                      target="_blank" rel="noopener noreferrer"
+                      className="w-6 h-6 rounded-md bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
+                      <MessageCircle size={10} />
+                    </a>
+                    <StatusDropdown
+                      currentStatus={o.status as AllStatus}
+                      processing={busy === o.id}
+                      onChangeStatus={(s) => changeStatus(o.id, s)}
+                    />
                   </div>
                 </div>
 
-                {/* ── Expanded call details ── */}
-                {isExpanded && (
-                  <div className="border-t border-gray-100 px-4 py-3 bg-gray-50/50">
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Call Details</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="bg-white rounded-lg border border-gray-100 p-2.5">
-                        <p className="text-[10px] text-gray-400">Call Attempts</p>
-                        <p className="text-sm font-bold text-[#1a1c3a]">{callCount}</p>
+                {/* Body */}
+                <div className="px-3 py-2 space-y-1.5">
+                  {isEditing ? (
+                    <div className="space-y-1.5 bg-orange-50/50 border border-orange-200 rounded-lg p-2">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Name"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
                       </div>
-                      <div className="bg-white rounded-lg border border-gray-100 p-2.5">
-                        <p className="text-[10px] text-gray-400">Last Called</p>
-                        <p className="text-xs font-bold text-[#1a1c3a]">
-                          {o.last_call_at ? `${formatDate(o.last_call_at)} ${formatTime(o.last_call_at)}` : '—'}
-                        </p>
-                      </div>
-                      <div className="bg-white rounded-lg border border-gray-100 p-2.5">
-                        <p className="text-[10px] text-gray-400">Reminded At</p>
-                        <p className="text-xs font-bold text-[#1a1c3a]">
-                          {o.reminded_at ? `${formatDate(o.reminded_at)} ${formatTime(o.reminded_at)}` : '—'}
-                        </p>
-                      </div>
-                      <div className="bg-white rounded-lg border border-gray-100 p-2.5">
-                        <p className="text-[10px] text-gray-400">Order Created</p>
-                        <p className="text-xs font-bold text-[#1a1c3a]">{formatDate(o.created_at)} {formatTime(o.created_at)}</p>
+                      <div className="flex items-center gap-1">
+                        <button onClick={saveEdit} disabled={savingEdit}
+                          className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded transition-all">
+                          {savingEdit ? '...' : 'Save'}
+                        </button>
+                        <button onClick={cancelEdit}
+                          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded transition-all">
+                          Cancel
+                        </button>
                       </div>
                     </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-[#1a1c3a] truncate">{o.customer_name}</p>
+                      <span className="text-[10px] text-gray-400 truncate">{o.customer_phone}</span>
+                      <span className="text-[10px] text-gray-400 truncate">{o.customer_city}</span>
+                      <button onClick={() => startEdit(o)}
+                        className="w-4 h-4 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] flex-shrink-0">
+                        <Pencil size={8} />
+                      </button>
+                    </div>
+                  )}
 
-                    {/* Timeline */}
-                    <div className="mt-3">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Timeline</p>
-                      <div className="space-y-1.5">
-                        <TimelineItem label="Created" date={o.created_at} color="bg-gray-400" />
-                        {o.last_call_at && <TimelineItem label={`Called (${callCount}x)`} date={o.last_call_at} color="bg-orange-400" />}
-                        {o.reminded_at && <TimelineItem label="Reminded" date={o.reminded_at} color="bg-indigo-400" />}
-                        {o.status === 'confirmed' && <TimelineItem label="Confirmed" date={o.last_call_at || o.created_at} color="bg-emerald-400" />}
-                        {o.shipped_at && <TimelineItem label="Shipped" date={o.shipped_at} color="bg-blue-400" />}
-                        {o.delivered_at && <TimelineItem label="Delivered" date={o.delivered_at} color="bg-sky-400" />}
-                        {o.returned_at && <TimelineItem label="Returned" date={o.returned_at} color="bg-red-400" />}
-                        {o.status === 'cancelled' && <TimelineItem label="Cancelled" date={o.last_call_at || o.created_at} color="bg-gray-400" />}
+                  {/* Items inline */}
+                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 flex-wrap">
+                    <Package size={9} />
+                    {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
+                      <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{(it.unit_price || 0) > 0 ? ` (${it.unit_price.toLocaleString()})` : ''}{i < (o.items || []).length - 1 ? ',' : ''}</span>
+                    ))}
+                    <button onClick={() => { setExpandedId(o.id); startEditItems(o) }}
+                      className="text-[#f4991a] hover:text-orange-600 font-bold ml-0.5">
+                      <Pencil size={8} />
+                    </button>
+                  </div>
+
+                  {/* Meta: dates + reminded */}
+                  <div className="flex items-center gap-2 text-[9px] text-gray-400 flex-wrap">
+                    <span>{formatDate(o.created_at)}</span>
+                    {o.last_call_at && <span>Call {formatTime(o.last_call_at)}</span>}
+                    {o.reminded_at && (
+                      editRemindId === o.id ? (
+                        <span className="inline-flex items-center gap-1">
+                          <input type="datetime-local" value={editRemindDate}
+                            onChange={e => setEditRemindDate(e.target.value)}
+                            className="px-1 py-0.5 border border-indigo-300 rounded text-[9px] focus:outline-none" />
+                          <button onClick={() => saveRemindDate(o.id)} className="text-emerald-600 font-bold">✓</button>
+                          <button onClick={() => clearRemind(o.id)} className="text-red-400 font-bold">✕</button>
+                          <button onClick={() => setEditRemindId(null)} className="text-gray-400">Cancel</button>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-0.5 text-indigo-500 cursor-pointer hover:text-indigo-700"
+                          onClick={() => { setEditRemindId(o.id); setEditRemindDate(o.reminded_at ? new Date(o.reminded_at).toISOString().slice(0, 16) : '') }}>
+                          <Clock size={8} /> Remind {formatDate(o.reminded_at)} {formatTime(o.reminded_at)}
+                          <Pencil size={7} />
+                        </span>
+                      )
+                    )}
+                  </div>
+
+                  {/* Call note */}
+                  {o.last_call_note && (
+                    <div className="flex items-start gap-1 text-[9px] text-blue-600 bg-blue-50 rounded px-1.5 py-1">
+                      <Phone size={8} className="mt-0.5 flex-shrink-0" />
+                      <span className="line-clamp-2">{o.last_call_note}</span>
+                    </div>
+                  )}
+
+                  {/* Order note */}
+                  {editNoteId === o.id ? (
+                    <div className="bg-amber-50/50 border border-amber-200 rounded p-1.5 space-y-1">
+                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
+                        placeholder="Add a note..." rows={2}
+                        className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-[10px] focus:outline-none focus:border-amber-400 resize-none" />
+                      <div className="flex items-center gap-1">
+                        <button onClick={saveNote} disabled={savingNote}
+                          className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[9px] font-bold rounded">
+                          {savingNote ? '...' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditNoteId(null)}
+                          className="px-2 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[9px] font-bold rounded">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-1">
+                      {o.notes && (
+                        <div className="flex-1 flex items-start gap-1 text-[9px] text-amber-700 bg-amber-50 rounded px-1.5 py-1">
+                          <FileText size={8} className="mt-0.5 flex-shrink-0" />
+                          <span className="line-clamp-2">{o.notes}</span>
+                        </div>
+                      )}
+                      <button onClick={() => startEditNote(o)}
+                        className="text-[9px] font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-1">
+                        {o.notes ? <Pencil size={8} /> : <span className="flex items-center gap-0.5"><FileText size={8} /> +</span>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Expanded details ── */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 px-3 py-2 bg-gray-50/30 space-y-2">
+                    <div className="grid grid-cols-3 gap-1.5 text-center">
+                      <div className="bg-white rounded border border-gray-100 py-1.5 px-1">
+                        <p className="text-[8px] text-gray-400 uppercase">Calls</p>
+                        <p className="text-xs font-bold text-[#1a1c3a]">{callCount}</p>
+                      </div>
+                      <div className="bg-white rounded border border-gray-100 py-1.5 px-1">
+                        <p className="text-[8px] text-gray-400 uppercase">Last Call</p>
+                        <p className="text-[10px] font-bold text-[#1a1c3a]">{o.last_call_at ? formatTime(o.last_call_at) : '—'}</p>
+                      </div>
+                      <div className="bg-white rounded border border-gray-100 py-1.5 px-1">
+                        <p className="text-[8px] text-gray-400 uppercase">Created</p>
+                        <p className="text-[10px] font-bold text-[#1a1c3a]">{formatDate(o.created_at)}</p>
                       </div>
                     </div>
 
@@ -819,17 +768,6 @@ export default function AgentHistoryPage() {
           })}
         </div>
       </div>
-    </div>
-  )
-}
-
-/* ── Timeline Item ── */
-function TimelineItem({ label, date, color }: { label: string; date: string; color: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className={cn('w-2 h-2 rounded-full flex-shrink-0', color)} />
-      <span className="text-[11px] font-semibold text-[#1a1c3a] w-24">{label}</span>
-      <span className="text-[10px] text-gray-400">{formatDate(date)} {formatTime(date)}</span>
     </div>
   )
 }
