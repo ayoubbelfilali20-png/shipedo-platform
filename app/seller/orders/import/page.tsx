@@ -71,14 +71,47 @@ function parseCSV(text: string): string[][] {
 /* Normalize header names */
 function normalizeHeader(h: string): string {
   const s = h.toLowerCase().replace(/[^a-z0-9]/g, '')
-  if (['customername', 'name', 'fullname', 'client', 'clientname', 'nom'].includes(s)) return 'customer_name'
-  if (['phone', 'customerphone', 'tel', 'telephone', 'mobile'].includes(s)) return 'customer_phone'
-  if (['city', 'customercity', 'ville'].includes(s)) return 'customer_city'
-  if (['address', 'customeraddress', 'adresse', 'addr'].includes(s)) return 'customer_address'
-  if (['product', 'productname', 'item', 'itemname', 'produit', 'article'].includes(s)) return 'product_name'
-  if (['quantity', 'qty', 'quantit'].includes(s)) return 'quantity'
-  if (['price', 'unitprice', 'sellingprice', 'prix', 'amount', 'total', 'cost', 'totalprice', 'montant', 'priceunit', 'prixunitaire', 'prixunit', 'saleprice', 'sellprice', 'ordertotal', 'itemsprice'].includes(s)) return 'unit_price'
+  // Customer name
+  if (['customername', 'name', 'fullname', 'client', 'clientname', 'nom', 'customer', 'buyer', 'buyername', 'recipient', 'receiver'].includes(s)) return 'customer_name'
+  // Phone
+  if (['phone', 'customerphone', 'tel', 'telephone', 'mobile', 'phonenumber', 'mobilenumber', 'contact', 'whatsapp', 'cell', 'cellphone', 'num', 'number', 'phoneno', 'telno'].includes(s)) return 'customer_phone'
+  // City
+  if (['city', 'customercity', 'ville', 'town', 'location', 'area', 'region', 'county', 'zone', 'destination'].includes(s)) return 'customer_city'
+  // Address
+  if (['address', 'customeraddress', 'adresse', 'addr', 'deliveryaddress', 'shippingaddress', 'street', 'fulladdress', 'landmark'].includes(s)) return 'customer_address'
+  // Product
+  if (['product', 'productname', 'item', 'itemname', 'produit', 'article', 'description', 'productdescription', 'itemdescription', 'orderdescription', 'goods', 'sku', 'model'].includes(s)) return 'product_name'
+  // Quantity
+  if (['quantity', 'qty', 'quantit', 'pcs', 'pieces', 'units', 'count', 'nb', 'nombre', 'qte'].includes(s)) return 'quantity'
+  // Price — match broadly
+  if (['price', 'unitprice', 'sellingprice', 'prix', 'amount', 'total', 'cost', 'totalprice', 'montant', 'priceunit', 'prixunitaire', 'prixunit', 'saleprice', 'sellprice', 'ordertotal', 'itemsprice', 'value', 'rate', 'charge', 'fee', 'cash', 'cod', 'codamount', 'payment', 'totalamount', 'orderamount', 'ordervalue', 'orderprice', 'itemprice', 'pricetotal', 'grandtotal', 'subtotal', 'sum', 'kes', 'ksh'].includes(s)) return 'unit_price'
+  // Partial match for price-related
+  if (s.includes('price') || s.includes('amount') || s.includes('total') || s.includes('cost') || s.includes('prix') || s.includes('montant')) return 'unit_price'
   return s
+}
+
+/* Try to find price column by checking if a column contains mostly numbers */
+function findPriceColumnByData(headers: string[], dataRows: string[][]): number {
+  // Skip columns already mapped
+  const mapped = new Set(headers.map(normalizeHeader).map((h, i) =>
+    ['customer_name', 'customer_phone', 'customer_city', 'customer_address', 'product_name', 'quantity'].includes(h) ? i : -1
+  ).filter(i => i >= 0))
+
+  for (let col = 0; col < headers.length; col++) {
+    if (mapped.has(col)) continue
+    let numCount = 0
+    const sampleSize = Math.min(dataRows.length, 10)
+    for (let row = 0; row < sampleSize; row++) {
+      const val = (dataRows[row]?.[col] || '').replace(/[^0-9.]/g, '')
+      if (val && parseFloat(val) > 0) numCount++
+    }
+    // If >60% of rows have numeric values and the values look like prices (> 10)
+    if (numCount >= sampleSize * 0.6) {
+      const sampleVal = parseFloat((dataRows[0]?.[col] || '').replace(/[^0-9.]/g, ''))
+      if (sampleVal >= 10) return col
+    }
+  }
+  return -1
 }
 
 /* ── Template CSV ── */
@@ -149,10 +182,23 @@ export default function ImportOrdersPage() {
     const addressIdx = headers.indexOf('customer_address')
     const productIdx = headers.indexOf('product_name')
     const qtyIdx     = headers.indexOf('quantity')
-    const priceIdx   = headers.indexOf('unit_price')
+    let priceIdx     = headers.indexOf('unit_price')
+
+    // Fallback: try to detect price column from data if header didn't match
+    if (priceIdx === -1) {
+      priceIdx = findPriceColumnByData(rows[0], rows.slice(1))
+      if (priceIdx >= 0) {
+        console.log(`Price column auto-detected: "${rows[0][priceIdx]}" (column ${priceIdx + 1})`)
+      }
+    }
 
     if (nameIdx === -1 || phoneIdx === -1 || productIdx === -1) {
-      alert('Missing required columns: customer_name, customer_phone, product_name.\n\nFound columns: ' + rows[0].join(', '))
+      alert('Missing required columns: customer_name, customer_phone, product_name.\n\nFound columns: ' + rows[0].join(', ') + '\n\nMapped as: ' + headers.join(', '))
+      return
+    }
+
+    if (priceIdx === -1) {
+      alert('⚠️ No price column detected!\n\nYour columns: ' + rows[0].join(', ') + '\n\nPlease rename your price column to "price" or "unit_price" and re-upload.')
       return
     }
 
