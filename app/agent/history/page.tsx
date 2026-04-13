@@ -419,12 +419,12 @@ export default function AgentHistoryPage() {
           </div>
         </div>
 
-        {/* Orders grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+        {/* Orders list */}
+        <div className="space-y-1.5">
           {loading ? (
-            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
           ) : filtered.length === 0 ? (
-            <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
               <Package size={40} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">No orders found</p>
             </div>
