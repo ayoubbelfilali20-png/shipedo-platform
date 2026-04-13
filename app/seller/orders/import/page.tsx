@@ -72,19 +72,24 @@ function parseCSV(text: string): string[][] {
 function normalizeHeader(h: string): string {
   const s = h.toLowerCase().replace(/[^a-z0-9]/g, '')
   // Customer name
-  if (['customername', 'name', 'fullname', 'client', 'clientname', 'nom', 'customer', 'buyer', 'buyername', 'recipient', 'receiver'].includes(s)) return 'customer_name'
+  if (['customername', 'name', 'fullname', 'client', 'clientname', 'nom', 'customer', 'buyer', 'buyername', 'recipient', 'receiver', 'customersfullname'].includes(s)) return 'customer_name'
+  if (s.includes('fullname') || s.includes('customername') || s.includes('clientname')) return 'customer_name'
   // Phone
-  if (['phone', 'customerphone', 'tel', 'telephone', 'mobile', 'phonenumber', 'mobilenumber', 'contact', 'whatsapp', 'cell', 'cellphone', 'num', 'number', 'phoneno', 'telno'].includes(s)) return 'customer_phone'
+  if (['phone', 'customerphone', 'tel', 'telephone', 'mobile', 'phonenumber', 'mobilenumber', 'contact', 'whatsapp', 'cell', 'cellphone', 'phoneno', 'telno', 'customersphone'].includes(s)) return 'customer_phone'
+  if (s.includes('phone') || s.includes('mobile') || s.includes('tel')) return 'customer_phone'
   // City
   if (['city', 'customercity', 'ville', 'town', 'location', 'area', 'region', 'county', 'zone', 'destination'].includes(s)) return 'customer_city'
   // Address
-  if (['address', 'customeraddress', 'adresse', 'addr', 'deliveryaddress', 'shippingaddress', 'street', 'fulladdress', 'landmark'].includes(s)) return 'customer_address'
-  // Product
-  if (['product', 'productname', 'item', 'itemname', 'produit', 'article', 'description', 'productdescription', 'itemdescription', 'orderdescription', 'goods', 'sku', 'model'].includes(s)) return 'product_name'
+  if (['address', 'customeraddress', 'adresse', 'addr', 'deliveryaddress', 'shippingaddress', 'street', 'fulladdress', 'landmark', 'customersaddress1', 'customersaddress', 'address1'].includes(s)) return 'customer_address'
+  if (s.includes('address') || s.includes('adresse')) return 'customer_address'
+  // Product name or SKU
+  if (['product', 'productname', 'item', 'itemname', 'produit', 'article', 'description', 'productdescription', 'itemdescription', 'orderdescription', 'goods', 'model', 'productssku', 'productsku', 'sku'].includes(s)) return 'product_name'
+  if (s.includes('product') && (s.includes('name') || s.includes('sku') || s.includes('desc'))) return 'product_name'
   // Quantity
-  if (['quantity', 'qty', 'quantit', 'pcs', 'pieces', 'units', 'count', 'nb', 'nombre', 'qte'].includes(s)) return 'quantity'
+  if (['quantity', 'qty', 'quantit', 'pcs', 'pieces', 'units', 'count', 'nb', 'nombre', 'qte', 'productsquantity', 'productquantity'].includes(s)) return 'quantity'
+  if (s.includes('quantity') || s.includes('qty')) return 'quantity'
   // Price — match broadly
-  if (['price', 'unitprice', 'sellingprice', 'prix', 'amount', 'total', 'cost', 'totalprice', 'montant', 'priceunit', 'prixunitaire', 'prixunit', 'saleprice', 'sellprice', 'ordertotal', 'itemsprice', 'value', 'rate', 'charge', 'fee', 'cash', 'cod', 'codamount', 'payment', 'totalamount', 'orderamount', 'ordervalue', 'orderprice', 'itemprice', 'pricetotal', 'grandtotal', 'subtotal', 'sum', 'kes', 'ksh'].includes(s)) return 'unit_price'
+  if (['price', 'unitprice', 'sellingprice', 'prix', 'amount', 'total', 'cost', 'totalprice', 'montant', 'priceunit', 'prixunitaire', 'prixunit', 'saleprice', 'sellprice', 'ordertotal', 'itemsprice', 'value', 'rate', 'charge', 'fee', 'cash', 'cod', 'codamount', 'payment', 'totalamount', 'orderamount', 'ordervalue', 'orderprice', 'itemprice', 'pricetotal', 'grandtotal', 'subtotal', 'sum', 'kes', 'ksh', 'productsprice', 'productprice'].includes(s)) return 'unit_price'
   // Partial match for price-related
   if (s.includes('price') || s.includes('amount') || s.includes('total') || s.includes('cost') || s.includes('prix') || s.includes('montant')) return 'unit_price'
   return s

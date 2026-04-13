@@ -7,7 +7,8 @@ import { supabase } from '@/lib/supabase'
 import { ProductStatus } from '@/lib/types'
 import {
   Search, Plus, Package, FileSpreadsheet, AlertCircle,
-  ChevronLeft, ChevronRight, ChevronDown, Maximize2, Home
+  ChevronLeft, ChevronRight, ChevronDown, Maximize2, Home,
+  Pencil, Trash2, X, Check
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -38,6 +39,11 @@ export default function SellerProductsPage() {
   const [products, setProducts]           = useState<any[]>([])
   const [loading, setLoading]             = useState(true)
   const [page, setPage]                   = useState(1)
+  const [editProduct, setEditProduct]     = useState<any>(null)
+  const [editForm, setEditForm]           = useState<any>({})
+  const [saving, setSaving]               = useState(false)
+  const [deleteId, setDeleteId]           = useState<string | null>(null)
+  const [deleting, setDeleting]           = useState(false)
 
   useEffect(() => {
     let sellerId: string | null = null
@@ -77,6 +83,47 @@ export default function SellerProductsPage() {
   const pageRows   = filtered.slice(startIdx, endIdx)
 
   useEffect(() => { setPage(1) }, [search, statusFilter])
+
+  const startEdit = (p: any) => {
+    setEditProduct(p)
+    setEditForm({
+      name: p.name || '',
+      sku: p.sku || '',
+      selling_price: p.selling_price || 0,
+      discount_price: p.discount_price || '',
+      stock: p.stock || 0,
+      status: p.status || 'active',
+    })
+  }
+
+  const saveEdit = async () => {
+    if (!editProduct) return
+    setSaving(true)
+    const { error } = await supabase.from('products').update({
+      name: editForm.name,
+      sku: editForm.sku,
+      selling_price: Number(editForm.selling_price) || 0,
+      discount_price: editForm.discount_price ? Number(editForm.discount_price) : null,
+      stock: Number(editForm.stock) || 0,
+      status: editForm.status,
+    }).eq('id', editProduct.id)
+    if (!error) {
+      setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...editForm, selling_price: Number(editForm.selling_price) || 0, discount_price: editForm.discount_price ? Number(editForm.discount_price) : null, stock: Number(editForm.stock) || 0 } : p))
+    }
+    setSaving(false)
+    setEditProduct(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    const { error } = await supabase.from('products').delete().eq('id', deleteId)
+    if (!error) {
+      setProducts(prev => prev.filter(p => p.id !== deleteId))
+    }
+    setDeleting(false)
+    setDeleteId(null)
+  }
 
   const handleExport = () => {
     if (filtered.length === 0) return
@@ -193,12 +240,13 @@ export default function SellerProductsPage() {
                       {t(k)}
                     </th>
                   ))}
+                  <th className="text-[11px] font-bold text-gray-500 uppercase tracking-wider px-4 py-3.5 whitespace-nowrap text-left">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="py-20 text-center">
+                    <td colSpan={10} className="py-20 text-center">
                       <div className="inline-flex flex-col items-center text-gray-300">
                         <div className="w-7 h-7 border-2 border-gray-200 border-t-[#f4991a] rounded-full animate-spin mb-2" />
                         <p className="text-xs">{t('prod_loading')}</p>
@@ -207,7 +255,7 @@ export default function SellerProductsPage() {
                   </tr>
                 ) : pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-20 text-center">
+                    <td colSpan={10} className="py-20 text-center">
                       <div className="inline-flex flex-col items-center">
                         <div className="w-14 h-14 rounded-2xl bg-gray-50 flex items-center justify-center mb-3">
                           <Package size={22} className="text-gray-300" />
@@ -331,6 +379,33 @@ export default function SellerProductsPage() {
                             <AlertCircle size={12} /> {t('prod_not_used')}
                           </span>
                         </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => router.push(`/seller/products/${p.id}`)}
+                              className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all border border-emerald-200"
+                              title="View"
+                            >
+                              <Maximize2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => startEdit(p)}
+                              className="w-8 h-8 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-600 transition-all border border-blue-200"
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteId(p.id)}
+                              className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-all border border-red-200"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     )
                   })
@@ -386,6 +461,84 @@ export default function SellerProductsPage() {
         </div>
 
       </div>
+
+      {/* Edit Product Modal */}
+      {editProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-800">Edit Product</h3>
+              <button onClick={() => setEditProduct(null)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Name</label>
+                <input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">SKU</label>
+                  <input value={editForm.sku} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Stock</label>
+                  <input type="number" value={editForm.stock} onChange={e => setEditForm({ ...editForm, stock: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Price (KES)</label>
+                  <input type="number" value={editForm.selling_price} onChange={e => setEditForm({ ...editForm, selling_price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Discount Price</label>
+                  <input type="number" value={editForm.discount_price} onChange={e => setEditForm({ ...editForm, discount_price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="Optional" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Status</label>
+                <select value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 bg-white">
+                  <option value="active">Active</option>
+                  <option value="low_stock">Low Stock</option>
+                  <option value="out_of_stock">Out of Stock</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button onClick={() => setEditProduct(null)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+              <button onClick={saveEdit} disabled={saving} className="flex-1 px-4 py-2.5 bg-[#f4991a] hover:bg-orange-500 text-white rounded-lg text-sm font-bold shadow-sm shadow-orange-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={16} />}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-3">
+                <Trash2 size={24} className="text-red-500" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800">Delete Product?</h3>
+              <p className="text-sm text-gray-500 mt-1">This action cannot be undone. The product will be permanently removed.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setDeleteId(null)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+              <button onClick={confirmDelete} disabled={deleting} className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-bold shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {deleting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Trash2 size={16} />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

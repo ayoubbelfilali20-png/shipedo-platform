@@ -388,6 +388,22 @@ export default function AgentShippingPage() {
                     ))}
                   </div>
 
+                  {/* Shipped / Delivered dates */}
+                  {(order.shipped_at || order.delivered_at) && (
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {order.shipped_at && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1">
+                          <Truck size={12} /> Shipped: {new Date(order.shipped_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date(order.shipped_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                      {order.delivered_at && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
+                          <CheckCircle size={12} /> Delivered: {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date(order.delivered_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Call note */}
                   {order.last_call_note && (
                     <div className="flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg px-2.5 py-1.5">
