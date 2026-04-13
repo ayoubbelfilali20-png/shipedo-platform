@@ -47,7 +47,7 @@ const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped', 'delivere
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
 function whatsappLink(phone: string, text: string) {
   const num = cleanPhone(phone).replace(/^\+/, '')
-  return `https://wa.me/${num}?text=${encodeURIComponent(text)}`
+  return `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`
 }
 
 function orderToLabel(o: OrderRow): PrintLabelProps {
