@@ -537,6 +537,50 @@ export default function AgentHistoryPage() {
                           <Pencil size={9} />
                         </button>
                       </div>
+
+                      {/* Call note + Order note — always visible */}
+                      {o.last_call_note && (
+                        <div className="mt-1.5 flex items-start gap-1 text-[10px] text-blue-600 bg-blue-50 rounded-lg px-2 py-1.5">
+                          <Phone size={9} className="mt-0.5 flex-shrink-0" />
+                          <span><strong>Call note:</strong> {o.last_call_note}</span>
+                        </div>
+                      )}
+                      <div className="mt-1.5">
+                        {editNoteId === o.id ? (
+                          <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5 space-y-2">
+                            <textarea
+                              value={editNote}
+                              onChange={e => setEditNote(e.target.value)}
+                              placeholder="Add a note..."
+                              rows={2}
+                              className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 resize-none"
+                            />
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={saveNote} disabled={savingNote}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
+                                <Save size={10} /> {savingNote ? 'Saving...' : 'Save'}
+                              </button>
+                              <button onClick={() => setEditNoteId(null)}
+                                className="px-2.5 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded-lg transition-all">
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-1.5">
+                            {o.notes && (
+                              <div className="flex-1 flex items-start gap-1 text-[10px] text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
+                                <FileText size={9} className="mt-0.5 flex-shrink-0" />
+                                <span>{o.notes}</span>
+                              </div>
+                            )}
+                            <button onClick={() => startEditNote(o)}
+                              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all flex-shrink-0">
+                              <FileText size={9} /> {o.notes ? 'Edit' : 'Add note'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Actions */}
@@ -599,55 +643,6 @@ export default function AgentHistoryPage() {
                         <p className="text-[10px] text-gray-400">Order Created</p>
                         <p className="text-xs font-bold text-[#1a1c3a]">{formatDate(o.created_at)} {formatTime(o.created_at)}</p>
                       </div>
-                    </div>
-
-                    {/* Call note */}
-                    {o.last_call_note && (
-                      <div className="mt-2 bg-white rounded-lg border border-blue-100 p-2.5">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Phone size={9} className="text-blue-400" />
-                          <p className="text-[10px] text-blue-400 font-bold">Call Note</p>
-                        </div>
-                        <p className="text-xs text-[#1a1c3a]">{o.last_call_note}</p>
-                      </div>
-                    )}
-
-                    {/* Notes — editable */}
-                    <div className="mt-2">
-                      {editNoteId === o.id ? (
-                        <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5 space-y-2">
-                          <textarea
-                            value={editNote}
-                            onChange={e => setEditNote(e.target.value)}
-                            placeholder="Add a note..."
-                            rows={2}
-                            className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 resize-none"
-                          />
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={saveNote} disabled={savingNote}
-                              className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
-                              <Save size={10} /> {savingNote ? 'Saving...' : 'Save'}
-                            </button>
-                            <button onClick={() => setEditNoteId(null)}
-                              className="px-2.5 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded-lg transition-all">
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start gap-1.5">
-                          {o.notes && (
-                            <div className="flex-1 flex items-start gap-1 text-[10px] text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5">
-                              <FileText size={9} className="mt-0.5 flex-shrink-0" />
-                              <span>{o.notes}</span>
-                            </div>
-                          )}
-                          <button onClick={() => startEditNote(o)}
-                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all flex-shrink-0">
-                            <FileText size={9} /> {o.notes ? 'Edit' : 'Add note'}
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     {/* Timeline */}
