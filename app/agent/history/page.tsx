@@ -436,38 +436,38 @@ export default function AgentHistoryPage() {
             const cfg = statusConfig[o.status] || statusConfig.pending
             return (
               <div key={o.id} className={cn('bg-white rounded-xl border shadow-sm overflow-hidden', cfg.border)}>
-                {/* Header row: tracking + status + actions */}
-                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50 bg-gray-50/50">
-                  <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                    <span className="text-[10px] font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</span>
+                {/* Header row */}
+                <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
+                  <div className="flex items-center gap-2 flex-wrap min-w-0">
+                    <span className="text-xs font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</span>
                     {wasCalled ? (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-50 text-[8px] font-bold text-emerald-700">
-                        <PhoneCall size={7} /> {callCount}x
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-700">
+                        <PhoneCall size={9} /> Called ({callCount})
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-100 text-[8px] font-bold text-gray-400">
-                        <PhoneOff size={7} />
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 border border-gray-200 text-[10px] font-bold text-gray-400">
+                        <PhoneOff size={9} /> Not called
                       </span>
                     )}
                     {(o.total_amount || 0) > 0 && (
-                      <span className="text-[10px] font-bold text-[#f4991a]">KES {o.total_amount.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-[#f4991a]">KES {o.total_amount.toLocaleString()}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button onClick={() => setExpandedId(isExpanded ? null : o.id)}
-                      className={cn('w-6 h-6 rounded-md flex items-center justify-center transition-all',
-                        isExpanded ? 'bg-blue-100 text-blue-600' : 'bg-gray-50 hover:bg-gray-100 text-gray-400')}
+                      className={cn('w-7 h-7 rounded-lg flex items-center justify-center transition-all',
+                        isExpanded ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-400')}
                       title="Details">
-                      <ChevronDown size={10} className={cn('transition-transform', isExpanded && 'rotate-180')} />
+                      <ChevronDown size={12} className={cn('transition-transform', isExpanded && 'rotate-180')} />
                     </button>
                     <a href={`tel:${cleanPhone(o.customer_phone)}`}
-                      className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
-                      <Phone size={10} />
+                      className="w-7 h-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
+                      <Phone size={12} />
                     </a>
                     <a href={whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}
                       target="_blank" rel="noopener noreferrer"
-                      className="w-6 h-6 rounded-md bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
-                      <MessageCircle size={10} />
+                      className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
+                      <MessageCircle size={12} />
                     </a>
                     <StatusDropdown
                       currentStatus={o.status as AllStatus}
@@ -478,114 +478,119 @@ export default function AgentHistoryPage() {
                 </div>
 
                 {/* Body */}
-                <div className="px-3 py-2 space-y-1.5">
+                <div className="px-4 py-2.5 space-y-2">
                   {isEditing ? (
-                    <div className="space-y-1.5 bg-orange-50/50 border border-orange-200 rounded-lg p-2">
-                      <div className="grid grid-cols-2 gap-1.5">
+                    <div className="space-y-2 bg-orange-50/50 border border-orange-200 rounded-lg p-3">
+                      <div className="grid grid-cols-2 gap-2">
                         <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Name"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                         <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                         <input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                         <input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <button onClick={saveEdit} disabled={savingEdit}
-                          className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded transition-all">
+                          className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
                           {savingEdit ? '...' : 'Save'}
                         </button>
                         <button onClick={cancelEdit}
-                          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded transition-all">
+                          className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-xs font-bold rounded-lg transition-all">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-[#1a1c3a]">{o.customer_name}</p>
+                      <span className="text-xs text-gray-400">{o.customer_phone}</span>
+                      <span className="text-xs text-gray-400">{o.customer_city}</span>
+                      {o.customer_address && <span className="text-xs text-gray-300">{o.customer_address}</span>}
+                      <button onClick={() => startEdit(o)}
+                        className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] flex-shrink-0">
+                        <Pencil size={10} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Items + dates row */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap min-w-0">
+                      <Package size={12} className="text-gray-300 flex-shrink-0" />
+                      {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
+                        <span key={i} className="font-medium">{it.name || 'Item'} x{it.quantity || 1}{(it.unit_price || 0) > 0 ? ` (KES ${it.unit_price.toLocaleString()})` : ''}{i < (o.items || []).length - 1 ? ' · ' : ''}</span>
+                      ))}
+                      <button onClick={() => { setExpandedId(o.id); startEditItems(o) }}
+                        className="text-[#f4991a] hover:text-orange-600">
+                        <Pencil size={10} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-gray-400 flex-shrink-0">
+                      <span>{formatDate(o.created_at)}</span>
+                      {o.last_call_at && <span>· {formatTime(o.last_call_at)}</span>}
+                    </div>
+                  </div>
+
+                  {/* Reminded */}
+                  {o.reminded_at && (
+                    <div className="flex items-center gap-2">
+                      {editRemindId === o.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <input type="datetime-local" value={editRemindDate}
+                            onChange={e => setEditRemindDate(e.target.value)}
+                            className="px-2 py-1 border border-indigo-300 rounded-lg text-xs focus:outline-none" />
+                          <button onClick={() => saveRemindDate(o.id)} className="text-emerald-600 font-bold text-xs">✓</button>
+                          <button onClick={() => clearRemind(o.id)} className="text-red-400 font-bold text-xs">✕</button>
+                          <button onClick={() => setEditRemindId(null)} className="text-gray-400 text-xs">Cancel</button>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-indigo-500 cursor-pointer hover:text-indigo-700"
+                          onClick={() => { setEditRemindId(o.id); setEditRemindDate(o.reminded_at ? new Date(o.reminded_at).toISOString().slice(0, 16) : '') }}>
+                          <Clock size={11} /> Remind: {formatDate(o.reminded_at)} {formatTime(o.reminded_at)}
+                          <Pencil size={9} />
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Call note */}
+                  {o.last_call_note && (
+                    <div className="flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg px-2.5 py-1.5">
+                      <Phone size={11} className="mt-0.5 flex-shrink-0" />
+                      <span><strong>Call note:</strong> {o.last_call_note}</span>
+                    </div>
+                  )}
+
+                  {/* Order note */}
+                  {editNoteId === o.id ? (
+                    <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5 space-y-1.5">
+                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
+                        placeholder="Add a note..." rows={2}
+                        className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-amber-400 resize-none" />
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={saveNote} disabled={savingNote}
+                          className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg">
+                          {savingNote ? '...' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditNoteId(null)}
+                          className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-xs font-bold rounded-lg">
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-semibold text-[#1a1c3a] truncate">{o.customer_name}</p>
-                      <span className="text-[10px] text-gray-400 truncate">{o.customer_phone}</span>
-                      <span className="text-[10px] text-gray-400 truncate">{o.customer_city}</span>
-                      <button onClick={() => startEdit(o)}
-                        className="w-4 h-4 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] flex-shrink-0">
-                        <Pencil size={8} />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Items inline */}
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 flex-wrap">
-                    <Package size={9} />
-                    {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
-                      <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{(it.unit_price || 0) > 0 ? ` (${it.unit_price.toLocaleString()})` : ''}{i < (o.items || []).length - 1 ? ',' : ''}</span>
-                    ))}
-                    <button onClick={() => { setExpandedId(o.id); startEditItems(o) }}
-                      className="text-[#f4991a] hover:text-orange-600 font-bold ml-0.5">
-                      <Pencil size={8} />
-                    </button>
-                  </div>
-
-                  {/* Meta: dates + reminded */}
-                  <div className="flex items-center gap-2 text-[9px] text-gray-400 flex-wrap">
-                    <span>{formatDate(o.created_at)}</span>
-                    {o.last_call_at && <span>Call {formatTime(o.last_call_at)}</span>}
-                    {o.reminded_at && (
-                      editRemindId === o.id ? (
-                        <span className="inline-flex items-center gap-1">
-                          <input type="datetime-local" value={editRemindDate}
-                            onChange={e => setEditRemindDate(e.target.value)}
-                            className="px-1 py-0.5 border border-indigo-300 rounded text-[9px] focus:outline-none" />
-                          <button onClick={() => saveRemindDate(o.id)} className="text-emerald-600 font-bold">✓</button>
-                          <button onClick={() => clearRemind(o.id)} className="text-red-400 font-bold">✕</button>
-                          <button onClick={() => setEditRemindId(null)} className="text-gray-400">Cancel</button>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-0.5 text-indigo-500 cursor-pointer hover:text-indigo-700"
-                          onClick={() => { setEditRemindId(o.id); setEditRemindDate(o.reminded_at ? new Date(o.reminded_at).toISOString().slice(0, 16) : '') }}>
-                          <Clock size={8} /> Remind {formatDate(o.reminded_at)} {formatTime(o.reminded_at)}
-                          <Pencil size={7} />
-                        </span>
-                      )
-                    )}
-                  </div>
-
-                  {/* Call note */}
-                  {o.last_call_note && (
-                    <div className="flex items-start gap-1 text-[9px] text-blue-600 bg-blue-50 rounded px-1.5 py-1">
-                      <Phone size={8} className="mt-0.5 flex-shrink-0" />
-                      <span className="line-clamp-2">{o.last_call_note}</span>
-                    </div>
-                  )}
-
-                  {/* Order note */}
-                  {editNoteId === o.id ? (
-                    <div className="bg-amber-50/50 border border-amber-200 rounded p-1.5 space-y-1">
-                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
-                        placeholder="Add a note..." rows={2}
-                        className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-[10px] focus:outline-none focus:border-amber-400 resize-none" />
-                      <div className="flex items-center gap-1">
-                        <button onClick={saveNote} disabled={savingNote}
-                          className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[9px] font-bold rounded">
-                          {savingNote ? '...' : 'Save'}
-                        </button>
-                        <button onClick={() => setEditNoteId(null)}
-                          className="px-2 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[9px] font-bold rounded">
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-1">
                       {o.notes && (
-                        <div className="flex-1 flex items-start gap-1 text-[9px] text-amber-700 bg-amber-50 rounded px-1.5 py-1">
-                          <FileText size={8} className="mt-0.5 flex-shrink-0" />
-                          <span className="line-clamp-2">{o.notes}</span>
+                        <div className="flex-1 flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                          <FileText size={11} className="mt-0.5 flex-shrink-0" />
+                          <span>{o.notes}</span>
                         </div>
                       )}
                       <button onClick={() => startEditNote(o)}
-                        className="text-[9px] font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-1">
-                        {o.notes ? <Pencil size={8} /> : <span className="flex items-center gap-0.5"><FileText size={8} /> +</span>}
+                        className="text-xs font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-1">
+                        {o.notes ? <Pencil size={10} /> : <span className="flex items-center gap-1"><FileText size={11} /> Add note</span>}
                       </button>
                     </div>
                   )}

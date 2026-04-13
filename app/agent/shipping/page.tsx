@@ -308,30 +308,31 @@ export default function AgentShippingPage() {
             const isEditing = editingId === order.id
             return (
               <div key={order.id} className={cn('bg-white rounded-xl border shadow-sm overflow-hidden', cfg.border)}>
-                {/* Header: tracking + print + status + actions */}
-                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50 bg-gray-50/50">
-                  <div className="flex items-center gap-1.5 min-w-0">
+                {/* Header */}
+                <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
+                  <div className="flex items-center gap-2 min-w-0">
                     {order.printed ? (
-                      <span className="text-[7px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded">✓</span>
+                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Printed</span>
                     ) : (
                       <button onClick={() => togglePrintQueue(order.id)} className="text-gray-300 hover:text-blue-600">
-                        {printQueue.has(order.id) ? <CheckSquare size={12} className="text-blue-600" /> : <Square size={12} />}
+                        {printQueue.has(order.id) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} />}
                       </button>
                     )}
-                    <span className="text-[10px] font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+                    <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+                    <span className="text-[10px] text-gray-400">{order.payment_method}</span>
                     {(order.total_amount || 0) > 0 && (
-                      <span className="text-[10px] font-bold text-[#f4991a]">KES {order.total_amount.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-[#f4991a]">KES {order.total_amount.toLocaleString()}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
                     <a href={`tel:${cleanPhone(order.customer_phone)}`}
-                      className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
-                      <Phone size={10} />
+                      className="w-7 h-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
+                      <Phone size={12} />
                     </a>
                     <a href={whatsappLink(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)}
                       target="_blank" rel="noopener noreferrer"
-                      className="w-6 h-6 rounded-md bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
-                      <MessageCircle size={10} />
+                      className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
+                      <MessageCircle size={12} />
                     </a>
                     <StatusDropdown
                       currentStatus={order.status as AllStatus}
@@ -342,86 +343,87 @@ export default function AgentShippingPage() {
                 </div>
 
                 {/* Body */}
-                <div className="px-3 py-2 space-y-1.5">
+                <div className="px-4 py-2.5 space-y-2">
                   {isEditing ? (
-                    <div className="space-y-1.5 bg-orange-50/50 border border-orange-200 rounded-lg p-2">
-                      <div className="grid grid-cols-2 gap-1.5">
+                    <div className="space-y-2 bg-orange-50/50 border border-orange-200 rounded-lg p-3">
+                      <div className="grid grid-cols-2 gap-2">
                         <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Name"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                         <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                         <input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                         <input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                          className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-orange-400" />
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <button onClick={saveEdit} disabled={savingEdit}
-                          className="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded transition-all">
+                          className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-all">
                           {savingEdit ? '...' : 'Save'}
                         </button>
                         <button onClick={cancelEdit}
-                          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded transition-all">
+                          className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-xs font-bold rounded-lg transition-all">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-[#1a1c3a]">{order.customer_name}</p>
+                      <span className="text-xs text-gray-400">{order.customer_phone}</span>
+                      <span className="text-xs text-gray-400">{order.customer_city}</span>
+                      {order.customer_address && <span className="text-xs text-gray-300">{order.customer_address}</span>}
+                      <button onClick={() => startEdit(order)}
+                        className="w-5 h-5 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] flex-shrink-0">
+                        <Pencil size={10} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Items inline */}
+                  <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
+                    <Package size={12} className="text-gray-300 flex-shrink-0" />
+                    {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
+                      <span key={i} className="font-medium">{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ' · ' : ''}</span>
+                    ))}
+                  </div>
+
+                  {/* Call note */}
+                  {order.last_call_note && (
+                    <div className="flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 rounded-lg px-2.5 py-1.5">
+                      <Phone size={11} className="mt-0.5 flex-shrink-0" />
+                      <span><strong>Call note:</strong> {order.last_call_note}</span>
+                    </div>
+                  )}
+
+                  {/* Order note */}
+                  {editNoteId === order.id ? (
+                    <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-2.5 space-y-1.5">
+                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
+                        placeholder="Add a note..." rows={2}
+                        className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-amber-400 resize-none" />
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={saveNote} disabled={savingNote}
+                          className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg">
+                          {savingNote ? '...' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditNoteId(null)}
+                          className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-xs font-bold rounded-lg">
                           Cancel
                         </button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-semibold text-[#1a1c3a] truncate">{order.customer_name}</p>
-                      <span className="text-[10px] text-gray-400 truncate">{order.customer_phone}</span>
-                      <span className="text-[10px] text-gray-400 truncate">{order.customer_city}</span>
-                      <button onClick={() => startEdit(order)}
-                        className="w-4 h-4 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a] flex-shrink-0">
-                        <Pencil size={8} />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Items inline */}
-                  <div className="flex items-center gap-1.5 text-[10px] text-gray-400 flex-wrap">
-                    <Package size={9} />
-                    {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
-                      <span key={i}>{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ',' : ''}</span>
-                    ))}
-                  </div>
-
-                  {/* Call note */}
-                  {order.last_call_note && (
-                    <div className="flex items-start gap-1 text-[9px] text-blue-600 bg-blue-50 rounded px-1.5 py-1">
-                      <Phone size={8} className="mt-0.5 flex-shrink-0" />
-                      <span className="line-clamp-2">{order.last_call_note}</span>
-                    </div>
-                  )}
-
-                  {/* Order note */}
-                  {editNoteId === order.id ? (
-                    <div className="bg-amber-50/50 border border-amber-200 rounded p-1.5 space-y-1">
-                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
-                        placeholder="Add a note..." rows={2}
-                        className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-[10px] focus:outline-none focus:border-amber-400 resize-none" />
-                      <div className="flex items-center gap-1">
-                        <button onClick={saveNote} disabled={savingNote}
-                          className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[9px] font-bold rounded">
-                          {savingNote ? '...' : 'Save'}
-                        </button>
-                        <button onClick={() => setEditNoteId(null)}
-                          className="px-2 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[9px] font-bold rounded">
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-1">
                       {order.notes && (
-                        <div className="flex-1 flex items-start gap-1 text-[9px] text-amber-700 bg-amber-50 rounded px-1.5 py-1">
-                          <FileText size={8} className="mt-0.5 flex-shrink-0" />
-                          <span className="line-clamp-2">{order.notes}</span>
+                        <div className="flex-1 flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                          <FileText size={11} className="mt-0.5 flex-shrink-0" />
+                          <span>{order.notes}</span>
                         </div>
                       )}
                       <button onClick={() => startEditNote(order)}
-                        className="text-[9px] font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-1">
-                        {order.notes ? <Pencil size={8} /> : <span className="flex items-center gap-0.5"><FileText size={8} /> +</span>}
+                        className="text-xs font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-1">
+                        {order.notes ? <Pencil size={10} /> : <span className="flex items-center gap-1"><FileText size={11} /> Add note</span>}
                       </button>
                     </div>
                   )}
