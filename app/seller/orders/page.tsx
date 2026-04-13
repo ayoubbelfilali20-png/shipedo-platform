@@ -328,8 +328,14 @@ export default function SellerOrdersPage() {
                           </button>
                         </td>
                         <td className="px-4 py-4">
-                          <span className="text-sm font-bold text-gray-700">{(order.total_amount || 0).toLocaleString()}</span>
-                          <span className="text-[10px] text-gray-400 font-semibold ml-1">KES</span>
+                          {(order.total_amount || 0) > 0 ? (
+                            <>
+                              <span className="text-sm font-bold text-gray-700">{order.total_amount.toLocaleString()}</span>
+                              <span className="text-[10px] text-gray-400 font-semibold ml-1">KES</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-300">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-xs text-gray-500 whitespace-nowrap">{formatDateTime(order.created_at)}</span>

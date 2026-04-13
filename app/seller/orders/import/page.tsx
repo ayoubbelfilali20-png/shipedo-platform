@@ -77,7 +77,7 @@ function normalizeHeader(h: string): string {
   if (['address', 'customeraddress', 'adresse', 'addr'].includes(s)) return 'customer_address'
   if (['product', 'productname', 'item', 'itemname', 'produit', 'article'].includes(s)) return 'product_name'
   if (['quantity', 'qty', 'quantit'].includes(s)) return 'quantity'
-  if (['price', 'unitprice', 'sellingprice', 'prix', 'amount'].includes(s)) return 'unit_price'
+  if (['price', 'unitprice', 'sellingprice', 'prix', 'amount', 'total', 'cost', 'totalprice', 'montant', 'priceunit', 'prixunitaire', 'prixunit', 'saleprice', 'sellprice', 'ordertotal', 'itemsprice'].includes(s)) return 'unit_price'
   return s
 }
 
@@ -168,7 +168,8 @@ export default function ImportOrdersPage() {
       const address = addressIdx >= 0 ? (r[addressIdx] || '') : ''
       const product = r[productIdx] || ''
       const qty     = qtyIdx >= 0 ? parseInt(r[qtyIdx]) || 0 : 1
-      const price   = priceIdx >= 0 ? parseFloat(r[priceIdx]) || 0 : 0
+      const rawPrice = priceIdx >= 0 ? (r[priceIdx] || '').replace(/[^0-9.]/g, '') : '0'
+      const price   = parseFloat(rawPrice) || 0
 
       if (!name) errors.push('Missing customer name')
       if (!phone) errors.push('Missing phone')
