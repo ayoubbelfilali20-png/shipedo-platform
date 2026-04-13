@@ -225,7 +225,7 @@ export default function AgentHistoryPage() {
     setEditItems(prev => prev.filter((_, i) => i !== idx)); setItemsChanged(true)
   }
   const addSellerProduct = (p: any) => {
-    setEditItems(prev => [...prev, { _id: `${Date.now()}`, product_id: p.id, name: p.name, sku: p.sku || '', quantity: 1, unit_price: p.selling_price || 0 }])
+    setEditItems(prev => [...prev, { _id: `${Date.now()}`, product_id: p.id, name: p.name, sku: p.sku || '', image_url: p.image_url || '', quantity: 1, unit_price: p.selling_price || 0 }])
     setItemsChanged(true); setShowProductPicker(false); setProductSearch('')
   }
   const addCustomItem = () => {
@@ -470,8 +470,12 @@ export default function AgentHistoryPage() {
                       )}
 
                       <div className="flex items-center gap-3 mt-1">
-                        <p className="text-xs font-bold text-[#f4991a]">KES {(o.total_amount || 0).toLocaleString()}</p>
-                        <span className="text-[10px] text-gray-300">&middot;</span>
+                        {(o.total_amount || 0) > 0 && (
+                          <>
+                            <p className="text-xs font-bold text-[#f4991a]">KES {o.total_amount.toLocaleString()}</p>
+                            <span className="text-[10px] text-gray-300">&middot;</span>
+                          </>
+                        )}
                         <span className="text-[10px] text-gray-400">
                           Created {formatDate(o.created_at)}
                         </span>
@@ -670,16 +674,30 @@ export default function AgentHistoryPage() {
                         </div>
                       ) : (
                         /* View mode */
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
-                            <div key={i} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-gray-100 text-xs">
-                              <span className="text-[#1a1c3a] font-medium">{it.name || 'Item'} x{it.quantity || 1}</span>
-                              <span className="text-[#f4991a] font-bold">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                            <div key={i} className="flex items-center gap-2.5 bg-white rounded-lg p-2.5 border border-gray-100">
+                              <div className="w-10 h-10 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {it.image_url ? <img src={it.image_url} alt={it.name} className="w-full h-full object-cover" /> : <Package size={16} className="text-gray-300" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name || 'Item'}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {it.sku && <span className="text-[9px] text-gray-400 font-mono">{it.sku}</span>}
+                                  <span className="text-[9px] text-gray-400">Unit: KES {(it.unit_price || 0).toLocaleString()}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3 flex-shrink-0">
+                                <span className="text-xs text-gray-500 font-medium">x{it.quantity || 1}</span>
+                                <span className="text-xs font-bold text-[#f4991a]">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                              </div>
                             </div>
                           ))}
-                          <div className="pt-1 flex justify-end text-xs font-bold">
-                            <span className="text-[#f4991a]">Total: KES {(o.total_amount || 0).toLocaleString()}</span>
-                          </div>
+                          {(o.total_amount || 0) > 0 && (
+                            <div className="pt-1 flex justify-end text-xs font-bold">
+                              <span className="text-[#f4991a]">Total: KES {o.total_amount.toLocaleString()}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

@@ -645,10 +645,12 @@ export default function AgentCallsPage() {
                   )}
 
                   <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
-                    <div className="text-xs font-bold">
-                      <span className="text-gray-600">Total: </span>
-                      <span className="text-[#f4991a]">KES {editingItems ? editItemsTotal.toLocaleString() : (order.total_amount || 0).toLocaleString()}</span>
-                    </div>
+                    {(editingItems ? editItemsTotal : (order.total_amount || 0)) > 0 ? (
+                      <div className="text-xs font-bold">
+                        <span className="text-gray-600">Total: </span>
+                        <span className="text-[#f4991a]">KES {editingItems ? editItemsTotal.toLocaleString() : (order.total_amount || 0).toLocaleString()}</span>
+                      </div>
+                    ) : <div />}
                     {itemsChanged && editingItems && (
                       <button onClick={saveItems} disabled={savingItems}
                         className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
