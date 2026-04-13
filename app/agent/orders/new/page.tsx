@@ -95,6 +95,10 @@ export default function AgentNewOrderPage() {
   const updateQty = (id: string, delta: number) => {
     setRows(r => r.map(x => x.id === id ? { ...x, quantity: Math.max(1, x.quantity + delta) } : x))
   }
+  const updatePrice = (id: string, val: string) => {
+    const num = parseFloat(val) || 0
+    setRows(r => r.map(x => x.id === id ? { ...x, unitPrice: num } : x))
+  }
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -371,7 +375,16 @@ export default function AgentNewOrderPage() {
                     <span className="text-xs font-bold text-[#1a1c3a] min-w-[20px] text-center">{r.quantity}</span>
                     <button onClick={() => updateQty(r.id, 1)} className="w-6 h-6 rounded bg-[#f4991a] text-white flex items-center justify-center text-xs font-bold">+</button>
                   </div>
-                  <span className="text-xs font-bold text-[#f4991a] min-w-[60px] text-right">KES {(r.unitPrice * r.quantity).toLocaleString()}</span>
+                  <div className="flex items-center gap-1 min-w-[100px]">
+                    <span className="text-[10px] text-gray-400">KES</span>
+                    <input
+                      type="number"
+                      value={r.unitPrice || ''}
+                      onChange={e => updatePrice(r.id, e.target.value)}
+                      className="w-16 px-1.5 py-1 border border-gray-200 rounded-lg text-xs font-bold text-[#f4991a] text-right focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
+                      min={0}
+                    />
+                  </div>
                   <button onClick={() => removeRow(r.id)} className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400">
                     <Trash2 size={12} />
                   </button>
