@@ -67,6 +67,7 @@ export default function AgentCallsPage() {
 
   // Editable items
   const [editItems, setEditItems] = useState<any[]>([])
+  const [editingItems, setEditingItems] = useState(false)
   const [itemsChanged, setItemsChanged] = useState(false)
   const [sellerProducts, setSellerProducts] = useState<any[]>([])
   const [showProductPicker, setShowProductPicker] = useState(false)
@@ -148,6 +149,7 @@ export default function AgentCallsPage() {
 
     // Init editable items
     setEditItems(items.map((it: any, i: number) => ({ ...it, _id: `${Date.now()}-${i}` })))
+    setEditingItems(false)
     setItemsChanged(false)
 
     // Load seller products for adding
@@ -552,73 +554,95 @@ export default function AgentCallsPage() {
                   </div>
                 )}
 
-                {/* Order details — editable items */}
+                {/* Order details */}
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
                       <Package size={12} /> Order Items ({editItems.length})
                     </p>
-                    <div className="flex items-center gap-1.5">
-                      {sellerProducts.length > 0 && (
-                        <button onClick={() => setShowProductPicker(true)}
-                          className="flex items-center gap-1 px-2 py-1 bg-[#f4991a] hover:bg-orange-500 text-white text-[10px] font-bold rounded-lg transition-all">
-                          <Plus size={10} /> From catalog
-                        </button>
-                      )}
-                      <button onClick={addCustomItem}
-                        className="flex items-center gap-1 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-all">
-                        <Plus size={10} /> Custom
+                    {!editingItems ? (
+                      <button onClick={() => setEditingItems(true)}
+                        className="flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 text-[10px] font-bold rounded-lg transition-all">
+                        <Pencil size={9} /> Edit
                       </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    {editItems.map((it: any, idx: number) => (
-                      <div key={it._id || idx} className="flex items-center gap-2 bg-white rounded-lg p-2.5 border border-gray-100">
-                        <div className="flex-1 min-w-0">
-                          {it.product_id ? (
-                            <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name}</p>
-                          ) : (
-                            <input
-                              value={it.name}
-                              onChange={e => updateItemName(idx, e.target.value)}
-                              placeholder="Product name..."
-                              className="w-full text-xs font-bold text-[#1a1c3a] bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-[#f4991a] pb-0.5"
-                            />
-                          )}
-                          {it.sku && <p className="text-[9px] text-gray-400 font-mono mt-0.5">{it.sku}</p>}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => updateItemQty(idx, (it.quantity || 1) - 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">-</button>
-                          <span className="text-xs font-bold text-[#1a1c3a] min-w-[16px] text-center">{it.quantity || 1}</span>
-                          <button onClick={() => updateItemQty(idx, (it.quantity || 1) + 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">+</button>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[9px] text-gray-400">KES</span>
-                          <input
-                            type="number"
-                            value={it.unit_price || ''}
-                            onChange={e => updateItemPrice(idx, parseFloat(e.target.value) || 0)}
-                            className="w-16 px-1.5 py-1 border border-gray-200 rounded text-xs font-bold text-[#f4991a] text-right focus:outline-none focus:ring-1 focus:ring-[#f4991a]/30 focus:border-[#f4991a]"
-                            min={0}
-                          />
-                        </div>
-                        <button onClick={() => removeItem(idx)} className="w-6 h-6 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400">
-                          <Trash2 size={10} />
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        {sellerProducts.length > 0 && (
+                          <button onClick={() => setShowProductPicker(true)}
+                            className="flex items-center gap-1 px-2 py-1 bg-[#f4991a] hover:bg-orange-500 text-white text-[10px] font-bold rounded-lg transition-all">
+                            <Plus size={10} /> From catalog
+                          </button>
+                        )}
+                        <button onClick={addCustomItem}
+                          className="flex items-center gap-1 px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-all">
+                          <Plus size={10} /> Custom
+                        </button>
+                        <button onClick={() => { setEditingItems(false); setEditItems((Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => ({ ...it, _id: `r-${i}` }))); setItemsChanged(false) }}
+                          className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded-lg transition-all">
+                          Cancel
                         </button>
                       </div>
-                    ))}
-                    {editItems.length === 0 && (
-                      <p className="text-xs text-gray-400 text-center py-3">No items. Add from catalog or custom.</p>
                     )}
                   </div>
+
+                  {!editingItems ? (
+                    /* ── Read-only view ── */
+                    <div className="space-y-1.5">
+                      {editItems.map((it: any, idx: number) => (
+                        <div key={it._id || idx} className="flex items-center justify-between bg-white rounded-lg p-2.5 border border-gray-100">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name || 'Item'}</p>
+                            {it.sku && <p className="text-[9px] text-gray-400 font-mono mt-0.5">{it.sku}</p>}
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <span className="text-xs text-gray-500">x{it.quantity || 1}</span>
+                            <span className="text-xs font-bold text-[#f4991a]">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* ── Edit mode ── */
+                    <div className="space-y-1.5">
+                      {editItems.map((it: any, idx: number) => (
+                        <div key={it._id || idx} className="flex items-center gap-2 bg-white rounded-lg p-2.5 border border-orange-200">
+                          <div className="flex-1 min-w-0">
+                            {it.product_id ? (
+                              <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name}</p>
+                            ) : (
+                              <input value={it.name} onChange={e => updateItemName(idx, e.target.value)}
+                                placeholder="Product name..."
+                                className="w-full text-xs font-bold text-[#1a1c3a] bg-transparent border-b border-dashed border-gray-300 focus:outline-none focus:border-[#f4991a] pb-0.5" />
+                            )}
+                            {it.sku && <p className="text-[9px] text-gray-400 font-mono mt-0.5">{it.sku}</p>}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => updateItemQty(idx, (it.quantity || 1) - 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">-</button>
+                            <span className="text-xs font-bold text-[#1a1c3a] min-w-[16px] text-center">{it.quantity || 1}</span>
+                            <button onClick={() => updateItemQty(idx, (it.quantity || 1) + 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">+</button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[9px] text-gray-400">KES</span>
+                            <input type="number" value={it.unit_price || ''} onChange={e => updateItemPrice(idx, parseFloat(e.target.value) || 0)}
+                              className="w-16 px-1.5 py-1 border border-gray-200 rounded text-xs font-bold text-[#f4991a] text-right focus:outline-none focus:ring-1 focus:ring-[#f4991a]/30 focus:border-[#f4991a]" min={0} />
+                          </div>
+                          <button onClick={() => removeItem(idx)} className="w-6 h-6 rounded bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-400">
+                            <Trash2 size={10} />
+                          </button>
+                        </div>
+                      ))}
+                      {editItems.length === 0 && (
+                        <p className="text-xs text-gray-400 text-center py-3">No items. Add from catalog or custom.</p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                     <div className="text-xs font-bold">
                       <span className="text-gray-600">Total: </span>
                       <span className="text-[#f4991a]">KES {editItemsTotal.toLocaleString()}</span>
                     </div>
-                    {itemsChanged && (
+                    {itemsChanged && editingItems && (
                       <button onClick={saveItems} disabled={savingItems}
                         className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded-lg transition-all">
                         <Save size={10} /> {savingItems ? 'Saving...' : 'Save changes'}
