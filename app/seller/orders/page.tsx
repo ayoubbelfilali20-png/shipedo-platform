@@ -95,7 +95,14 @@ export default function SellerOrdersPage() {
     } catch {}
     if (!sellerId) { setLoading(false); return }
     supabase.from('orders').select('*').eq('seller_id', sellerId).in('status', CONFIRMATION_STATUSES).order('created_at', { ascending: false }).then(({ data }) => {
-      setOrders((data || []) as OrderRow[])
+      const rows = (data || []) as OrderRow[]
+      rows.forEach(o => {
+        if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
+          const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
+          if (calc > 0) o.total_amount = calc
+        }
+      })
+      setOrders(rows)
       setLoading(false)
     })
   }, [])

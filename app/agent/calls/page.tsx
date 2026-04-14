@@ -100,6 +100,21 @@ export default function AgentCallsPage() {
         .order('created_at', { ascending: true }),
     ])
     const rows = (data || []) as OrderRow[]
+    // Recalculate total from items if total_amount is 0
+    rows.forEach(o => {
+      if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
+        const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
+        if (calc > 0) o.total_amount = calc
+      }
+    })
+    // Sort: new orders first (never called), then reminded/unreached
+    rows.sort((a, b) => {
+      const aNew = !a.call_attempts || a.call_attempts === 0
+      const bNew = !b.call_attempts || b.call_attempts === 0
+      if (aNew && !bNew) return -1
+      if (!aNew && bNew) return 1
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    })
     setOrders(rows)
     setConfirmedOrders((confData || []) as OrderRow[])
     setLoading(false)

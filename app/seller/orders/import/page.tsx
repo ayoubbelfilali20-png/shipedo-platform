@@ -219,8 +219,21 @@ export default function ImportOrdersPage() {
       const address = addressIdx >= 0 ? (r[addressIdx] || '') : ''
       const product = r[productIdx] || ''
       const qty     = qtyIdx >= 0 ? parseInt(r[qtyIdx]) || 0 : 1
-      const rawPrice = priceIdx >= 0 ? (r[priceIdx] || '').replace(/[^0-9.]/g, '') : '0'
-      const price   = parseFloat(rawPrice) || 0
+      let rawPrice = priceIdx >= 0 ? (r[priceIdx] || '') : '0'
+      // Remove currency symbols, spaces, commas as thousand separators
+      rawPrice = rawPrice.replace(/[^\d.,]/g, '').trim()
+      // Handle comma as thousand separator (e.g. 1,500) vs decimal (e.g. 15,50)
+      if (rawPrice.includes(',') && rawPrice.includes('.')) {
+        rawPrice = rawPrice.replace(/,/g, '') // 1,500.00 → 1500.00
+      } else if (rawPrice.includes(',')) {
+        const parts = rawPrice.split(',')
+        if (parts[parts.length - 1].length === 3) {
+          rawPrice = rawPrice.replace(/,/g, '') // 1,500 → 1500
+        } else {
+          rawPrice = rawPrice.replace(/,/g, '.') // 15,50 → 15.50
+        }
+      }
+      const price = parseFloat(rawPrice) || 0
 
       if (!name) errors.push('Missing customer name')
       if (!phone) errors.push('Missing phone')
