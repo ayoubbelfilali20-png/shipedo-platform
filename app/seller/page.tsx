@@ -420,7 +420,7 @@ export default function SellerDashboard() {
                           <span className="text-xs text-gray-600">{order.customer_city || '—'}</span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className="text-xs font-semibold text-[#1a1c3a]">KES {(order.total_amount || 0).toLocaleString()}</span>
+                          <span className="text-xs font-semibold text-[#1a1c3a]">{(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</span>
                         </td>
                         <td className="px-4 py-3.5">
                           <StatusBadge status={(order.status || 'pending') as OrderStatus} />
@@ -579,7 +579,7 @@ export default function SellerDashboard() {
                       <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate">{order.tracking_number}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-[#0f1129]">KES {(order.total_amount||0).toLocaleString()}</p>
+                      <p className="text-sm font-bold text-[#0f1129]">{(order.total_amount||0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</p>
                       <span className={`inline-flex items-center gap-1 mt-1 ${cfg.bg} ${cfg.text} text-[9px] font-bold px-2 py-0.5 rounded-full`}>
                         <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
                         {order.status}

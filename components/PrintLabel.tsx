@@ -18,7 +18,7 @@ function buildLabelHtml(order: PrintLabelProps) {
     `<tr>
       <td style="padding:4px 8px;border-bottom:1px solid #ddd;font-size:13px">${p.name || 'Item ' + (i + 1)}</td>
       <td style="padding:4px 8px;border-bottom:1px solid #ddd;font-size:13px;text-align:center">${p.quantity || 1}</td>
-      <td style="padding:4px 8px;border-bottom:1px solid #ddd;font-size:13px;text-align:right">KES ${(Number(p.unit_price || p.price || 0) * (p.quantity || 1)).toLocaleString()}</td>
+      <td style="padding:4px 8px;border-bottom:1px solid #ddd;font-size:13px;text-align:right">${(Number(p.unit_price || p.price || 0) * (p.quantity || 1)) > 0 ? 'KES ' + (Number(p.unit_price || p.price || 0) * (p.quantity || 1)).toLocaleString() : '—'}</td>
     </tr>`
   ).join('')
 
@@ -52,7 +52,7 @@ function buildLabelHtml(order: PrintLabelProps) {
     </div>
     <div class="total-row">
       <span class="total-label">Total ${order.paymentMethod ? `<span class="payment-badge">${order.paymentMethod}</span>` : ''}</span>
-      <span class="total-value">KES ${(order.totalAmount || 0).toLocaleString()}</span>
+      <span class="total-value">${(order.totalAmount || 0) > 0 ? 'KES ' + (order.totalAmount || 0).toLocaleString() : '—'}</span>
     </div>
   </div>`
 }
