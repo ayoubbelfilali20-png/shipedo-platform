@@ -302,7 +302,7 @@ export default function AdminDashboard() {
                       <p className="text-[10px] text-gray-400">{s.delivered} delivered</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-xs font-bold text-[#1a1c3a]">KES {s.revenue.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-[#1a1c3a]">{s.revenue > 0 ? `KES ${s.revenue.toLocaleString()}` : '—'}</span>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
@@ -466,7 +466,7 @@ export default function AdminDashboard() {
                       <p className="text-[10px] text-gray-400 font-mono">{order.tracking_number} · {seller?.company || seller?.name || '—'}</p>
                     </div>
                     <div className="text-right flex-shrink-0 mr-2">
-                      <p className="text-xs font-bold text-[#1a1c3a]">KES {(order.total_amount || 0).toLocaleString()}</p>
+                      <p className="text-xs font-bold text-[#1a1c3a]">{(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</p>
                       <p className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleDateString()}</p>
                     </div>
                     <StatusBadge status={order.status as any} />

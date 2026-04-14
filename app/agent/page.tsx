@@ -516,7 +516,7 @@ export default function AgentDashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-600">{o.customer_city}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-[#1a1c3a]">KES {(o.total_amount || 0).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-xs font-bold text-[#1a1c3a]">{(o.total_amount || 0) > 0 ? `KES ${o.total_amount.toLocaleString()}` : '—'}</td>
                       <td className="px-4 py-3">
                         <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', statusColors[o.status] || statusColors.pending)}>
                           {o.status}
