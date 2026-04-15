@@ -98,6 +98,8 @@ export default function SellerDashboard() {
   const { t } = useT()
   const [orders, setOrders]     = useState<any[]>([])
   const [payouts, setPayouts]   = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
+  const [selectedProduct, setSelectedProduct] = useState<string>('all')
   const [userName, setUserName] = useState('Seller')
   const [loading, setLoading]   = useState(true)
   const [period, setPeriod]     = useState<Period>('this_month')
@@ -116,9 +118,11 @@ export default function SellerDashboard() {
     Promise.all([
       supabase.from('orders').select('*').eq('seller_id', sellerId).order('created_at', { ascending: false }),
       supabase.from('seller_payouts').select('*').eq('seller_id', sellerId).eq('status', 'sent').order('period_end', { ascending: false }),
-    ]).then(([ordersRes, payoutsRes]) => {
+      supabase.from('products').select('id, name, sku, image_url').eq('seller_id', sellerId).order('name'),
+    ]).then(([ordersRes, payoutsRes, productsRes]) => {
       setOrders(ordersRes.data || [])
       setPayouts(payoutsRes.data || [])
+      setProducts(productsRes.data || [])
       setLoading(false)
     })
   }, [])
@@ -134,9 +138,16 @@ export default function SellerDashboard() {
     }
   }, [payouts])
 
+  /* ── Helper: does order contain selected product? ── */
+  const orderMatchesProduct = (o: any) => {
+    if (selectedProduct === 'all') return true
+    const items = Array.isArray(o.items) ? o.items : []
+    return items.some((it: any) => it.product_id === selectedProduct || it.name === selectedProduct)
+  }
+
   /* ── Desktop computed stats ── */
   const desktopStats = useMemo(() => {
-    const filtered  = orders.filter(o => inDesktopPeriod(o.created_at, period))
+    const filtered  = orders.filter(o => inDesktopPeriod(o.created_at, period) && orderMatchesProduct(o))
     const total     = filtered.length
     const confirmed = filtered.filter(o => ['confirmed','shipped','delivered'].includes(o.status)).length
     const delivered = filtered.filter(o => o.status === 'delivered').length
@@ -147,7 +158,7 @@ export default function SellerDashboard() {
     const deliveryRate = total > 0 ? ((delivered / total) * 100).toFixed(1) : '0'
     const returnRate   = total > 0 ? ((returned / total) * 100).toFixed(1) : '0'
     return { filtered, total, confirmed, delivered, returned, pending, revenue, confirmRate, deliveryRate, returnRate }
-  }, [orders, period])
+  }, [orders, period, selectedProduct])
 
   /* ── Revenue chart (last 6 months from delivered orders) ── */
   const revenueChart = useMemo(() => {
@@ -186,7 +197,7 @@ export default function SellerDashboard() {
   }, [desktopStats, t])
 
   /* ── Mobile computed stats ── */
-  const mobileFiltered = useMemo(() => orders.filter(o => inMobilePeriod(o.created_at, mobilePeriod)), [orders, mobilePeriod])
+  const mobileFiltered = useMemo(() => orders.filter(o => inMobilePeriod(o.created_at, mobilePeriod) && orderMatchesProduct(o)), [orders, mobilePeriod, selectedProduct])
   const mTotal     = mobileFiltered.length
   const mConfirmed = mobileFiltered.filter(o => ['confirmed','shipped','delivered'].includes(o.status)).length
   const mDelivered = mobileFiltered.filter(o => o.status === 'delivered').length
@@ -208,8 +219,8 @@ export default function SellerDashboard() {
 
         <div className="p-6 space-y-5">
 
-          {/* Period selector */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          {/* Period selector + Product filter */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-wrap">
             {(['all','today','yesterday','this_week','last_week','this_month','last_month','this_year'] as Period[]).map(p => (
               <button
                 key={p}
@@ -224,17 +235,33 @@ export default function SellerDashboard() {
                 {t(periodKeyMap[p])}
               </button>
             ))}
+            {products.length > 0 && (
+              <select
+                value={selectedProduct}
+                onChange={e => setSelectedProduct(e.target.value)}
+                className={cn(
+                  'ml-auto px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all bg-white focus:outline-none focus:border-[#f4991a] min-w-[160px]',
+                  selectedProduct !== 'all' ? 'border-[#f4991a] text-[#f4991a]' : 'border-gray-200 text-gray-500'
+                )}
+              >
+                <option value="all">All Products</option>
+                {products.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ''}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* KPI cards */}
-          <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
             {[
               { label: t('kpi_total_orders'),     value: desktopStats.total.toLocaleString(),       sub: t(periodKeyMap[period]),                                          icon: Package,     color: 'text-[#f4991a]',   bg: 'bg-orange-50'  },
               { label: t('kpi_confirmed_orders'), value: desktopStats.confirmed.toLocaleString(),   sub: `${desktopStats.confirmRate}% ${t('kpi_confirm_rate')}`,          icon: CheckCircle, color: 'text-blue-600',    bg: 'bg-blue-50'    },
               { label: t('kpi_delivered_orders'), value: desktopStats.delivered.toLocaleString(),   sub: `${desktopStats.deliveryRate}% ${t('kpi_delivery_rate')}`,        icon: Truck,       color: 'text-emerald-600', bg: 'bg-emerald-50' },
               { label: t('kpi_returned_orders'),  value: desktopStats.returned.toLocaleString(),    sub: `${desktopStats.returnRate}% ${t('kpi_return_rate')}`,            icon: RotateCcw,   color: 'text-red-500',     bg: 'bg-red-50'     },
               { label: t('kpi_pending_orders'),   value: desktopStats.pending.toLocaleString(),     sub: t('kpi_awaiting'),                                                icon: Clock,       color: 'text-amber-600',   bg: 'bg-amber-50'   },
-              { label: t('kpi_total_revenue'),    value: `KES ${desktopStats.revenue.toLocaleString()}`, sub: t('kpi_from_delivered'),                                     icon: CreditCard,  color: 'text-teal-600',    bg: 'bg-teal-50'    },
+              { label: t('kpi_total_revenue'),    value: desktopStats.revenue > 0 ? `KES ${desktopStats.revenue.toLocaleString()}` : '—', sub: t('kpi_from_delivered'),     icon: CreditCard,  color: 'text-teal-600',    bg: 'bg-teal-50'    },
+              { label: 'Total Products',          value: products.length.toLocaleString(),          sub: `${products.length} in catalog`,                                  icon: ShoppingBag, color: 'text-purple-600',  bg: 'bg-purple-50'  },
             ].map(s => (
               <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
                 <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center mb-3', s.bg)}>
@@ -498,13 +525,34 @@ export default function SellerDashboard() {
           </div>
         </div>
 
+        {/* Product filter (mobile) */}
+        {products.length > 0 && (
+          <div className="px-5 mt-3">
+            <select
+              value={selectedProduct}
+              onChange={e => setSelectedProduct(e.target.value)}
+              className={cn(
+                'w-full px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all bg-white focus:outline-none focus:border-[#f4991a]',
+                selectedProduct !== 'all' ? 'border-[#f4991a] text-[#f4991a]' : 'border-gray-200 text-gray-500'
+              )}
+            >
+              <option value="all">All Products</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ''}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Stats grid */}
         <div className="px-5 mt-4 grid grid-cols-2 gap-3">
           {[
-            { label: t('kpi_total_orders'),      value: mTotal,     icon: Package,     color: 'text-[#f4991a]',   bg: 'bg-orange-50',  ring: 'ring-orange-100'  },
-            { label: t('dash_status_delivered'), value: mDelivered, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-100' },
-            { label: t('dash_pending'),          value: mPending,   icon: Clock,       color: 'text-amber-600',   bg: 'bg-amber-50',   ring: 'ring-amber-100'   },
-            { label: t('dash_status_returned'),  value: mReturned,  icon: RotateCcw,   color: 'text-red-500',     bg: 'bg-red-50',     ring: 'ring-red-100'     },
+            { label: t('kpi_total_orders'),      value: mTotal,          icon: Package,     color: 'text-[#f4991a]',   bg: 'bg-orange-50',  ring: 'ring-orange-100'  },
+            { label: t('dash_status_delivered'), value: mDelivered,      icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-100' },
+            { label: t('dash_pending'),          value: mPending,        icon: Clock,       color: 'text-amber-600',   bg: 'bg-amber-50',   ring: 'ring-amber-100'   },
+            { label: t('dash_status_returned'),  value: mReturned,       icon: RotateCcw,   color: 'text-red-500',     bg: 'bg-red-50',     ring: 'ring-red-100'     },
+            { label: t('kpi_total_revenue'),     value: mRevenue > 0 ? `KES ${(mRevenue/1000).toFixed(0)}K` : '—', icon: CreditCard, color: 'text-teal-600', bg: 'bg-teal-50', ring: 'ring-teal-100' },
+            { label: 'Total Products',           value: products.length, icon: ShoppingBag, color: 'text-purple-600',  bg: 'bg-purple-50',  ring: 'ring-purple-100'  },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl p-4 ring-1 ring-gray-100 shadow-sm">
               <div className={`w-9 h-9 rounded-xl ${s.bg} ring-1 ${s.ring} flex items-center justify-center mb-2.5`}>
