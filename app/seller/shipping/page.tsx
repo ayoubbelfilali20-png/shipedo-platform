@@ -4,11 +4,11 @@ import { useEffect, useState, useMemo } from 'react'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
 import {
-  Download, Package, X, User, Phone, MapPin, Truck,
+  Download, Package, X, User, Phone, MapPin, Truck, Calendar, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-type ShipStatus = 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned'
+type ShipStatus = 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned'
 
 type OrderRow = {
   id: string
@@ -28,19 +28,56 @@ type OrderRow = {
 }
 
 const statusConfig: Record<ShipStatus, { label: string; color: string; border: string; dot: string }> = {
-  confirmed:   { label: 'Confirmed',   color: 'text-emerald-600', border: 'border-emerald-400', dot: 'bg-emerald-400' },
-  prepared:    { label: 'Prepared',    color: 'text-indigo-600',  border: 'border-indigo-400',  dot: 'bg-indigo-400'  },
-  shipped:     { label: 'Shipped',     color: 'text-blue-600',    border: 'border-blue-400',    dot: 'bg-blue-400'    },
-  delivered:   { label: 'Delivered',   color: 'text-sky-600',     border: 'border-sky-400',     dot: 'bg-sky-400'     },
-  returned:    { label: 'Returned',    color: 'text-red-500',     border: 'border-red-400',     dot: 'bg-red-400'     },
+  confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', border: 'border-emerald-400', dot: 'bg-emerald-400' },
+  prepared:         { label: 'Prepared',         color: 'text-indigo-600',  border: 'border-indigo-400',  dot: 'bg-indigo-400'  },
+  shipped_to_agent: { label: 'Shipped to Agent', color: 'text-purple-600',  border: 'border-purple-400',  dot: 'bg-purple-400'  },
+  shipped:          { label: 'Shipped',          color: 'text-blue-600',    border: 'border-blue-400',    dot: 'bg-blue-400'    },
+  delivered:        { label: 'Delivered',        color: 'text-sky-600',     border: 'border-sky-400',     dot: 'bg-sky-400'     },
+  returned:         { label: 'Returned',         color: 'text-red-500',     border: 'border-red-400',     dot: 'bg-red-400'     },
 }
 
-const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned']
+const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned']
+
+type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'custom'
+const datePresets: { value: DatePreset; label: string }[] = [
+  { value: 'all',        label: 'All Time' },
+  { value: 'today',      label: 'Today' },
+  { value: 'yesterday',  label: 'Yesterday' },
+  { value: 'this_week',  label: 'This Week' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'custom',     label: 'Custom' },
+]
+
+function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): { from: Date | null; to: Date | null } {
+  const now = new Date()
+  const startOfDay = (d: Date) => { const c = new Date(d); c.setHours(0,0,0,0); return c }
+  const endOfDay = (d: Date) => { const c = new Date(d); c.setHours(23,59,59,999); return c }
+  switch (preset) {
+    case 'today': return { from: startOfDay(now), to: endOfDay(now) }
+    case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); return { from: startOfDay(y), to: endOfDay(y) } }
+    case 'this_week': { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { from: startOfDay(d), to: endOfDay(now) } }
+    case 'this_month': { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: startOfDay(d), to: endOfDay(now) } }
+    case 'last_month': { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); const e = new Date(now.getFullYear(), now.getMonth(), 0); return { from: startOfDay(d), to: endOfDay(e) } }
+    case 'custom': {
+      const f = customFrom ? startOfDay(new Date(customFrom)) : null
+      const t = customTo ? endOfDay(new Date(customTo)) : null
+      return { from: f, to: t }
+    }
+    default: return { from: null, to: null }
+  }
+}
 
 export default function SellerShippingPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
+  const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<ShipStatus | 'all'>('all')
+  const [selectedProduct, setSelectedProduct] = useState<string>('all')
+  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<OrderRow | null>(null)
   const perPage = 10
@@ -55,26 +92,43 @@ export default function SellerShippingPage() {
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
-    // Pull every order for this seller that has moved past pending —
-    // confirmed orders should appear here automatically as soon as the
-    // call agent confirms them.
-    supabase.from('orders')
-      .select('*')
-      .eq('seller_id', sellerId)
-      .in('status', allStatuses)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setOrders((data || []) as OrderRow[])
-        setLoading(false)
-      })
+    Promise.all([
+      supabase.from('orders').select('*').eq('seller_id', sellerId)
+        .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
+        .order('created_at', { ascending: false }),
+      supabase.from('products').select('id, name, sku').eq('seller_id', sellerId).order('name'),
+    ]).then(([ordersRes, productsRes]) => {
+      setOrders((ordersRes.data || []) as OrderRow[])
+      setProducts(productsRes.data || [])
+      setLoading(false)
+    })
   }, [])
 
-  const filtered = useMemo(() => (
-    filterStatus === 'all' ? orders : orders.filter(o => o.status === filterStatus)
-  ), [orders, filterStatus])
+  const filtered = useMemo(() => {
+    return orders.filter(o => {
+      // Status filter
+      if (filterStatus !== 'all' && o.status !== filterStatus) return false
+      // Product filter
+      if (selectedProduct !== 'all') {
+        const items = Array.isArray(o.items) ? o.items : []
+        if (!items.some((it: any) => it.product_id === selectedProduct || it.name === selectedProduct)) return false
+      }
+      // Date filter
+      const { from, to } = getDateRange(datePreset, customFrom, customTo)
+      const orderDate = new Date(o.created_at)
+      if (from && orderDate < from) return false
+      if (to && orderDate > to) return false
+      // Search
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        if (!(o.tracking_number?.toLowerCase().includes(q) || o.customer_name?.toLowerCase().includes(q) || o.customer_phone?.includes(q) || o.customer_city?.toLowerCase().includes(q))) return false
+      }
+      return true
+    })
+  }, [orders, filterStatus, selectedProduct, datePreset, customFrom, customTo, searchQuery])
 
   const counts = useMemo(() => {
-    const c: Record<ShipStatus, number> = { confirmed: 0, prepared: 0, shipped: 0, delivered: 0, returned: 0 }
+    const c: Record<ShipStatus, number> = { confirmed: 0, prepared: 0, shipped_to_agent: 0, shipped: 0, delivered: 0, returned: 0 }
     orders.forEach(o => { if (o.status in c) c[o.status as ShipStatus]++ })
     return c
   }, [orders])
@@ -105,6 +159,67 @@ export default function SellerShippingPage() {
               </button>
             )
           })}
+        </div>
+
+        {/* Date filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar size={14} className="text-gray-400" />
+          {datePresets.map(dp => (
+            <button
+              key={dp.value}
+              onClick={() => { setDatePreset(datePreset === dp.value ? 'all' : dp.value); setPage(1) }}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                datePreset === dp.value
+                  ? 'bg-[#f4991a] text-white shadow-sm shadow-orange-500/30'
+                  : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+              )}
+            >
+              {dp.label}
+            </button>
+          ))}
+        </div>
+        {datePreset === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input type="date" value={customFrom} onChange={e => { setCustomFrom(e.target.value); setPage(1) }}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+            <span className="text-xs text-gray-400">to</span>
+            <input type="date" value={customTo} onChange={e => { setCustomTo(e.target.value); setPage(1) }}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+          </div>
+        )}
+
+        {/* Product + Search */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {products.length > 0 && (
+            <select
+              value={selectedProduct}
+              onChange={e => { setSelectedProduct(e.target.value); setPage(1) }}
+              className={cn(
+                'px-3 py-2 rounded-xl text-xs font-semibold border transition-all bg-white focus:outline-none focus:border-[#f4991a] min-w-[180px]',
+                selectedProduct !== 'all' ? 'border-[#f4991a] text-[#f4991a]' : 'border-gray-200 text-gray-500'
+              )}
+            >
+              <option value="all">All Products</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ''}</option>
+              ))}
+            </select>
+          )}
+          <div className="relative flex-1 max-w-xs">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
+              placeholder="Search tracking, name, phone..."
+              className="w-full pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] shadow-sm"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+                <X size={13} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Table */}
@@ -153,7 +268,7 @@ export default function SellerShippingPage() {
                   <div className="text-xs text-gray-600">
                     <span className="font-semibold text-[#f4991a]">{items.length}</span> item{items.length !== 1 ? 's' : ''}
                   </div>
-                  <div className="text-xs font-bold text-[#1a1c3a]">KES {(row.total_amount || 0).toLocaleString()}</div>
+                  <div className="text-xs font-bold text-[#1a1c3a]">{(row.total_amount || 0) > 0 ? `KES ${row.total_amount.toLocaleString()}` : '—'}</div>
                   <div>
                     <span className={cn(
                       'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border-2 text-[10px] font-semibold',
