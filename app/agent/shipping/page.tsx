@@ -8,7 +8,7 @@ import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, Printer, CheckSquare, Square,
   Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
-  RefreshCw, FileText,
+  RefreshCw, FileText, Calendar, UserCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -36,20 +36,51 @@ type OrderRow = {
   cancel_reason?: string | null
 }
 
-type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
 
 const statusConfig: Record<string, { label: string; color: string; border: string; bg: string }> = {
-  pending:   { label: 'Pending',    color: 'text-rose-600',    border: 'border-rose-400',    bg: 'bg-rose-50'    },
-  confirmed: { label: 'Confirmed',  color: 'text-emerald-600', border: 'border-emerald-400', bg: 'bg-emerald-50' },
-  prepared:  { label: 'Prepared',   color: 'text-indigo-600',  border: 'border-indigo-400',  bg: 'bg-indigo-50'  },
-  shipped:   { label: 'Shipped',    color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50'    },
-  delivered: { label: 'Delivered',  color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50'     },
-  returned:  { label: 'Returned',   color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50'     },
-  cancelled: { label: 'Cancelled',  color: 'text-gray-500',    border: 'border-gray-300',    bg: 'bg-gray-50'    },
+  pending:          { label: 'Pending',          color: 'text-rose-600',    border: 'border-rose-400',    bg: 'bg-rose-50'    },
+  confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', border: 'border-emerald-400', bg: 'bg-emerald-50' },
+  prepared:         { label: 'Prepared',         color: 'text-indigo-600',  border: 'border-indigo-400',  bg: 'bg-indigo-50'  },
+  shipped_to_agent: { label: 'Shipped to Agent', color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50'  },
+  shipped:          { label: 'Shipped',          color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50'    },
+  delivered:        { label: 'Delivered',        color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50'     },
+  returned:         { label: 'Returned',         color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50'     },
+  cancelled:        { label: 'Cancelled',        color: 'text-gray-500',    border: 'border-gray-300',    bg: 'bg-gray-50'    },
 }
 
-const shippingStatuses: AllStatus[] = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned']
-const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped', 'delivered', 'returned', 'cancelled']
+const shippingStatuses: AllStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned']
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
+
+type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'custom'
+const datePresets: { value: DatePreset; label: string }[] = [
+  { value: 'all',        label: 'All Time' },
+  { value: 'today',      label: 'Today' },
+  { value: 'yesterday',  label: 'Yesterday' },
+  { value: 'this_week',  label: 'This Week' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'custom',     label: 'Custom' },
+]
+
+function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): { from: Date | null; to: Date | null } {
+  const now = new Date()
+  const startOfDay = (d: Date) => { const c = new Date(d); c.setHours(0,0,0,0); return c }
+  const endOfDay = (d: Date) => { const c = new Date(d); c.setHours(23,59,59,999); return c }
+  switch (preset) {
+    case 'today': return { from: startOfDay(now), to: endOfDay(now) }
+    case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); return { from: startOfDay(y), to: endOfDay(y) } }
+    case 'this_week': { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { from: startOfDay(d), to: endOfDay(now) } }
+    case 'this_month': { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: startOfDay(d), to: endOfDay(now) } }
+    case 'last_month': { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); const e = new Date(now.getFullYear(), now.getMonth(), 0); return { from: startOfDay(d), to: endOfDay(e) } }
+    case 'custom': {
+      const f = customFrom ? startOfDay(new Date(customFrom)) : null
+      const t = customTo ? endOfDay(new Date(customTo)) : null
+      return { from: f, to: t }
+    }
+    default: return { from: null, to: null }
+  }
+}
 
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
 function whatsappLink(phone: string, text: string) {
@@ -77,6 +108,9 @@ export default function AgentShippingPage() {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<AllStatus | 'all'>('all')
   const [processing, setProcessing] = useState<string | null>(null)
+  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -96,7 +130,7 @@ export default function AgentShippingPage() {
     const { data } = await supabase
       .from('orders')
       .select('*')
-      .in('status', ['confirmed', 'prepared', 'shipped', 'delivered', 'returned'])
+      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
     const rows = (data || []) as OrderRow[]
     // Recalculate total from items if total_amount is 0
@@ -119,13 +153,13 @@ export default function AgentShippingPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
-          if (['confirmed', 'prepared', 'shipped', 'delivered', 'returned'].includes(row.status)) {
+          if (['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'].includes(row.status)) {
             setOrders(prev => [row, ...prev])
           }
         } else if (payload.eventType === 'UPDATE') {
           const row = payload.new as OrderRow
           setOrders(prev => {
-            const validStatus = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned'].includes(row.status)
+            const validStatus = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'].includes(row.status)
             const exists = prev.some(o => o.id === row.id)
             if (exists && validStatus) return prev.map(o => o.id === row.id ? row : o)
             if (exists && !validStatus) return prev.filter(o => o.id !== row.id)
@@ -149,7 +183,11 @@ export default function AgentShippingPage() {
       o.customer_name?.toLowerCase().includes(q) ||
       o.customer_city?.toLowerCase().includes(q)
     const matchesStatus = filterStatus === 'all' || o.status === filterStatus
-    return matchesSearch && matchesStatus
+    // Date filter
+    const { from, to } = getDateRange(datePreset, customFrom, customTo)
+    const orderDate = new Date(o.created_at)
+    const matchesDate = (!from || orderDate >= from) && (!to || orderDate <= to)
+    return matchesSearch && matchesStatus && matchesDate
   })
 
   const counts = shippingStatuses.reduce((acc, s) => {
@@ -161,6 +199,7 @@ export default function AgentShippingPage() {
     setProcessing(orderId)
     const patch: any = { status: newStatus }
 
+    if (newStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
     if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
     if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (newStatus === 'returned') {
@@ -257,7 +296,7 @@ export default function AgentShippingPage() {
 
       <div className="p-6 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
           {shippingStatuses.map(s => {
             const cfg = statusConfig[s]
             return (
@@ -275,6 +314,34 @@ export default function AgentShippingPage() {
             )
           })}
         </div>
+
+        {/* Date filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar size={14} className="text-gray-400" />
+          {datePresets.map(dp => (
+            <button
+              key={dp.value}
+              onClick={() => setDatePreset(datePreset === dp.value ? 'all' : dp.value)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                datePreset === dp.value
+                  ? 'bg-[#f4991a] text-white shadow-sm shadow-orange-500/30'
+                  : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+              )}
+            >
+              {dp.label}
+            </button>
+          ))}
+        </div>
+        {datePreset === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+            <span className="text-xs text-gray-400">to</span>
+            <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+          </div>
+        )}
 
         {/* Search + print */}
         <div className="flex items-center gap-3">
@@ -533,6 +600,7 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
                     'bg-rose-500':    s === 'pending',
                     'bg-emerald-500': s === 'confirmed',
                     'bg-indigo-500':  s === 'prepared',
+                    'bg-purple-500':  s === 'shipped_to_agent',
                     'bg-blue-500':    s === 'shipped',
                     'bg-sky-500':     s === 'delivered',
                     'bg-red-500':     s === 'returned',

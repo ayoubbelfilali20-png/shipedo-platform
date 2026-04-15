@@ -8,7 +8,7 @@ import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, Printer, CheckSquare, Square,
-  MapPin, Clock, AlertCircle,
+  MapPin, Clock, AlertCircle, Calendar, UserCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,17 +32,48 @@ type OrderRow = {
   seller_id?: string | null
 }
 
-type ShipStatus = 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned'
+type ShipStatus = 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned'
 
 const statusConfig: Record<ShipStatus, { label: string; color: string; border: string; bg: string }> = {
-  confirmed: { label: 'Confirmed',  color: 'text-emerald-600', border: 'border-emerald-400', bg: 'bg-emerald-50' },
-  prepared:  { label: 'Prepared',   color: 'text-indigo-600',  border: 'border-indigo-400',  bg: 'bg-indigo-50'  },
-  shipped:   { label: 'Shipped',    color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50'    },
-  delivered: { label: 'Delivered',  color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50'     },
-  returned:  { label: 'Returned',   color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50'     },
+  confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', border: 'border-emerald-400', bg: 'bg-emerald-50' },
+  prepared:         { label: 'Prepared',         color: 'text-indigo-600',  border: 'border-indigo-400',  bg: 'bg-indigo-50'  },
+  shipped_to_agent: { label: 'Shipped to Agent', color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50'  },
+  shipped:          { label: 'Shipped',          color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50'    },
+  delivered:        { label: 'Delivered',        color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50'     },
+  returned:         { label: 'Returned',         color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50'     },
 }
 
-const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped', 'delivered', 'returned']
+const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned']
+
+type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'custom'
+const datePresets: { value: DatePreset; label: string }[] = [
+  { value: 'all',        label: 'All Time' },
+  { value: 'today',      label: 'Today' },
+  { value: 'yesterday',  label: 'Yesterday' },
+  { value: 'this_week',  label: 'This Week' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+  { value: 'custom',     label: 'Custom' },
+]
+
+function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): { from: Date | null; to: Date | null } {
+  const now = new Date()
+  const startOfDay = (d: Date) => { const c = new Date(d); c.setHours(0,0,0,0); return c }
+  const endOfDay = (d: Date) => { const c = new Date(d); c.setHours(23,59,59,999); return c }
+  switch (preset) {
+    case 'today': return { from: startOfDay(now), to: endOfDay(now) }
+    case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); return { from: startOfDay(y), to: endOfDay(y) } }
+    case 'this_week': { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { from: startOfDay(d), to: endOfDay(now) } }
+    case 'this_month': { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: startOfDay(d), to: endOfDay(now) } }
+    case 'last_month': { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); const e = new Date(now.getFullYear(), now.getMonth(), 0); return { from: startOfDay(d), to: endOfDay(e) } }
+    case 'custom': {
+      const f = customFrom ? startOfDay(new Date(customFrom)) : null
+      const t = customTo ? endOfDay(new Date(customTo)) : null
+      return { from: f, to: t }
+    }
+    default: return { from: null, to: null }
+  }
+}
 
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
 function whatsappLink(phone: string, text: string) {
@@ -70,6 +101,9 @@ export default function AdminShippingPage() {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<ShipStatus | 'all'>('all')
   const [processing, setProcessing] = useState<string | null>(null)
+  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
 
   // Print queue
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
@@ -78,9 +112,16 @@ export default function AdminShippingPage() {
     const { data } = await supabase
       .from('orders')
       .select('*')
-      .in('status', ['confirmed', 'prepared', 'shipped', 'delivered', 'returned'])
+      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
-    setOrders((data || []) as OrderRow[])
+    const rows = (data || []) as OrderRow[]
+    rows.forEach(o => {
+      if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
+        const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
+        if (calc > 0) o.total_amount = calc
+      }
+    })
+    setOrders(rows)
     setLoading(false)
   }
 
@@ -95,7 +136,10 @@ export default function AdminShippingPage() {
       o.customer_name?.toLowerCase().includes(q) ||
       o.customer_city?.toLowerCase().includes(q)
     const matchesStatus = filterStatus === 'all' || o.status === filterStatus
-    return matchesSearch && matchesStatus
+    const { from, to } = getDateRange(datePreset, customFrom, customTo)
+    const orderDate = new Date(o.created_at)
+    const matchesDate = (!from || orderDate >= from) && (!to || orderDate <= to)
+    return matchesSearch && matchesStatus && matchesDate
   })
 
   // Status counts
@@ -109,6 +153,7 @@ export default function AdminShippingPage() {
     setProcessing(orderId)
     const patch: any = { status: newStatus }
 
+    if (newStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
     if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
     if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (newStatus === 'returned') {
@@ -143,7 +188,7 @@ export default function AdminShippingPage() {
 
       <div className="p-6 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
           {allStatuses.map(s => {
             const cfg = statusConfig[s]
             return (
@@ -161,6 +206,34 @@ export default function AdminShippingPage() {
             )
           })}
         </div>
+
+        {/* Date filter */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar size={14} className="text-gray-400" />
+          {datePresets.map(dp => (
+            <button
+              key={dp.value}
+              onClick={() => setDatePreset(datePreset === dp.value ? 'all' : dp.value)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all',
+                datePreset === dp.value
+                  ? 'bg-[#f4991a] text-white shadow-sm shadow-orange-500/30'
+                  : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300'
+              )}
+            >
+              {dp.label}
+            </button>
+          ))}
+        </div>
+        {datePreset === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+            <span className="text-xs text-gray-400">to</span>
+            <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+          </div>
+        )}
 
         {/* Search */}
         <div className="flex items-center gap-3">
@@ -310,7 +383,7 @@ function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, proce
 
       {/* Amount */}
       <td className="px-4 py-3">
-        <span className="text-xs font-bold text-[#1a1c3a]">KES {(order.total_amount || 0).toLocaleString()}</span>
+        <span className="text-xs font-bold text-[#1a1c3a]">{(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</span>
       </td>
 
       {/* Status dropdown */}
