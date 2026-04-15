@@ -26,6 +26,11 @@ type OrderRow = {
   notes?: string | null
   seller_id?: string | null
   created_at: string
+  last_call_at?: string | null
+  shipped_to_agent_at?: string | null
+  shipped_at?: string | null
+  delivered_at?: string | null
+  returned_at?: string | null
 }
 
 const statusConfig: Record<ShipStatus, { label: string; color: string; border: string; dot: string }> = {
@@ -246,8 +251,8 @@ export default function SellerShippingPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-[1.5fr_1fr_1.5fr_1.2fr_1.5fr_1.2fr] gap-3 px-5 py-3 bg-gray-50/80 border-b border-gray-100">
-            {['TRACKING', 'DATE', 'CUSTOMER', 'ITEMS', 'AMOUNT', 'STATUS'].map(h => (
+          <div className="grid grid-cols-[1.3fr_1fr_1.3fr_0.8fr_1.2fr_1fr_1.6fr] gap-3 px-5 py-3 bg-gray-50/80 border-b border-gray-100">
+            {['TRACKING', 'ORDER DATE', 'CUSTOMER', 'ITEMS', 'AMOUNT', 'STATUS', 'DATES'].map(h => (
               <div key={h} className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{h}</div>
             ))}
           </div>
@@ -267,10 +272,10 @@ export default function SellerShippingPage() {
                 <button
                   key={row.id}
                   onClick={() => setSelected(row)}
-                  className="w-full grid grid-cols-[1.5fr_1fr_1.5fr_1.2fr_1.5fr_1.2fr] gap-3 px-5 py-4 items-center hover:bg-orange-50/30 transition-colors text-left"
+                  className="w-full grid grid-cols-[1.3fr_1fr_1.3fr_0.8fr_1.2fr_1fr_1.6fr] gap-3 px-5 py-4 items-center hover:bg-orange-50/30 transition-colors text-left"
                 >
                   <div className="font-mono text-xs text-[#1a1c3a] font-semibold truncate">{row.tracking_number}</div>
-                  <div className="text-xs text-gray-500">{new Date(row.created_at).toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-500">{new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                   <div>
                     <p className="text-xs font-semibold text-[#1a1c3a] truncate">{row.customer_name}</p>
                     <p className="text-[10px] text-gray-400 truncate">{row.customer_city}</p>
@@ -296,6 +301,23 @@ export default function SellerShippingPage() {
                       <div className="bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full text-center w-fit mt-1">
                         PAID
                       </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-0.5 text-[10px] leading-tight">
+                    {row.last_call_at && (
+                      <span className="text-emerald-600"><span className="text-gray-300">Conf:</span> {new Date(row.last_call_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                    )}
+                    {row.shipped_to_agent_at && (
+                      <span className="text-purple-600"><span className="text-gray-300">Agent:</span> {new Date(row.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                    )}
+                    {row.shipped_at && (
+                      <span className="text-blue-600"><span className="text-gray-300">Ship:</span> {new Date(row.shipped_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                    )}
+                    {row.delivered_at && (
+                      <span className="text-sky-600"><span className="text-gray-300">Deliv:</span> {new Date(row.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                    )}
+                    {row.returned_at && (
+                      <span className="text-red-600"><span className="text-gray-300">Ret:</span> {new Date(row.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
                     )}
                   </div>
                 </button>
@@ -382,9 +404,39 @@ function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
                 <span className="font-mono font-bold text-[#1a1c3a] text-xs">{row.tracking_number}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400 text-xs">Date</span>
-                <span className="font-semibold text-[#1a1c3a] text-xs">{new Date(row.created_at).toLocaleDateString()}</span>
+                <span className="text-gray-400 text-xs">Order Date</span>
+                <span className="font-semibold text-[#1a1c3a] text-xs">{new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
               </div>
+              {row.last_call_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-xs">Confirmed</span>
+                  <span className="font-semibold text-emerald-600 text-xs">{new Date(row.last_call_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              )}
+              {row.shipped_to_agent_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-xs">Shipped to Agent</span>
+                  <span className="font-semibold text-purple-600 text-xs">{new Date(row.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              )}
+              {row.shipped_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-xs">Shipped</span>
+                  <span className="font-semibold text-blue-600 text-xs">{new Date(row.shipped_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              )}
+              {row.delivered_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-xs">Delivered</span>
+                  <span className="font-semibold text-sky-600 text-xs">{new Date(row.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              )}
+              {row.returned_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-xs">Returned</span>
+                  <span className="font-semibold text-red-600 text-xs">{new Date(row.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-xs">Payment Method</span>
                 <span className="font-semibold text-[#1a1c3a] text-xs">{row.payment_method}</span>

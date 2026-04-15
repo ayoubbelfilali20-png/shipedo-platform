@@ -28,8 +28,10 @@ type OrderRow = {
   notes?: string | null
   last_call_note?: string | null
   shipped_at?: string | null
+  shipped_to_agent_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
+  last_call_at?: string | null
   created_at: string
   seller_id?: string | null
   call_attempts?: number
@@ -220,11 +222,13 @@ export default function AgentShippingPage() {
     }
     // Reset timestamps when going back
     if (newStatus === 'confirmed' || newStatus === 'prepared') {
+      patch.shipped_to_agent_at = null
       patch.shipped_at = null
       patch.delivered_at = null
       patch.returned_at = null
     }
     if (newStatus === 'pending') {
+      patch.shipped_to_agent_at = null
       patch.shipped_at = null
       patch.delivered_at = null
       patch.returned_at = null
@@ -479,21 +483,39 @@ export default function AgentShippingPage() {
                     ))}
                   </div>
 
-                  {/* Shipped / Delivered dates */}
-                  {(order.shipped_at || order.delivered_at) && (
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {order.shipped_at && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1">
-                          <Truck size={12} /> Shipped: {new Date(order.shipped_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date(order.shipped_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                      {order.delivered_at && (
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
-                          <CheckCircle size={12} /> Delivered: {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} {new Date(order.delivered_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  {/* Order lifecycle dates */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {order.created_at && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg px-2 py-0.5">
+                        <Calendar size={11} /> Order: {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {order.last_call_at && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-0.5">
+                        <CheckCircle size={11} /> Confirmed: {new Date(order.last_call_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {order.shipped_to_agent_at && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded-lg px-2 py-0.5">
+                        <UserCheck size={11} /> To Agent: {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {order.shipped_at && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2 py-0.5">
+                        <Truck size={11} /> Shipped: {new Date(order.shipped_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {order.delivered_at && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded-lg px-2 py-0.5">
+                        <CheckCircle size={11} /> Delivered: {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {order.returned_at && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-0.5">
+                        <RotateCcw size={11} /> Returned: {new Date(order.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
 
                   {/* Call note */}
                   {order.last_call_note && (

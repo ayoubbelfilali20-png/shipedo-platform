@@ -27,8 +27,10 @@ type OrderRow = {
   printed?: boolean
   notes?: string | null
   shipped_at?: string | null
+  shipped_to_agent_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
+  last_call_at?: string | null
   created_at: string
   seller_id?: string | null
 }
@@ -282,15 +284,16 @@ export default function AdminShippingPage() {
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3 hidden md:table-cell">City</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3">Amount</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3">Status</th>
+                <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3 hidden lg:table-cell">Dates</th>
                 <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-16 text-gray-400 text-sm">Loading...</td></tr>
+                <tr><td colSpan={8} className="text-center py-16 text-gray-400 text-sm">Loading...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-gray-400">
+                  <td colSpan={8} className="text-center py-16 text-gray-400">
                     <Truck size={40} className="mx-auto mb-3 opacity-30" />
                     <p className="text-sm">No orders found</p>
                   </td>
@@ -436,6 +439,28 @@ function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, proce
                 )
               })}
             </div>
+          )}
+        </div>
+      </td>
+
+      {/* Dates */}
+      <td className="px-4 py-3 hidden lg:table-cell">
+        <div className="flex flex-col gap-0.5 text-[10px] leading-tight">
+          <span className="text-gray-500"><span className="text-gray-300">Order:</span> {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+          {order.last_call_at && (
+            <span className="text-emerald-600"><span className="text-gray-300">Conf:</span> {new Date(order.last_call_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+          )}
+          {order.shipped_to_agent_at && (
+            <span className="text-purple-600"><span className="text-gray-300">Agent:</span> {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+          )}
+          {order.shipped_at && (
+            <span className="text-blue-600"><span className="text-gray-300">Ship:</span> {new Date(order.shipped_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+          )}
+          {order.delivered_at && (
+            <span className="text-sky-600"><span className="text-gray-300">Deliv:</span> {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+          )}
+          {order.returned_at && (
+            <span className="text-red-600"><span className="text-gray-300">Ret:</span> {new Date(order.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
           )}
         </div>
       </td>
