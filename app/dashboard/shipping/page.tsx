@@ -75,6 +75,15 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
   }
 }
 
+function getStatusDate(o: any): string {
+  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
+  if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
+  if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
+  return o.created_at
+}
+
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
 function whatsappLink(phone: string, text: string) {
   const num = cleanPhone(phone).replace(/^\+/, '')
@@ -137,8 +146,8 @@ export default function AdminShippingPage() {
       o.customer_city?.toLowerCase().includes(q)
     const matchesStatus = filterStatus === 'all' || o.status === filterStatus
     const { from, to } = getDateRange(datePreset, customFrom, customTo)
-    const orderDate = new Date(o.created_at)
-    const matchesDate = (!from || orderDate >= from) && (!to || orderDate <= to)
+    const statusDate = new Date(getStatusDate(o))
+    const matchesDate = (!from || statusDate >= from) && (!to || statusDate <= to)
     return matchesSearch && matchesStatus && matchesDate
   })
 

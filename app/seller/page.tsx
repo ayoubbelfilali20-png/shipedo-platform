@@ -48,6 +48,15 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   cancelled: { bg: 'bg-gray-100',   text: 'text-gray-600',    dot: 'bg-gray-500'    },
 }
 
+function getStatusDate(o: any): string {
+  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
+  if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
+  if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
+  return o.created_at
+}
+
 function inDesktopPeriod(dateStr: string, period: Period): boolean {
   if (period === 'all') return true
   const d = new Date(dateStr)
@@ -147,7 +156,7 @@ export default function SellerDashboard() {
 
   /* ── Desktop computed stats ── */
   const desktopStats = useMemo(() => {
-    const filtered  = orders.filter(o => inDesktopPeriod(o.created_at, period) && orderMatchesProduct(o))
+    const filtered  = orders.filter(o => inDesktopPeriod(getStatusDate(o), period) && orderMatchesProduct(o))
     const total     = filtered.length
     const confirmed = filtered.filter(o => ['confirmed','shipped','delivered'].includes(o.status)).length
     const delivered = filtered.filter(o => o.status === 'delivered').length
@@ -197,7 +206,7 @@ export default function SellerDashboard() {
   }, [desktopStats, t])
 
   /* ── Mobile computed stats ── */
-  const mobileFiltered = useMemo(() => orders.filter(o => inMobilePeriod(o.created_at, mobilePeriod) && orderMatchesProduct(o)), [orders, mobilePeriod, selectedProduct])
+  const mobileFiltered = useMemo(() => orders.filter(o => inMobilePeriod(getStatusDate(o), mobilePeriod) && orderMatchesProduct(o)), [orders, mobilePeriod, selectedProduct])
   const mTotal     = mobileFiltered.length
   const mConfirmed = mobileFiltered.filter(o => ['confirmed','shipped','delivered'].includes(o.status)).length
   const mDelivered = mobileFiltered.filter(o => o.status === 'delivered').length

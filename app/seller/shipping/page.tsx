@@ -68,6 +68,15 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
   }
 }
 
+function getStatusDate(o: any): string {
+  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
+  if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
+  if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
+  return o.created_at
+}
+
 export default function SellerShippingPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [products, setProducts] = useState<any[]>([])
@@ -113,11 +122,11 @@ export default function SellerShippingPage() {
         const items = Array.isArray(o.items) ? o.items : []
         if (!items.some((it: any) => it.product_id === selectedProduct || it.name === selectedProduct)) return false
       }
-      // Date filter
+      // Date filter — uses status-change date
       const { from, to } = getDateRange(datePreset, customFrom, customTo)
-      const orderDate = new Date(o.created_at)
-      if (from && orderDate < from) return false
-      if (to && orderDate > to) return false
+      const statusDate = new Date(getStatusDate(o))
+      if (from && statusDate < from) return false
+      if (to && statusDate > to) return false
       // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase()
