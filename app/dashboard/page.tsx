@@ -25,6 +25,7 @@ type OrderRow = {
   customer_name: string
   seller_id: string | null
   total_amount: number
+  original_total?: number | null
   status: string
   call_attempts?: number | null
   last_call_agent_id?: string | null
@@ -466,7 +467,12 @@ export default function AdminDashboard() {
                       <p className="text-[10px] text-gray-400 font-mono">{order.tracking_number} · {seller?.company || seller?.name || '—'}</p>
                     </div>
                     <div className="text-right flex-shrink-0 mr-2">
-                      <p className="text-xs font-bold text-[#1a1c3a]">{(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</p>
+                      <p className="text-xs font-bold text-[#1a1c3a]">
+                        {(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}
+                        {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
+                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                        )}
+                      </p>
                       <p className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleDateString()}</p>
                     </div>
                     <StatusBadge status={order.status as any} />

@@ -21,6 +21,7 @@ type OrderRow = {
   customer_address: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method: string
   printed?: boolean
@@ -406,7 +407,12 @@ export default function AgentShippingPage() {
                     <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
                     <span className="text-[10px] text-gray-400">{order.payment_method}</span>
                     {(order.total_amount || 0) > 0 && (
-                      <span className="text-xs font-bold text-[#f4991a]">KES {order.total_amount.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-[#f4991a]">
+                        KES {order.total_amount.toLocaleString()}
+                        {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
+                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                        )}
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">

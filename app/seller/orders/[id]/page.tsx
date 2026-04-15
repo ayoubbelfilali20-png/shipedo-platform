@@ -20,6 +20,7 @@ type OrderRow = {
   country?: string | null
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method: string
   source?: string | null
@@ -219,7 +220,12 @@ export default function SellerOrderDetailPage() {
           </div>
           <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm font-bold text-gray-600">Total</span>
-            <span className="text-lg font-bold text-[#f4991a]">KES {(order.total_amount || 0).toLocaleString()}</span>
+            <span className="text-lg font-bold text-[#f4991a]">
+              KES {(order.total_amount || 0).toLocaleString()}
+              {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
+                <span className="text-xs text-gray-400 line-through ml-2">KES {order.original_total.toLocaleString()}</span>
+              )}
+            </span>
           </div>
         </div>
 

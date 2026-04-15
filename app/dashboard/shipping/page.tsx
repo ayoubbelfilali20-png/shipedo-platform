@@ -21,6 +21,7 @@ type OrderRow = {
   customer_address: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method: string
   printed?: boolean
@@ -392,7 +393,12 @@ function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, proce
 
       {/* Amount */}
       <td className="px-4 py-3">
-        <span className="text-xs font-bold text-[#1a1c3a]">{(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</span>
+        <span className="text-xs font-bold text-[#1a1c3a]">
+          {(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}
+          {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
+            <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+          )}
+        </span>
       </td>
 
       {/* Status dropdown */}

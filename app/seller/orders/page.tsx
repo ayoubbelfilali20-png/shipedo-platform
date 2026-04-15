@@ -24,6 +24,7 @@ type OrderRow = {
   country: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method: string
   source?: string
@@ -339,6 +340,9 @@ export default function SellerOrdersPage() {
                             <>
                               <span className="text-sm font-bold text-gray-700">{order.total_amount.toLocaleString()}</span>
                               <span className="text-[10px] text-gray-400 font-semibold ml-1">KES</span>
+                              {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
+                                <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                              )}
                             </>
                           ) : (
                             <span className="text-xs text-gray-300">—</span>

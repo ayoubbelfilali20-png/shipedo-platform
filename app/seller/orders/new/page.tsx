@@ -369,6 +369,7 @@ export default function SellerNewOrderPage() {
       source: orderSource || null,
       items,
       total_amount: total,
+      original_total: total,
       status: 'pending',
       payment_method: 'COD',
     })

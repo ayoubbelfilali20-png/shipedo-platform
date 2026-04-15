@@ -143,6 +143,7 @@ export default function AgentNewOrderPage() {
       notes: notes || null,
       items,
       total_amount: total,
+      original_total: total,
       status,
       payment_method: 'COD',
     })

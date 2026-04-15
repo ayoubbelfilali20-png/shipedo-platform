@@ -20,6 +20,7 @@ type OrderRow = {
   customer_address: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method?: string
   notes?: string | null
@@ -100,11 +101,16 @@ export default function AgentCallsPage() {
         .order('created_at', { ascending: true }),
     ])
     const rows = (data || []) as OrderRow[]
-    // Recalculate total from items if total_amount is 0
+    // Recalculate total from items if total_amount is 0 + backfill original_total
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
         const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
         if (calc > 0) o.total_amount = calc
+      }
+      // Backfill original_total for existing orders that don't have it
+      if (!o.original_total && o.total_amount > 0) {
+        o.original_total = o.total_amount
+        supabase.from('orders').update({ original_total: o.total_amount }).eq('id', o.id).then(() => {})
       }
     })
     // Sort: new orders first (never called), then reminded/unreached
@@ -321,17 +327,19 @@ export default function AgentCallsPage() {
       }).eq('id', order.id)
     }
 
-    // Always save latest items/total
-    const cleanItems = editItems.map(({ _id, ...rest }: any) => rest)
-
     const nowIso = new Date().toISOString()
     const patch: any = {
       last_call_at: nowIso,
       last_call_note: note || null,
       last_call_agent_id: agentId,
       call_attempts: (order.call_attempts || 0) + 1,
-      items: cleanItems,
-      total_amount: editItemsTotal,
+    }
+
+    // Only save items/total if agent manually edited them (price negotiation / discount)
+    const cleanItems = editItems.map(({ _id, ...rest }: any) => rest)
+    if (itemsChanged) {
+      patch.items = cleanItems
+      patch.total_amount = editItemsTotal
     }
     let logRemindedAt: string | null = null
     if (action === 'confirmed') {
@@ -698,9 +706,12 @@ export default function AgentCallsPage() {
 
                   <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                     {(editingItems ? editItemsTotal : (order.total_amount || 0)) > 0 ? (
-                      <div className="text-xs font-bold">
+                      <div className="text-xs font-bold flex items-center gap-2">
                         <span className="text-gray-600">Total: </span>
                         <span className="text-[#f4991a]">KES {editingItems ? editItemsTotal.toLocaleString() : (order.total_amount || 0).toLocaleString()}</span>
+                        {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
+                          <span className="text-[10px] text-gray-400 line-through">KES {order.original_total.toLocaleString()}</span>
+                        )}
                       </div>
                     ) : <div />}
                     {itemsChanged && editingItems && (

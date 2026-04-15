@@ -19,6 +19,7 @@ type OrderRow = {
   customer_address: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method: string
   payment_status?: string | null
@@ -277,7 +278,12 @@ export default function SellerShippingPage() {
                   <div className="text-xs text-gray-600">
                     <span className="font-semibold text-[#f4991a]">{items.length}</span> item{items.length !== 1 ? 's' : ''}
                   </div>
-                  <div className="text-xs font-bold text-[#1a1c3a]">{(row.total_amount || 0) > 0 ? `KES ${row.total_amount.toLocaleString()}` : '—'}</div>
+                  <div className="text-xs font-bold text-[#1a1c3a]">
+                    {(row.total_amount || 0) > 0 ? `KES ${row.total_amount.toLocaleString()}` : '—'}
+                    {row.original_total && row.original_total !== row.total_amount && row.original_total > 0 && (
+                      <span className="text-[9px] text-gray-400 line-through ml-1">KES {row.original_total.toLocaleString()}</span>
+                    )}
+                  </div>
                   <div>
                     <span className={cn(
                       'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border-2 text-[10px] font-semibold',
@@ -418,7 +424,12 @@ function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
 
             <div className="mt-3 flex items-center justify-between bg-[#1a1c3a] rounded-xl px-4 py-3">
               <span className="text-white/50 text-xs font-semibold">TOTAL</span>
-              <span className="text-[#f4991a] font-bold">KES {(row.total_amount || 0).toLocaleString()}</span>
+              <span className="text-[#f4991a] font-bold">
+                KES {(row.total_amount || 0).toLocaleString()}
+                {row.original_total && row.original_total !== row.total_amount && row.original_total > 0 && (
+                  <span className="text-[10px] text-white/40 line-through ml-1">KES {row.original_total.toLocaleString()}</span>
+                )}
+              </span>
             </div>
           </div>
 

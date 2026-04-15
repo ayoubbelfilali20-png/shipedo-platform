@@ -18,6 +18,7 @@ type OrderRow = {
   customer_address: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method: string
   returned_at?: string | null
@@ -250,7 +251,7 @@ export default function ReturnsPage() {
                 </div>
 
                 <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                  <span className="text-sm font-bold text-gray-600">Total: <span className="text-[#f4991a]">KES {(foundOrder.total_amount || 0).toLocaleString()}</span></span>
+                  <span className="text-sm font-bold text-gray-600">Total: <span className="text-[#f4991a]">KES {(foundOrder.total_amount || 0).toLocaleString()}{foundOrder.original_total && foundOrder.original_total !== foundOrder.total_amount && foundOrder.original_total > 0 && <span className="text-xs text-gray-400 line-through ml-1">KES {foundOrder.original_total.toLocaleString()}</span>}</span></span>
                   <div className="flex gap-2">
                     <button
                       onClick={() => addToQueue(foundOrder)}
@@ -314,7 +315,12 @@ export default function ReturnsPage() {
                         <span className="text-xs text-gray-600">{(o.items || []).length} item(s)</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs font-bold text-[#1a1c3a]">KES {(o.total_amount || 0).toLocaleString()}</span>
+                        <span className="text-xs font-bold text-[#1a1c3a]">
+                          KES {(o.total_amount || 0).toLocaleString()}
+                          {o.original_total && o.original_total !== o.total_amount && o.original_total > 0 && (
+                            <span className="text-[9px] text-gray-400 line-through ml-1">KES {o.original_total.toLocaleString()}</span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <span className="text-xs text-gray-400">{o.returned_at ? new Date(o.returned_at).toLocaleDateString() : '—'}</span>

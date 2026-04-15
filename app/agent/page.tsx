@@ -23,6 +23,7 @@ type OrderRow = {
   customer_city: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_status?: string | null
   notes?: string | null
@@ -516,7 +517,12 @@ export default function AgentDashboard() {
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-600">{o.customer_city}</td>
-                      <td className="px-4 py-3 text-xs font-bold text-[#1a1c3a]">{(o.total_amount || 0) > 0 ? `KES ${o.total_amount.toLocaleString()}` : '—'}</td>
+                      <td className="px-4 py-3 text-xs font-bold text-[#1a1c3a]">
+                        {(o.total_amount || 0) > 0 ? `KES ${o.total_amount.toLocaleString()}` : '—'}
+                        {o.original_total && o.original_total !== o.total_amount && o.original_total > 0 && (
+                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {o.original_total.toLocaleString()}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', statusColors[o.status] || statusColors.pending)}>
                           {o.status}

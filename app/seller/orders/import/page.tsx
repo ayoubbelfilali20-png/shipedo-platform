@@ -357,6 +357,7 @@ export default function ImportOrdersPage() {
         source: 'Import',
         items,
         total_amount: order.total,
+        original_total: order.total,
         status: 'pending',
         payment_method: 'COD',
       })

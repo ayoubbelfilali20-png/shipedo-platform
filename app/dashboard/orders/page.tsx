@@ -22,6 +22,7 @@ type OrderRow = {
   customer_address: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   payment_method: string
   notes?: string | null
@@ -244,6 +245,9 @@ export default function OrdersPage() {
                         <td className="px-4 py-4">
                           <span className="text-xs font-bold text-[#1a1c3a]">
                             KES {(order.total_amount || 0).toLocaleString()}
+                            {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
+                              <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                            )}
                           </span>
                         </td>
                         <td className="px-4 py-4">

@@ -20,6 +20,7 @@ type OrderRow = {
   customer_address: string
   items: any[]
   total_amount: number
+  original_total?: number | null
   status: string
   notes?: string | null
   call_attempts?: number | null
@@ -457,7 +458,12 @@ export default function AgentHistoryPage() {
                       </span>
                     )}
                     {(o.total_amount || 0) > 0 && (
-                      <span className="text-xs font-bold text-[#f4991a]">KES {o.total_amount.toLocaleString()}</span>
+                      <span className="text-xs font-bold text-[#f4991a]">
+                        KES {o.total_amount.toLocaleString()}
+                        {o.original_total && o.original_total !== o.total_amount && o.original_total > 0 && (
+                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {o.original_total.toLocaleString()}</span>
+                        )}
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -722,8 +728,11 @@ export default function AgentHistoryPage() {
                             </div>
                           ))}
                           {(o.total_amount || 0) > 0 && (
-                            <div className="pt-1 flex justify-end text-xs font-bold">
+                            <div className="pt-1 flex justify-end text-xs font-bold gap-2">
                               <span className="text-[#f4991a]">Total: KES {o.total_amount.toLocaleString()}</span>
+                              {o.original_total && o.original_total !== o.total_amount && o.original_total > 0 && (
+                                <span className="text-[9px] text-gray-400 line-through">KES {o.original_total.toLocaleString()}</span>
+                              )}
                             </div>
                           )}
                         </div>
