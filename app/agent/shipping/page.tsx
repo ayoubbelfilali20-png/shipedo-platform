@@ -188,23 +188,23 @@ export default function AgentShippingPage() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const filtered = orders.filter(o => {
+  const dateSearchFiltered = orders.filter(o => {
     const q = search.toLowerCase().trim()
     const matchesSearch = !q ||
       o.tracking_number?.toLowerCase().includes(q) ||
       o.customer_phone?.includes(q) ||
       o.customer_name?.toLowerCase().includes(q) ||
       o.customer_city?.toLowerCase().includes(q)
-    const matchesStatus = filterStatus === 'all' || o.status === filterStatus
-    // Date filter — uses status-change date, not created_at
     const { from, to } = getDateRange(datePreset, customFrom, customTo)
     const statusDate = new Date(getStatusDate(o))
     const matchesDate = (!from || statusDate >= from) && (!to || statusDate <= to)
-    return matchesSearch && matchesStatus && matchesDate
+    return matchesSearch && matchesDate
   })
 
+  const filtered = dateSearchFiltered.filter(o => filterStatus === 'all' || o.status === filterStatus)
+
   const counts = shippingStatuses.reduce((acc, s) => {
-    acc[s] = orders.filter(o => o.status === s).length
+    acc[s] = dateSearchFiltered.filter(o => o.status === s).length
     return acc
   }, {} as Record<string, number>)
 

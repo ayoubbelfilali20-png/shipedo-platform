@@ -119,34 +119,34 @@ export default function SellerShippingPage() {
     })
   }, [])
 
-  const filtered = useMemo(() => {
+  const dateSearchFiltered = useMemo(() => {
     return orders.filter(o => {
-      // Status filter
-      if (filterStatus !== 'all' && o.status !== filterStatus) return false
-      // Product filter
       if (selectedProduct !== 'all') {
         const items = Array.isArray(o.items) ? o.items : []
         if (!items.some((it: any) => it.product_id === selectedProduct || it.name === selectedProduct)) return false
       }
-      // Date filter — uses status-change date
       const { from, to } = getDateRange(datePreset, customFrom, customTo)
       const statusDate = new Date(getStatusDate(o))
       if (from && statusDate < from) return false
       if (to && statusDate > to) return false
-      // Search
       if (searchQuery) {
         const q = searchQuery.toLowerCase()
         if (!(o.tracking_number?.toLowerCase().includes(q) || o.customer_name?.toLowerCase().includes(q) || o.customer_phone?.includes(q) || o.customer_city?.toLowerCase().includes(q))) return false
       }
       return true
     })
-  }, [orders, filterStatus, selectedProduct, datePreset, customFrom, customTo, searchQuery])
+  }, [orders, selectedProduct, datePreset, customFrom, customTo, searchQuery])
+
+  const filtered = useMemo(() => {
+    if (filterStatus === 'all') return dateSearchFiltered
+    return dateSearchFiltered.filter(o => o.status === filterStatus)
+  }, [dateSearchFiltered, filterStatus])
 
   const counts = useMemo(() => {
     const c: Record<ShipStatus, number> = { confirmed: 0, prepared: 0, shipped_to_agent: 0, shipped: 0, delivered: 0, returned: 0 }
-    orders.forEach(o => { if (o.status in c) c[o.status as ShipStatus]++ })
+    dateSearchFiltered.forEach(o => { if (o.status in c) c[o.status as ShipStatus]++ })
     return c
-  }, [orders])
+  }, [dateSearchFiltered])
 
   const total = filtered.length
   const pageRows = filtered.slice((page - 1) * perPage, page * perPage)
