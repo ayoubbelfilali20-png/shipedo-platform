@@ -91,8 +91,9 @@ export default function SellerProductsPage() {
       sku: p.sku || '',
       selling_price: p.selling_price || 0,
       discount_price: p.discount_price || '',
-      stock: p.stock || 0,
       status: p.status || 'active',
+      category: p.category || '',
+      description: p.description || '',
     })
   }
 
@@ -104,11 +105,12 @@ export default function SellerProductsPage() {
       sku: editForm.sku,
       selling_price: Number(editForm.selling_price) || 0,
       discount_price: editForm.discount_price ? Number(editForm.discount_price) : null,
-      stock: Number(editForm.stock) || 0,
       status: editForm.status,
+      category: editForm.category || null,
+      description: editForm.description || null,
     }).eq('id', editProduct.id)
     if (!error) {
-      setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...editForm, selling_price: Number(editForm.selling_price) || 0, discount_price: editForm.discount_price ? Number(editForm.discount_price) : null, stock: Number(editForm.stock) || 0 } : p))
+      setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, name: editForm.name, sku: editForm.sku, selling_price: Number(editForm.selling_price) || 0, discount_price: editForm.discount_price ? Number(editForm.discount_price) : null, status: editForm.status, category: editForm.category, description: editForm.description } : p))
     }
     setSaving(false)
     setEditProduct(null)
@@ -483,8 +485,8 @@ export default function SellerProductsPage() {
                   <input value={editForm.sku} onChange={e => setEditForm({ ...editForm, sku: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Stock</label>
-                  <input type="number" value={editForm.stock} onChange={e => setEditForm({ ...editForm, stock: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Category</label>
+                  <input value={editForm.category} onChange={e => setEditForm({ ...editForm, category: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="Optional" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -496,6 +498,10 @@ export default function SellerProductsPage() {
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">Discount Price</label>
                   <input type="number" value={editForm.discount_price} onChange={e => setEditForm({ ...editForm, discount_price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" placeholder="Optional" />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Description</label>
+                <textarea value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} rows={2} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400 resize-none" placeholder="Optional" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Status</label>

@@ -8,7 +8,7 @@ import { ProductStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import {
   Search, Plus, Package, ShoppingBag, TrendingUp,
-  AlertTriangle, XCircle, Eye, X, Filter
+  AlertTriangle, XCircle, Eye, X, Filter, Pencil, Check,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -47,6 +47,9 @@ export default function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState<ProductStatus | 'all'>('all')
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [editProduct, setEditProduct] = useState<any>(null)
+  const [editQty, setEditQty] = useState({ stock: 0, total_quantity: 0, defective_quantity: 0 })
+  const [savingQty, setSavingQty] = useState(false)
 
   useEffect(() => {
     supabase.from('products').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
@@ -57,6 +60,31 @@ export default function ProductsPage() {
       setLoading(false)
     })
   }, [])
+
+  const startEditQty = (p: any) => {
+    setEditProduct(p)
+    setEditQty({
+      stock: p.stock || 0,
+      total_quantity: p.total_quantity || p.stock || 0,
+      defective_quantity: p.defective_quantity || 0,
+    })
+  }
+
+  const saveQty = async () => {
+    if (!editProduct) return
+    setSavingQty(true)
+    const patch = {
+      stock: Number(editQty.stock) || 0,
+      total_quantity: Number(editQty.total_quantity) || 0,
+      defective_quantity: Number(editQty.defective_quantity) || 0,
+    }
+    const { error } = await supabase.from('products').update(patch).eq('id', editProduct.id)
+    if (!error) {
+      setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...patch } : p))
+    }
+    setSavingQty(false)
+    setEditProduct(null)
+  }
 
   const filtered = products.filter(p => {
     const q = search.toLowerCase()
@@ -214,7 +242,16 @@ export default function ProductsPage() {
                     <span className="text-xs text-gray-400 flex items-center gap-1">
                       {originFlag[product.origin]} {product.origin}
                     </span>
-                    <span className="text-xs text-gray-400">{product.sellerName}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">{product.sellerName}</span>
+                      <button
+                        onClick={() => startEditQty(product)}
+                        className="w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-600 transition-all border border-blue-200"
+                        title="Edit Quantity"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
@@ -222,6 +259,47 @@ export default function ProductsPage() {
           </div>
         )}
       </div>
+
+      {/* Edit Quantity Modal (Admin only) */}
+      {editProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-800">Edit Quantity</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{editProduct.name} · {editProduct.sellerName || 'Unknown seller'}</p>
+              </div>
+              <button onClick={() => setEditProduct(null)} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Quantity in Stock</label>
+                <input type="number" value={editQty.stock} onChange={e => setEditQty({ ...editQty, stock: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Total Quantity</label>
+                <input type="number" value={editQty.total_quantity} onChange={e => setEditQty({ ...editQty, total_quantity: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 mb-1 block">Quantity Defective</label>
+                <input type="number" value={editQty.defective_quantity} onChange={e => setEditQty({ ...editQty, defective_quantity: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button onClick={() => setEditProduct(null)} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
+              <button onClick={saveQty} disabled={savingQty} className="flex-1 px-4 py-2.5 bg-[#f4991a] hover:bg-orange-500 text-white rounded-lg text-sm font-bold shadow-sm shadow-orange-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {savingQty ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={16} />}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

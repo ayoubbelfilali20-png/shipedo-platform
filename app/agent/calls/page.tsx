@@ -352,8 +352,20 @@ export default function AgentCallsPage() {
     } else if (action === 'not_reached') {
       patch.status = 'pending'
       const attempts = (order.call_attempts || 0) + 1
-      const delayMs = attempts <= 1 ? 60 * 60 * 1000 : 2 * 60 * 60 * 1000
-      patch.reminded_at = new Date(Date.now() + delayMs).toISOString()
+      let remindDate: Date
+      if (attempts <= 1) {
+        // 1st unreached → retry after 1 hour
+        remindDate = new Date(Date.now() + 1 * 60 * 60 * 1000)
+      } else if (attempts === 2) {
+        // 2nd unreached → retry after 2 hours
+        remindDate = new Date(Date.now() + 2 * 60 * 60 * 1000)
+      } else {
+        // 3rd+ unreached → retry next day at 9am
+        remindDate = new Date()
+        remindDate.setDate(remindDate.getDate() + 1)
+        remindDate.setHours(9, 0, 0, 0)
+      }
+      patch.reminded_at = remindDate.toISOString()
       logRemindedAt = patch.reminded_at
     }
     await supabase.from('orders').update(patch).eq('id', order.id)
