@@ -95,7 +95,13 @@ export default function SellerOrdersPage() {
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
-    supabase.from('orders').select('*').eq('seller_id', sellerId).in('status', CONFIRMATION_STATUSES).order('created_at', { ascending: false }).then(({ data }) => {
+    supabase.from('orders')
+      .select('id, tracking_number, seller_id, customer_name, customer_phone, customer_city, customer_address, country, items, total_amount, original_total, status, payment_method, source, subuser, created_at, call_attempts, reminded_at, cancel_reason')
+      .eq('seller_id', sellerId)
+      .in('status', CONFIRMATION_STATUSES)
+      .order('created_at', { ascending: false })
+      .limit(2000)
+      .then(({ data }) => {
       const rows = (data || []) as OrderRow[]
       rows.forEach(o => {
         if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {

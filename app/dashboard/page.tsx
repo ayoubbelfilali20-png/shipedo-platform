@@ -87,9 +87,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     Promise.all([
       // Only fetch columns needed for stats — skip items/address/notes (huge jsonb)
+      // Cap rows so dashboard stays fast as the orders table grows
       supabase.from('orders')
         .select('id, seller_id, status, total_amount, original_total, call_attempts, last_call_agent_id, reminded_at, created_at, tracking_number, customer_name')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(5000),
       supabase.from('sellers').select('id, name, company, email, city, status'),
       supabase.from('agents').select('id, name, email, status'),
     ]).then(([o, s, a]) => {

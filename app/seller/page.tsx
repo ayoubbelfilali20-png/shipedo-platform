@@ -128,7 +128,8 @@ export default function SellerDashboard() {
       supabase.from('orders')
         .select('id, seller_id, status, total_amount, original_total, items, created_at, shipped_at, delivered_at, returned_at, last_call_at, shipped_to_agent_at')
         .eq('seller_id', sellerId)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(3000),
       supabase.from('seller_payouts').select('*').eq('seller_id', sellerId).eq('status', 'sent').order('period_end', { ascending: false }),
       supabase.from('products').select('id, name, sku, image_url').eq('seller_id', sellerId).order('name'),
     ]).then(([ordersRes, payoutsRes, productsRes]) => {

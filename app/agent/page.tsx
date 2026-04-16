@@ -135,23 +135,27 @@ export default function AgentDashboard() {
     if (!aid) { setLoading(false); return }
     const nowIso = new Date().toISOString()
 
+    const cols = 'id, tracking_number, customer_name, customer_phone, customer_city, items, total_amount, original_total, status, payment_status, notes, call_attempts, reminded_at, last_call_at, last_call_agent_id, created_at'
+
     // Pending = my queue only
     const { data: pen } = await supabase
       .from('orders')
-      .select('*')
+      .select(cols)
       .eq('status', 'pending')
       .eq('assigned_agent_id', aid)
       .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
       .order('created_at', { ascending: true })
+      .limit(1000)
     setPending((pen || []) as OrderRow[])
 
     // Pipeline = all my non-pending orders
     const { data } = await supabase
       .from('orders')
-      .select('*')
+      .select(cols)
       .eq('assigned_agent_id', aid)
       .neq('status', 'pending')
       .order('created_at', { ascending: false })
+      .limit(3000)
     setOrders((data || []) as OrderRow[])
     setLoading(false)
   }

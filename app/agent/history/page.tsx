@@ -130,9 +130,10 @@ export default function AgentHistoryPage() {
     if (!aid) { setLoading(false); return }
     const { data } = await supabase
       .from('orders')
-      .select('*')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, notes, call_attempts, reminded_at, last_call_at, last_call_note, last_call_agent_id, created_at, shipped_at, delivered_at, returned_at, seller_id')
       .eq('assigned_agent_id', aid)
       .order('last_call_at', { ascending: false, nullsFirst: false })
+      .limit(2000)
     const rows = (data || []) as OrderRow[]
     // Recalculate total from items if total_amount is 0
     rows.forEach(o => {
