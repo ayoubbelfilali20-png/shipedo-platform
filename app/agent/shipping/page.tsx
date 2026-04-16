@@ -6,9 +6,9 @@ import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
-  MessageCircle, X, ChevronDown, Printer, CheckSquare, Square,
+  MessageCircle, X, ChevronDown, ChevronUp, Printer, CheckSquare, Square,
   Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
-  RefreshCw, FileText, Calendar, UserCheck,
+  RefreshCw, FileText, Calendar, UserCheck, MapPin,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -120,6 +120,9 @@ export default function AgentShippingPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<AllStatus | 'all'>('all')
+  const [filterProduct, setFilterProduct] = useState<string>('all')
+  const [filterCity, setFilterCity] = useState<string>('all')
+  const [citiesExpanded, setCitiesExpanded] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
   const [datePreset, setDatePreset] = useState<DatePreset>('all')
   const [customFrom, setCustomFrom] = useState('')
@@ -188,25 +191,83 @@ export default function AgentShippingPage() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  const dateSearchFiltered = orders.filter(o => {
+  // Unique products & cities extracted from orders
+  const productOptions = (() => {
+    const set = new Map<string, string>()
+    orders.forEach(o => {
+      const items = Array.isArray(o.items) ? o.items : []
+      items.forEach((it: any) => {
+        const name = (it.name || '').trim()
+        if (name) set.set(name.toLowerCase(), name)
+      })
+    })
+    return Array.from(set.values()).sort()
+  })()
+
+  const cityOptions = (() => {
+    const set = new Map<string, string>()
+    orders.forEach(o => {
+      const c = (o.customer_city || '').trim()
+      if (c) set.set(c.toLowerCase(), c)
+    })
+    return Array.from(set.values()).sort()
+  })()
+
+  const baseFiltered = orders.filter(o => {
     const q = search.toLowerCase().trim()
     const matchesSearch = !q ||
       o.tracking_number?.toLowerCase().includes(q) ||
       o.customer_phone?.includes(q) ||
       o.customer_name?.toLowerCase().includes(q) ||
-      o.customer_city?.toLowerCase().includes(q)
+      o.customer_city?.toLowerCase().includes(q) ||
+      o.customer_address?.toLowerCase().includes(q)
     const { from, to } = getDateRange(datePreset, customFrom, customTo)
     const statusDate = new Date(getStatusDate(o))
     const matchesDate = (!from || statusDate >= from) && (!to || statusDate <= to)
-    return matchesSearch && matchesDate
+    const matchesProduct = filterProduct === 'all' || (Array.isArray(o.items) &&
+      o.items.some((it: any) => (it.name || '').toLowerCase() === filterProduct.toLowerCase()))
+    const matchesCity = filterCity === 'all' || (o.customer_city || '').toLowerCase() === filterCity.toLowerCase()
+    return matchesSearch && matchesDate && matchesProduct && matchesCity
   })
 
-  const filtered = dateSearchFiltered.filter(o => filterStatus === 'all' || o.status === filterStatus)
+  const filtered = baseFiltered.filter(o => filterStatus === 'all' || o.status === filterStatus)
 
   const counts = shippingStatuses.reduce((acc, s) => {
-    acc[s] = dateSearchFiltered.filter(o => o.status === s).length
+    acc[s] = baseFiltered.filter(o => o.status === s).length
     return acc
   }, {} as Record<string, number>)
+
+  // City breakdown (uses base filter — respects date, product, search; ignores city/status)
+  const cityBreakdown = (() => {
+    const source = orders.filter(o => {
+      const q = search.toLowerCase().trim()
+      const matchesSearch = !q ||
+        o.tracking_number?.toLowerCase().includes(q) ||
+        o.customer_phone?.includes(q) ||
+        o.customer_name?.toLowerCase().includes(q) ||
+        o.customer_city?.toLowerCase().includes(q) ||
+        o.customer_address?.toLowerCase().includes(q)
+      const { from, to } = getDateRange(datePreset, customFrom, customTo)
+      const statusDate = new Date(getStatusDate(o))
+      const matchesDate = (!from || statusDate >= from) && (!to || statusDate <= to)
+      const matchesProduct = filterProduct === 'all' || (Array.isArray(o.items) &&
+        o.items.some((it: any) => (it.name || '').toLowerCase() === filterProduct.toLowerCase()))
+      return matchesSearch && matchesDate && matchesProduct
+    })
+    const map = new Map<string, { total: number; delivered: number; shipped: number; pending: number }>()
+    source.forEach(o => {
+      const c = (o.customer_city || 'Unknown').trim() || 'Unknown'
+      const cur = map.get(c) || { total: 0, delivered: 0, shipped: 0, pending: 0 }
+      cur.total++
+      if (o.status === 'delivered') cur.delivered++
+      if (o.status === 'shipped' || o.status === 'shipped_to_agent') cur.shipped++
+      if (['confirmed', 'prepared'].includes(o.status)) cur.pending++
+      map.set(c, cur)
+    })
+    return Array.from(map.entries())
+      .map(([city, stats]) => ({ city, ...stats }))
+      .sort((a, b) => b.total - a.total)
+  })()
 
   const changeStatus = async (orderId: string, newStatus: string) => {
     setProcessing(orderId)
@@ -358,14 +419,14 @@ export default function AgentShippingPage() {
           </div>
         )}
 
-        {/* Search + print */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-md">
+        {/* Filters row: Search | Product | City | Clear */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by tracking, phone, name, city..."
+              placeholder="Search tracking, phone, name, city, address..."
               className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 shadow-sm"
             />
             {search && (
@@ -374,13 +435,97 @@ export default function AgentShippingPage() {
               </button>
             )}
           </div>
+
+          <select
+            value={filterProduct}
+            onChange={e => setFilterProduct(e.target.value)}
+            className={cn(
+              'px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all bg-white focus:outline-none focus:border-[#f4991a] min-w-[160px]',
+              filterProduct !== 'all' ? 'border-[#f4991a] text-[#f4991a]' : 'border-gray-200 text-gray-500'
+            )}
+          >
+            <option value="all">All Products</option>
+            {productOptions.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+
+          <select
+            value={filterCity}
+            onChange={e => setFilterCity(e.target.value)}
+            className={cn(
+              'px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all bg-white focus:outline-none focus:border-[#f4991a] min-w-[160px]',
+              filterCity !== 'all' ? 'border-[#f4991a] text-[#f4991a]' : 'border-gray-200 text-gray-500'
+            )}
+          >
+            <option value="all">All Cities</option>
+            {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+
+          {(filterProduct !== 'all' || filterCity !== 'all' || search || filterStatus !== 'all') && (
+            <button
+              onClick={() => { setFilterProduct('all'); setFilterCity('all'); setSearch(''); setFilterStatus('all') }}
+              className="px-3 py-2.5 text-xs font-semibold text-gray-500 hover:text-[#f4991a] flex items-center gap-1"
+            >
+              <X size={12} /> Clear
+            </button>
+          )}
+
           {printQueue.size > 0 && (
             <button
               onClick={() => doPrint(Array.from(printQueue))}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all"
+              className="ml-auto flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all"
             >
-              <Printer size={13} /> Print selected ({printQueue.size})
+              <Printer size={13} /> Print ({printQueue.size})
             </button>
+          )}
+        </div>
+
+        {/* Cities breakdown */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setCitiesExpanded(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <MapPin size={14} className="text-[#f4991a]" />
+              <span className="text-sm font-bold text-[#1a1c3a]">Cities in Kenya</span>
+              <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                {cityBreakdown.length} towns · {cityBreakdown.reduce((s, c) => s + c.total, 0)} orders
+              </span>
+            </div>
+            {citiesExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+          </button>
+          {citiesExpanded && (
+            <div className="px-4 pb-4 pt-1 max-h-[360px] overflow-y-auto">
+              {cityBreakdown.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-6">No cities in current filter</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                  {cityBreakdown.map(c => (
+                    <button
+                      key={c.city}
+                      onClick={() => setFilterCity(filterCity === c.city ? 'all' : c.city)}
+                      className={cn(
+                        'flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all',
+                        filterCity === c.city
+                          ? 'border-[#f4991a] bg-orange-50 shadow-sm'
+                          : 'border-gray-100 bg-gray-50/60 hover:bg-gray-50 hover:border-gray-200'
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-[#1a1c3a] truncate">{c.city}</p>
+                        <p className="text-[9px] text-gray-400 mt-0.5">
+                          {c.delivered > 0 && <span className="text-sky-600">{c.delivered} deliv · </span>}
+                          {c.shipped > 0 && <span className="text-blue-600">{c.shipped} ship · </span>}
+                          {c.pending > 0 && <span className="text-emerald-600">{c.pending} pend</span>}
+                          {c.delivered === 0 && c.shipped === 0 && c.pending === 0 && <span>—</span>}
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-[#f4991a] flex-shrink-0 ml-2">{c.total}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
