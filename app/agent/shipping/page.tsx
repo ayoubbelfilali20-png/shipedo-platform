@@ -26,6 +26,7 @@ type OrderRow = {
   status: string
   payment_method: string
   printed?: boolean
+  print_count?: number
   notes?: string | null
   last_call_note?: string | null
   shipped_at?: string | null
@@ -353,8 +354,16 @@ export default function AgentShippingPage() {
     const toPrint = orders.filter(o => ids.includes(o.id))
     if (toPrint.length === 0) return
     printOrderLabels(toPrint.map(orderToLabel))
-    await Promise.all(ids.map(id => supabase.from('orders').update({ printed: true }).eq('id', id)))
-    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, printed: true } : o))
+    const nextCounts = new Map<string, number>()
+    toPrint.forEach(o => nextCounts.set(o.id, (o.print_count || 0) + 1))
+    await Promise.all(
+      Array.from(nextCounts.entries()).map(([id, c]) =>
+        supabase.from('orders').update({ printed: true, print_count: c }).eq('id', id),
+      ),
+    )
+    setOrders(prev => prev.map(o => nextCounts.has(o.id)
+      ? { ...o, printed: true, print_count: nextCounts.get(o.id)! }
+      : o))
     setPrintQueue(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n })
   }
 
@@ -549,12 +558,17 @@ export default function AgentShippingPage() {
                 {/* Header */}
                 <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
                   <div className="flex items-center gap-2 min-w-0">
-                    {order.printed ? (
-                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Printed</span>
-                    ) : (
-                      <button onClick={() => togglePrintQueue(order.id)} className="text-gray-300 hover:text-blue-600">
-                        {printQueue.has(order.id) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} />}
-                      </button>
+                    <button
+                      onClick={() => togglePrintQueue(order.id)}
+                      className="text-gray-300 hover:text-blue-600"
+                      title={(order.print_count || 0) > 0 ? 'Re-print' : 'Add to print queue'}
+                    >
+                      {printQueue.has(order.id) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} />}
+                    </button>
+                    {(order.print_count || 0) > 0 && (
+                      <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                        {order.print_count}× Printed
+                      </span>
                     )}
                     <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
                     <span className="text-[10px] text-gray-400">{order.payment_method}</span>

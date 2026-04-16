@@ -26,6 +26,7 @@ type OrderRow = {
   status: string
   payment_method: string
   printed?: boolean
+  print_count?: number
   notes?: string | null
   shipped_at?: string | null
   shipped_to_agent_at?: string | null
@@ -250,8 +251,16 @@ export default function AdminShippingPage() {
     const toPrint = orders.filter(o => ids.includes(o.id))
     if (toPrint.length === 0) return
     printOrderLabels(toPrint.map(orderToLabel))
-    await Promise.all(ids.map(id => supabase.from('orders').update({ printed: true }).eq('id', id)))
-    setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, printed: true } : o))
+    const nextCounts = new Map<string, number>()
+    toPrint.forEach(o => nextCounts.set(o.id, (o.print_count || 0) + 1))
+    await Promise.all(
+      Array.from(nextCounts.entries()).map(([id, c]) =>
+        supabase.from('orders').update({ printed: true, print_count: c }).eq('id', id),
+      ),
+    )
+    setOrders(prev => prev.map(o => nextCounts.has(o.id)
+      ? { ...o, printed: true, print_count: nextCounts.get(o.id)! }
+      : o))
     setPrintQueue(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n })
   }
 
@@ -510,13 +519,20 @@ function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, proce
     <tr className="hover:bg-gray-50/50">
       {/* Print checkbox */}
       <td className="px-3 py-3 text-center">
-        {order.printed ? (
-          <span className="inline-block text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">Printed</span>
-        ) : (
-          <button onClick={onTogglePrint} className="text-gray-300 hover:text-blue-600 transition-colors">
+        <div className="flex flex-col items-center gap-1">
+          <button
+            onClick={onTogglePrint}
+            className="text-gray-300 hover:text-blue-600 transition-colors"
+            title={(order.print_count || 0) > 0 ? 'Re-print' : 'Add to print queue'}
+          >
             {inPrintQueue ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
           </button>
-        )}
+          {(order.print_count || 0) > 0 && (
+            <span className="inline-block text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+              {order.print_count}×
+            </span>
+          )}
+        </div>
       </td>
 
       {/* Tracking */}
