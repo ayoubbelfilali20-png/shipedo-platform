@@ -56,15 +56,19 @@ function orderToLabel(o: OrderRow): PrintLabelProps {
   }
 }
 
+const PAGE_SIZE = 100
+
 export default function OrdersPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<OrderRow[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
-  // Print helpers — manual select
   const addToPrintQueue = (id: string) => {
     const o = orders.find(x => x.id === id)
     if (!o || o.printed) return
@@ -72,38 +76,40 @@ export default function OrdersPage() {
   }
   const removeFromPrintQueue = (id: string) => setPrintQueue(prev => { const n = new Set(prev); n.delete(id); return n })
   const queuedOrders = orders.filter(o => printQueue.has(o.id))
-  const toggleSelectAll = () => {
-    if (printQueue.size === queuedOrders.length && queuedOrders.length > 0) setPrintQueue(new Set())
-    // already all selected — keep as is
-  }
   const doPrint = async (ids: string[]) => {
     const toPrint = orders.filter(o => ids.includes(o.id))
     if (toPrint.length === 0) return
     printOrderLabels(toPrint.map(orderToLabel))
     await Promise.all(ids.map(id => supabase.from('orders').update({ printed: true }).eq('id', id)))
-    // Update local state: mark as printed + remove from queue
     setOrders(prev => prev.map(o => ids.includes(o.id) ? { ...o, printed: true } : o))
     setPrintQueue(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n })
   }
 
   useEffect(() => {
-    supabase.from('orders').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setOrders((data || []) as OrderRow[])
-        setLoading(false)
-      })
-  }, [])
+    const load = async () => {
+      setLoading(true)
+      let q = supabase.from('orders').select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
+      if (search.trim()) {
+        q = q.or(`tracking_number.ilike.%${search.trim()}%,customer_name.ilike.%${search.trim()}%,customer_phone.ilike.%${search.trim()}%,customer_city.ilike.%${search.trim()}%`)
+      }
+      const { data, count } = await q
+      setOrders((data || []) as OrderRow[])
+      setTotal(count || 0)
+      setLoading(false)
+    }
+    load()
+  }, [page, statusFilter, search])
 
-  const filtered = orders.filter((order) => {
-    const q = search.toLowerCase()
-    const matchesSearch =
-      order.tracking_number?.toLowerCase().includes(q) ||
-      order.customer_name?.toLowerCase().includes(q) ||
-      (order.customer_phone || '').includes(search) ||
-      (order.customer_city || '').toLowerCase().includes(q)
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(0) }, 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  const filtered = orders
 
   return (
     <div className="min-h-screen">
@@ -119,13 +125,13 @@ export default function OrdersPage() {
           <div className="relative w-full sm:max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search orders..."
               className="w-full pl-8 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a] shadow-sm transition-all"
             />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
+            {searchInput && (
+              <button onClick={() => { setSearchInput(''); setSearch('') }} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
                 <X size={13} />
               </button>
             )}
@@ -135,7 +141,7 @@ export default function OrdersPage() {
             {statusFilters.map((f) => (
               <button
                 key={f.value}
-                onClick={() => setStatusFilter(f.value)}
+                onClick={() => { setStatusFilter(f.value); setPage(0) }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   statusFilter === f.value
                     ? 'bg-[#1a1c3a] text-white shadow-sm'
@@ -298,8 +304,20 @@ export default function OrdersPage() {
 
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-50">
             <span className="text-xs text-gray-400">
-              Showing {filtered.length} of {orders.length} orders
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total} orders
             </span>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page === 0 || loading}
+                onClick={() => setPage(p => p - 1)}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg disabled:opacity-30 hover:bg-gray-50"
+              >Prev</button>
+              <button
+                disabled={(page + 1) * PAGE_SIZE >= total || loading}
+                onClick={() => setPage(p => p + 1)}
+                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded-lg disabled:opacity-30 hover:bg-gray-50"
+              >Next</button>
+            </div>
           </div>
         </div>
       </div>
