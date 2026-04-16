@@ -108,9 +108,12 @@ export default function SellerShippingPage() {
     } catch {}
     if (!sellerId) { setLoading(false); return }
     Promise.all([
-      supabase.from('orders').select('*').eq('seller_id', sellerId)
+      supabase.from('orders')
+        .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at')
+        .eq('seller_id', sellerId)
         .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(2000),
       supabase.from('products').select('id, name, sku').eq('seller_id', sellerId).order('name'),
     ]).then(([ordersRes, productsRes]) => {
       setOrders((ordersRes.data || []) as OrderRow[])

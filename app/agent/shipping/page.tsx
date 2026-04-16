@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
@@ -147,9 +147,10 @@ export default function AgentShippingPage() {
   const loadOrders = useCallback(async () => {
     const { data } = await supabase
       .from('orders')
-      .select('*')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason')
       .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
+      .limit(2000)
     const rows = (data || []) as OrderRow[]
     // Recalculate total from items if total_amount is 0
     rows.forEach(o => {
@@ -193,8 +194,14 @@ export default function AgentShippingPage() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // Unique products & cities extracted from orders
-  const productOptions = (() => {
+  // Resolve city once per order — used by every filter/breakdown computation
+  const cityByOrderId = useMemo(() => {
+    const m = new Map<string, string | null>()
+    orders.forEach(o => m.set(o.id, resolveCity(o.customer_city, o.customer_address)))
+    return m
+  }, [orders])
+
+  const productOptions = useMemo(() => {
     const set = new Map<string, string>()
     orders.forEach(o => {
       const items = Array.isArray(o.items) ? o.items : []
@@ -204,74 +211,88 @@ export default function AgentShippingPage() {
       })
     })
     return Array.from(set.values()).sort()
-  })()
+  }, [orders])
 
-  const cityOptions = (() => {
+  const cityOptions = useMemo(() => {
     const present = new Set<string>()
-    orders.forEach(o => {
-      const resolved = resolveCity(o.customer_city, o.customer_address)
-      if (resolved) present.add(resolved)
-    })
+    cityByOrderId.forEach(c => { if (c) present.add(c) })
     return KENYAN_CITIES.filter(c => present.has(c))
-  })()
+  }, [cityByOrderId])
 
-  const baseFiltered = orders.filter(o => {
+  // Pre-compute date range once so we don't reparse per row
+  const { from: dateFrom, to: dateTo } = useMemo(
+    () => getDateRange(datePreset, customFrom, customTo),
+    [datePreset, customFrom, customTo],
+  )
+
+  const baseFiltered = useMemo(() => {
     const q = search.toLowerCase().trim()
-    const matchesSearch = !q ||
-      o.tracking_number?.toLowerCase().includes(q) ||
-      o.customer_phone?.includes(q) ||
-      o.customer_name?.toLowerCase().includes(q) ||
-      o.customer_city?.toLowerCase().includes(q) ||
-      o.customer_address?.toLowerCase().includes(q)
-    const { from, to } = getDateRange(datePreset, customFrom, customTo)
-    const statusDate = new Date(getStatusDate(o))
-    const matchesDate = (!from || statusDate >= from) && (!to || statusDate <= to)
-    const matchesProduct = filterProduct === 'all' || (Array.isArray(o.items) &&
-      o.items.some((it: any) => (it.name || '').toLowerCase() === filterProduct.toLowerCase()))
-    const resolvedCity = resolveCity(o.customer_city, o.customer_address)
-    const matchesCity = filterCity === 'all' || resolvedCity === filterCity
-    return matchesSearch && matchesDate && matchesProduct && matchesCity
-  })
-
-  const filtered = baseFiltered.filter(o => filterStatus === 'all' || o.status === filterStatus)
-
-  const counts = shippingStatuses.reduce((acc, s) => {
-    acc[s] = baseFiltered.filter(o => o.status === s).length
-    return acc
-  }, {} as Record<string, number>)
-
-  // City breakdown (uses base filter — respects date, product, search; ignores city/status)
-  const cityBreakdown = (() => {
-    const source = orders.filter(o => {
-      const q = search.toLowerCase().trim()
+    const productLower = filterProduct.toLowerCase()
+    return orders.filter(o => {
       const matchesSearch = !q ||
         o.tracking_number?.toLowerCase().includes(q) ||
         o.customer_phone?.includes(q) ||
         o.customer_name?.toLowerCase().includes(q) ||
         o.customer_city?.toLowerCase().includes(q) ||
         o.customer_address?.toLowerCase().includes(q)
-      const { from, to } = getDateRange(datePreset, customFrom, customTo)
+      if (!matchesSearch) return false
       const statusDate = new Date(getStatusDate(o))
-      const matchesDate = (!from || statusDate >= from) && (!to || statusDate <= to)
-      const matchesProduct = filterProduct === 'all' || (Array.isArray(o.items) &&
-        o.items.some((it: any) => (it.name || '').toLowerCase() === filterProduct.toLowerCase()))
-      return matchesSearch && matchesDate && matchesProduct
+      if (dateFrom && statusDate < dateFrom) return false
+      if (dateTo && statusDate > dateTo) return false
+      if (filterProduct !== 'all') {
+        if (!Array.isArray(o.items)) return false
+        if (!o.items.some((it: any) => (it.name || '').toLowerCase() === productLower)) return false
+      }
+      if (filterCity !== 'all' && cityByOrderId.get(o.id) !== filterCity) return false
+      return true
     })
+  }, [orders, search, dateFrom, dateTo, filterProduct, filterCity, cityByOrderId])
+
+  const filtered = useMemo(
+    () => filterStatus === 'all' ? baseFiltered : baseFiltered.filter(o => o.status === filterStatus),
+    [baseFiltered, filterStatus],
+  )
+
+  const counts = useMemo(() => {
+    const acc = {} as Record<string, number>
+    shippingStatuses.forEach(s => { acc[s] = 0 })
+    baseFiltered.forEach(o => { if (acc[o.status] !== undefined) acc[o.status]++ })
+    return acc
+  }, [baseFiltered])
+
+  // City breakdown (uses base filter — respects date, product, search; ignores city/status)
+  const cityBreakdown = useMemo(() => {
+    const q = search.toLowerCase().trim()
+    const productLower = filterProduct.toLowerCase()
     const map = new Map<string, { total: number; delivered: number; shipped: number; pending: number }>()
-    source.forEach(o => {
-      const c = resolveCity(o.customer_city, o.customer_address)
+    orders.forEach(o => {
+      const matchesSearch = !q ||
+        o.tracking_number?.toLowerCase().includes(q) ||
+        o.customer_phone?.includes(q) ||
+        o.customer_name?.toLowerCase().includes(q) ||
+        o.customer_city?.toLowerCase().includes(q) ||
+        o.customer_address?.toLowerCase().includes(q)
+      if (!matchesSearch) return
+      const statusDate = new Date(getStatusDate(o))
+      if (dateFrom && statusDate < dateFrom) return
+      if (dateTo && statusDate > dateTo) return
+      if (filterProduct !== 'all') {
+        if (!Array.isArray(o.items)) return
+        if (!o.items.some((it: any) => (it.name || '').toLowerCase() === productLower)) return
+      }
+      const c = cityByOrderId.get(o.id)
       if (!c) return
       const cur = map.get(c) || { total: 0, delivered: 0, shipped: 0, pending: 0 }
       cur.total++
       if (o.status === 'delivered') cur.delivered++
       if (o.status === 'shipped' || o.status === 'shipped_to_agent') cur.shipped++
-      if (['confirmed', 'prepared'].includes(o.status)) cur.pending++
+      if (o.status === 'confirmed' || o.status === 'prepared') cur.pending++
       map.set(c, cur)
     })
     return Array.from(map.entries())
       .map(([city, stats]) => ({ city, ...stats }))
       .sort((a, b) => b.total - a.total)
-  })()
+  }, [orders, search, dateFrom, dateTo, filterProduct, cityByOrderId])
 
   const changeStatus = async (orderId: string, newStatus: string) => {
     setProcessing(orderId)
