@@ -11,6 +11,7 @@ import {
   MapPin, Clock, AlertCircle, Calendar, UserCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
 
 type OrderRow = {
   id: string
@@ -155,12 +156,12 @@ export default function AdminShippingPage() {
   })()
 
   const cityOptions = (() => {
-    const set = new Map<string, string>()
+    const present = new Set<string>()
     orders.forEach(o => {
-      const c = (o.customer_city || '').trim()
-      if (c) set.set(c.toLowerCase(), c)
+      const resolved = resolveCity(o.customer_city, o.customer_address)
+      if (resolved) present.add(resolved)
     })
-    return Array.from(set.values()).sort()
+    return KENYAN_CITIES.filter(c => present.has(c))
   })()
 
   const baseFiltered = orders.filter((o: any) => {
@@ -176,7 +177,8 @@ export default function AdminShippingPage() {
     const matchesDate = (!from || statusDate >= from) && (!to || statusDate <= to)
     const matchesProduct = filterProduct === 'all' || (Array.isArray(o.items) &&
       o.items.some((it: any) => (it.name || '').toLowerCase() === filterProduct.toLowerCase()))
-    const matchesCity = filterCity === 'all' || (o.customer_city || '').toLowerCase() === filterCity.toLowerCase()
+    const resolvedCity = resolveCity(o.customer_city, o.customer_address)
+    const matchesCity = filterCity === 'all' || resolvedCity === filterCity
     return matchesSearch && matchesDate && matchesProduct && matchesCity
   })
 
@@ -205,7 +207,8 @@ export default function AdminShippingPage() {
     })
     const map = new Map<string, { total: number; delivered: number; shipped: number; pending: number }>()
     source.forEach(o => {
-      const c = (o.customer_city || 'Unknown').trim() || 'Unknown'
+      const c = resolveCity(o.customer_city, o.customer_address)
+      if (!c) return
       const cur = map.get(c) || { total: 0, delivered: 0, shipped: 0, pending: 0 }
       cur.total++
       if (o.status === 'delivered') cur.delivered++
