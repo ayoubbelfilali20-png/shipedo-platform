@@ -50,9 +50,9 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; b
 const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped', 'delivered', 'returned', 'cancelled']
 
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
-function whatsappLink(phone: string, text: string) {
+function openWhatsApp(phone: string, text: string) {
   const num = cleanPhone(phone).replace(/^\+/, '')
-  return `whatsapp://send?phone=${num}&text=${encodeURIComponent(text)}`
+  window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(text)}`
 }
 
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
@@ -490,12 +490,14 @@ export default function AgentHistoryPage() {
                       className="w-7 h-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
                       <Phone size={12} />
                     </a>
-                    <a href={whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}
-                      target="_blank" rel="noopener noreferrer"
-                      onClick={() => logWhatsAppContact(o.id, agentId || '', agentName, o.customer_name)}
+                    <button
+                      onClick={() => {
+                        openWhatsApp(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)
+                        logWhatsAppContact(o.id, agentId || '', agentName, o.customer_name)
+                      }}
                       className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
                       <MessageCircle size={12} />
-                    </a>
+                    </button>
                     <StatusDropdown
                       currentStatus={o.status as AllStatus}
                       processing={busy === o.id}

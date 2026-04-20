@@ -90,9 +90,9 @@ function getStatusDate(o: any): string {
 }
 
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
-function whatsappLink(phone: string, text: string) {
+function openWhatsApp(phone: string, text: string) {
   const num = cleanPhone(phone).replace(/^\+/, '')
-  return `whatsapp://send?phone=${num}&text=${encodeURIComponent(text)}`
+  window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(text)}`
 }
 
 async function logWhatsAppContact(orderId: string, adminId: string, adminName: string, customerName: string) {
@@ -673,15 +673,13 @@ function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, proce
           >
             <Phone size={12} />
           </a>
-          <a
-            href={whatsappLink(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => openWhatsApp(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)}
             className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all"
             title="WhatsApp"
           >
             <MessageCircle size={12} />
-          </a>
+          </button>
         </div>
       </td>
     </tr>

@@ -36,9 +36,12 @@ function cleanPhone(p: string) {
   return (p || '').replace(/[^\d+]/g, '')
 }
 
-function whatsappLink(phone: string, text: string) {
+function whatsappUrl(phone: string, text: string) {
   const num = cleanPhone(phone).replace(/^\+/, '')
-  return `whatsapp://send?phone=${num}&text=${encodeURIComponent(text)}`
+  return `https://wa.me/${num}?text=${encodeURIComponent(text)}`
+}
+function openWhatsApp(phone: string, text: string) {
+  window.location.href = whatsappUrl(phone, text)
 }
 
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
@@ -554,15 +557,15 @@ export default function AgentCallsPage() {
                         >
                           <Phone size={13} /> Call
                         </a>
-                        <a
-                          href={whatsappLink(order.customer_phone, waText)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => logWhatsAppContact(order.id, agentId || '', agentName, order.customer_name)}
+                        <button
+                          onClick={() => {
+                            openWhatsApp(order.customer_phone, waText)
+                            logWhatsAppContact(order.id, agentId || '', agentName, order.customer_name)
+                          }}
                           className="flex items-center justify-center gap-1.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all"
                         >
                           <MessageCircle size={13} /> WhatsApp
-                        </a>
+                        </button>
                       </div>
                     </>
                   )}

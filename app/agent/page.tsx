@@ -550,15 +550,16 @@ export default function AgentDashboard() {
                           >
                             <Phone size={12} />
                           </a>
-                          <a
-                            href={`whatsapp://send?phone=${cleanPhone(o.customer_phone).replace(/^\+/, '')}&text=${encodeURIComponent(`Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={() => {
+                              const num = cleanPhone(o.customer_phone).replace(/^\+/, '')
+                              window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(`Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}`
+                            }}
                             title="WhatsApp"
                             className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center"
                           >
                             <MessageCircle size={12} />
-                          </a>
+                          </button>
                           <button
                             disabled={busyId === o.id}
                             onClick={() => reopenForCall(o)}
