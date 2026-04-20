@@ -298,21 +298,6 @@ export default function AgentDashboard() {
 
   const cleanPhone = (p: string) => (p || '').replace(/[^\d+]/g, '')
 
-  const saveContactAndOpenWhatsApp = (phone: string, name: string, waUrl: string) => {
-    const num = cleanPhone(phone)
-    const vcard = `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${name}\r\nTEL;TYPE=CELL:${num}\r\nEND:VCARD`
-    const blob = new Blob([vcard], { type: 'text/vcard' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${name.replace(/[^a-zA-Z0-9 ]/g, '')}.vcf`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    setTimeout(() => { window.open(waUrl, '_blank') }, 800)
-  }
-
   return (
     <div className="min-h-screen bg-[#f5f7fa]">
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
@@ -565,16 +550,15 @@ export default function AgentDashboard() {
                           >
                             <Phone size={12} />
                           </a>
-                          <button
-                            onClick={() => {
-                              const waUrl = `https://wa.me/${cleanPhone(o.customer_phone).replace(/^\+/, '')}?text=${encodeURIComponent(`Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}`
-                              saveContactAndOpenWhatsApp(o.customer_phone, o.customer_name, waUrl)
-                            }}
+                          <a
+                            href={`https://wa.me/${cleanPhone(o.customer_phone).replace(/^\+/, '')}?text=${encodeURIComponent(`Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             title="WhatsApp"
                             className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center"
                           >
                             <MessageCircle size={12} />
-                          </button>
+                          </a>
                           <button
                             disabled={busyId === o.id}
                             onClick={() => reopenForCall(o)}

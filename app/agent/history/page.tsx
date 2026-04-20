@@ -55,21 +55,6 @@ function whatsappLink(phone: string, text: string) {
   return `https://wa.me/${num}?text=${encodeURIComponent(text)}`
 }
 
-function saveContactAndOpenWhatsApp(phone: string, name: string, waUrl: string) {
-  const num = cleanPhone(phone)
-  const vcard = `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${name}\r\nTEL;TYPE=CELL:${num}\r\nEND:VCARD`
-  const blob = new Blob([vcard], { type: 'text/vcard' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${name.replace(/[^a-zA-Z0-9 ]/g, '')}.vcf`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-  setTimeout(() => { window.open(waUrl, '_blank') }, 800)
-}
-
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
   try {
     await supabase.from('call_logs').insert({
@@ -505,15 +490,12 @@ export default function AgentHistoryPage() {
                       className="w-7 h-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
                       <Phone size={12} />
                     </a>
-                    <button
-                      onClick={() => {
-                        const waUrl = whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)
-                        saveContactAndOpenWhatsApp(o.customer_phone, o.customer_name, waUrl)
-                        logWhatsAppContact(o.id, agentId || '', agentName, o.customer_name)
-                      }}
+                    <a href={whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}
+                      target="_blank" rel="noopener noreferrer"
+                      onClick={() => logWhatsAppContact(o.id, agentId || '', agentName, o.customer_name)}
                       className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
                       <MessageCircle size={12} />
-                    </button>
+                    </a>
                     <StatusDropdown
                       currentStatus={o.status as AllStatus}
                       processing={busy === o.id}

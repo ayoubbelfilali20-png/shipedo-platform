@@ -103,21 +103,6 @@ function whatsappLink(phone: string, text: string) {
   return `https://wa.me/${num}?text=${encodeURIComponent(text)}`
 }
 
-function saveContactAndOpenWhatsApp(phone: string, name: string, waUrl: string) {
-  const num = cleanPhone(phone)
-  const vcard = `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${name}\r\nTEL;TYPE=CELL:${num}\r\nEND:VCARD`
-  const blob = new Blob([vcard], { type: 'text/vcard' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${name.replace(/[^a-zA-Z0-9 ]/g, '')}.vcf`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-  setTimeout(() => { window.open(waUrl, '_blank') }, 800)
-}
-
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
   try {
     await supabase.from('call_logs').insert({
@@ -649,15 +634,12 @@ export default function AgentShippingPage() {
                       className="w-7 h-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500 transition-all">
                       <Phone size={12} />
                     </a>
-                    <button
-                      onClick={() => {
-                        const waUrl = whatsappLink(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)
-                        saveContactAndOpenWhatsApp(order.customer_phone, order.customer_name, waUrl)
-                        logWhatsAppContact(order.id, agentId, agentName, order.customer_name)
-                      }}
+                    <a href={whatsappLink(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)}
+                      target="_blank" rel="noopener noreferrer"
+                      onClick={() => logWhatsAppContact(order.id, agentId, agentName, order.customer_name)}
                       className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
                       <MessageCircle size={12} />
-                    </button>
+                    </a>
                     <StatusDropdown
                       currentStatus={order.status as AllStatus}
                       processing={processing === order.id}
