@@ -41,7 +41,21 @@ function whatsappLink(phone: string, text: string) {
   return `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`
 }
 
-// Log WhatsApp contact attempt to call_logs
+function saveContactAndOpenWhatsApp(phone: string, name: string, waUrl: string) {
+  const num = cleanPhone(phone)
+  const vcard = `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${name}\r\nTEL;TYPE=CELL:${num}\r\nEND:VCARD`
+  const blob = new Blob([vcard], { type: 'text/vcard' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${name.replace(/[^a-zA-Z0-9 ]/g, '')}.vcf`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+  setTimeout(() => { window.open(waUrl, '_blank') }, 800)
+}
+
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
   try {
     await supabase.from('call_logs').insert({
@@ -51,9 +65,7 @@ async function logWhatsAppContact(orderId: string, agentId: string, agentName: s
       action: 'whatsapp_contact',
       note: `WhatsApp message sent to ${customerName}`,
     })
-  } catch (err) {
-    console.error('Failed to log WhatsApp contact:', err)
-  }
+  } catch {}
 }
 
 export default function AgentCallsPage() {
@@ -557,17 +569,16 @@ export default function AgentCallsPage() {
                         >
                           <Phone size={13} /> Call
                         </a>
-                        <a
-                          href={whatsappLink(order.customer_phone, waText)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
                           onClick={() => {
+                            const waUrl = whatsappLink(order.customer_phone, waText)
+                            saveContactAndOpenWhatsApp(order.customer_phone, order.customer_name, waUrl)
                             logWhatsAppContact(order.id, agentId || '', agentName, order.customer_name)
                           }}
                           className="flex items-center justify-center gap-1.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all"
                         >
                           <MessageCircle size={13} /> WhatsApp
-                        </a>
+                        </button>
                       </div>
                     </>
                   )}
