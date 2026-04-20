@@ -55,6 +55,20 @@ function whatsappLink(phone: string, text: string) {
   return `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`
 }
 
+async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
+  try {
+    await supabase.from('call_logs').insert({
+      order_id: orderId,
+      agent_id: agentId,
+      agent_name: agentName,
+      action: 'whatsapp_contact',
+      note: `WhatsApp message sent to ${customerName}`,
+    })
+  } catch (err) {
+    console.error('Failed to log WhatsApp contact:', err)
+  }
+}
+
 function formatDate(d: string) {
   const dt = new Date(d)
   return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -480,6 +494,7 @@ export default function AgentHistoryPage() {
                     </a>
                     <a href={whatsappLink(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}
                       target="_blank" rel="noopener noreferrer"
+                      onClick={() => logWhatsAppContact(o.id, agentId || '', agentName, o.customer_name)}
                       className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
                       <MessageCircle size={12} />
                     </a>

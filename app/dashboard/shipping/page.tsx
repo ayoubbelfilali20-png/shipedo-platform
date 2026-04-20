@@ -95,6 +95,20 @@ function whatsappLink(phone: string, text: string) {
   return `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`
 }
 
+async function logWhatsAppContact(orderId: string, adminId: string, adminName: string, customerName: string) {
+  try {
+    await supabase.from('call_logs').insert({
+      order_id: orderId,
+      agent_id: adminId,
+      agent_name: adminName,
+      action: 'whatsapp_contact',
+      note: `WhatsApp message sent to ${customerName}`,
+    })
+  } catch (err) {
+    console.error('Failed to log WhatsApp contact:', err)
+  }
+}
+
 function orderToLabel(o: OrderRow): PrintLabelProps {
   return {
     id: o.id,

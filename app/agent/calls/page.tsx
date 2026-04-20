@@ -41,6 +41,21 @@ function whatsappLink(phone: string, text: string) {
   return `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(text)}`
 }
 
+// Log WhatsApp contact attempt to call_logs
+async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
+  try {
+    await supabase.from('call_logs').insert({
+      order_id: orderId,
+      agent_id: agentId,
+      agent_name: agentName,
+      action: 'whatsapp_contact',
+      note: `WhatsApp message sent to ${customerName}`,
+    })
+  } catch (err) {
+    console.error('Failed to log WhatsApp contact:', err)
+  }
+}
+
 export default function AgentCallsPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -546,6 +561,9 @@ export default function AgentCallsPage() {
                           href={whatsappLink(order.customer_phone, waText)}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => {
+                            logWhatsAppContact(order.id, agentId || '', agentName, order.customer_name)
+                          }}
                           className="flex items-center justify-center gap-1.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition-all"
                         >
                           <MessageCircle size={13} /> WhatsApp
