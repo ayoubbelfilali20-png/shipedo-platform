@@ -296,7 +296,11 @@ export default function AgentDashboard() {
     setHistoryLogs((data || []) as CallLog[])
   }
 
-  const cleanPhone = (p: string) => (p || '').replace(/[^\d+]/g, '')
+  const cleanPhone = (p: string) => {
+    let num = (p || '').replace(/[^\d+]/g, '')
+    if (/^0[17]\d{8}$/.test(num)) num = '254' + num.slice(1)
+    return num
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f7fa]">

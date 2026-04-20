@@ -33,7 +33,10 @@ type OrderRow = {
 }
 
 function cleanPhone(p: string) {
-  return (p || '').replace(/[^\d+]/g, '')
+  let num = (p || '').replace(/[^\d+]/g, '')
+  // Convert Kenyan local format (07XX / 01XX) to international (2547XX / 2541XX)
+  if (/^0[17]\d{8}$/.test(num)) num = '254' + num.slice(1)
+  return num
 }
 
 function whatsappUrl(phone: string, text: string) {

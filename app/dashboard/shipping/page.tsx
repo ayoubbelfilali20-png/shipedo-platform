@@ -89,7 +89,11 @@ function getStatusDate(o: any): string {
   return o.created_at
 }
 
-function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
+function cleanPhone(p: string) {
+  let num = (p || '').replace(/[^\d+]/g, '')
+  if (/^0[17]\d{8}$/.test(num)) num = '254' + num.slice(1)
+  return num
+}
 function openWhatsApp(phone: string, text: string) {
   const num = cleanPhone(phone).replace(/^\+/, '')
   window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(text)}`
