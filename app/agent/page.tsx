@@ -551,7 +551,7 @@ export default function AgentDashboard() {
                             <Phone size={12} />
                           </a>
                           <a
-                            href={`https://wa.me/${cleanPhone(o.customer_phone).replace(/^\+/, '')}?text=${encodeURIComponent(`Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}`}
+                            href={`whatsapp://send?phone=${cleanPhone(o.customer_phone).replace(/^\+/, '')}&text=${encodeURIComponent(`Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             title="WhatsApp"

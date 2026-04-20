@@ -100,7 +100,7 @@ function getStatusDate(o: any): string {
 function cleanPhone(p: string) { return (p || '').replace(/[^\d+]/g, '') }
 function whatsappLink(phone: string, text: string) {
   const num = cleanPhone(phone).replace(/^\+/, '')
-  return `https://wa.me/${num}?text=${encodeURIComponent(text)}`
+  return `whatsapp://send?phone=${num}&text=${encodeURIComponent(text)}`
 }
 
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
