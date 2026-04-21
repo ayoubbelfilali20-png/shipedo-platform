@@ -491,8 +491,8 @@ export default function AgentCallsPage() {
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-widest">Now Calling</p>
                   <div className="flex items-center gap-2">
                     <p className="text-white font-bold text-lg font-mono">{order.tracking_number}</p>
-                    {order.call_attempts > 0 && (
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${order.call_attempts >= 3 ? 'bg-red-500 text-white' : order.call_attempts >= 2 ? 'bg-orange-400 text-white' : 'bg-yellow-400 text-gray-800'}`}>
+                    {(order.call_attempts ?? 0) > 0 && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${(order.call_attempts ?? 0) >= 3 ? 'bg-red-500 text-white' : (order.call_attempts ?? 0) >= 2 ? 'bg-orange-400 text-white' : 'bg-yellow-400 text-gray-800'}`}>
                         x{order.call_attempts}
                       </span>
                     )}
