@@ -358,7 +358,9 @@ export default function SellerOrdersPage() {
                           <span className="text-xs font-mono text-gray-700">{order.tracking_number}</span>
                         </td>
                         <td className="px-4 py-4">
-                          <span className="text-xs font-semibold text-gray-600">{order.source || 'Manual'}</span>
+                          <span className="text-xs font-semibold text-gray-600">
+                            {!order.source ? 'Manual' : order.source === 'google-sheet' ? 'Sheet' : order.source}
+                          </span>
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-xs text-gray-400">{order.subuser || '—'}</span>
