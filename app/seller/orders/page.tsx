@@ -348,7 +348,9 @@ export default function SellerOrdersPage() {
                 ) : (
                   pageRows.map(order => {
                     const cfg     = statusConfig[order.status] || statusConfig.pending
-                    const itemCount = Array.isArray(order.items) ? order.items.length : 0
+                    const itemCount = Array.isArray(order.items)
+                      ? order.items.reduce((s: number, it: any) => s + (Number(it.quantity) || 1), 0)
+                      : 0
                     const isExpanded = expandedDetails === order.id
 
                     return (

@@ -153,8 +153,7 @@ export default function OrderItemsDetails({
 
               <div className="flex items-center justify-between pt-1">
                 <span className="text-xs font-bold text-emerald-600">
-                  KES {unit.toLocaleString()}{' '}
-                  <span className="text-gray-400 font-normal">/ unit</span>
+                  KES {(unit * qty).toLocaleString()}
                 </span>
                 {p?.product_link && (
                   <a
