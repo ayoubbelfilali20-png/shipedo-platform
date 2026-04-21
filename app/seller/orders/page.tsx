@@ -75,6 +75,19 @@ function formatDateOnly(dateStr: string) {
   return `${yyyy}-${mm}-${dd}`
 }
 
+const ORDERS_CACHE = (id: string) => `shipedo_seller_orders_v1_${id}`
+
+function normalizeRows(data: any[]): OrderRow[] {
+  const rows = (data || []) as OrderRow[]
+  rows.forEach(o => {
+    if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
+      const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
+      if (calc > 0) o.total_amount = calc
+    }
+  })
+  return rows
+}
+
 export default function SellerOrdersPage() {
   const router = useRouter()
   const { t } = useT()
@@ -97,6 +110,19 @@ export default function SellerOrdersPage() {
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
+
+    const CACHE_KEY = ORDERS_CACHE(sellerId)
+
+    // Show cached data instantly
+    try {
+      const cached = localStorage.getItem(CACHE_KEY)
+      if (cached) {
+        setOrders(JSON.parse(cached))
+        setLoading(false)
+      }
+    } catch {}
+
+    // Fetch fresh in background
     supabase.from('orders')
       .select('id, tracking_number, seller_id, customer_name, customer_phone, customer_city, customer_address, country, items, total_amount, original_total, status, payment_method, source, subuser, created_at, call_attempts, reminded_at, cancel_reason')
       .eq('seller_id', sellerId)
@@ -104,16 +130,11 @@ export default function SellerOrdersPage() {
       .order('created_at', { ascending: false })
       .limit(2000)
       .then(({ data }) => {
-      const rows = (data || []) as OrderRow[]
-      rows.forEach(o => {
-        if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
-          const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
-          if (calc > 0) o.total_amount = calc
-        }
+        const rows = normalizeRows(data || [])
+        setOrders(rows)
+        setLoading(false)
+        try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
       })
-      setOrders(rows)
-      setLoading(false)
-    })
   }, [])
 
   /* ── Filter ── */
@@ -146,7 +167,17 @@ export default function SellerOrdersPage() {
     if (!deleteTarget) return
     setDeleting(true)
     await supabase.from('orders').delete().eq('id', deleteTarget.id)
-    setOrders(prev => prev.filter(o => o.id !== deleteTarget.id))
+    setOrders(prev => {
+      const updated = prev.filter(o => o.id !== deleteTarget.id)
+      try {
+        const stored = localStorage.getItem('shipedo_seller')
+        if (stored) {
+          const { id } = JSON.parse(stored)
+          localStorage.setItem(ORDERS_CACHE(id), JSON.stringify(updated))
+        }
+      } catch {}
+      return updated
+    })
     setDeleteTarget(null)
     setDeleting(false)
   }
