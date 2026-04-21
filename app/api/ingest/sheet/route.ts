@@ -40,10 +40,8 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const qty = parseInt(body.totalQuantity) || 1
   const total = parseFloat(body.totalCharge) || 0
   const sku = body.sku ? String(body.sku).trim() : ''
-  const productUrl = body.productUrl ? String(body.productUrl) : ''
 
   // Reuse the Order ID from the sheet if present, otherwise generate one
   const trackingNumber =
@@ -53,12 +51,11 @@ export async function POST(req: NextRequest) {
   // Try to match product by SKU for this seller
   let productId: string | null = null
   let productName: string = sku || 'Sheet item'
-  let unitPrice: number = qty > 0 ? total / qty : total
 
   if (sku) {
     const { data: product } = await supabaseAdmin
       .from('products')
-      .select('id, name, selling_price')
+      .select('id, name')
       .eq('seller_id', seller.id)
       .eq('sku', sku)
       .maybeSingle()
@@ -66,17 +63,17 @@ export async function POST(req: NextRequest) {
     if (product) {
       productId = product.id
       productName = product.name
-      unitPrice = product.selling_price ?? unitPrice
     }
   }
 
+  // quantity is always 1 — total price comes directly from the sheet's "Order's total"
   const items = [
     {
       product_id: productId,
       name: productName,
       sku,
-      quantity: qty,
-      unit_price: unitPrice,
+      quantity: 1,
+      unit_price: total,
     },
   ]
 
@@ -94,7 +91,7 @@ export async function POST(req: NextRequest) {
       customer_city: String(body.city || ''),
       customer_address: '',
       country: 'Kenya',
-      source: productUrl || 'google-sheet',
+      source: 'Sheet',
       items,
       total_amount: total,
       status: 'pending',

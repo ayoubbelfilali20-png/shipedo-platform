@@ -7,7 +7,7 @@ import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
 import {
   Search, Download, Eye, Pencil, Plus, Upload, FileSpreadsheet,
-  ChevronLeft, ChevronRight, ChevronDown, Phone, Clock, Package
+  ChevronLeft, ChevronRight, ChevronDown, Phone, Clock, Package, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT, type TKey } from '@/lib/i18n'
@@ -84,6 +84,8 @@ export default function SellerOrdersPage() {
   const [statusFilter, setStatus]   = useState<string>('all')
   const [page, setPage]             = useState(1)
   const [expandedDetails, setExpanded] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<OrderRow | null>(null)
+  const [deleting, setDeleting]         = useState(false)
 
   useEffect(() => {
     let sellerId: string | null = null
@@ -139,6 +141,15 @@ export default function SellerOrdersPage() {
   const pageRows   = filtered.slice(startIdx, endIdx)
 
   useEffect(() => { setPage(1) }, [search, statusFilter])
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    await supabase.from('orders').delete().eq('id', deleteTarget.id)
+    setOrders(prev => prev.filter(o => o.id !== deleteTarget.id))
+    setDeleteTarget(null)
+    setDeleting(false)
+  }
 
   const handleExport = () => {
     if (filtered.length === 0) { alert(t('ord_no_export')); return }
@@ -383,22 +394,47 @@ export default function SellerOrdersPage() {
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => router.push(`/seller/orders/${order.id}`)}
-                              className="w-8 h-8 rounded-full border border-gray-200 hover:border-orange-300 hover:bg-orange-50 flex items-center justify-center text-gray-400 hover:text-[#f4991a] transition-all"
-                              title={t('view')}
-                            >
-                              <Eye size={13} />
-                            </button>
-                            <button
-                              onClick={() => router.push(`/seller/orders/${order.id}`)}
-                              className="w-8 h-8 rounded-full border border-gray-200 hover:border-orange-300 hover:bg-orange-50 flex items-center justify-center text-gray-400 hover:text-[#f4991a] transition-all"
-                              title={t('edit')}
-                            >
-                              <Pencil size={13} />
-                            </button>
-                          </div>
+                          {(() => {
+                            const canAct = (order.call_attempts ?? 0) === 0
+                            const blockedTitle = 'Agent already called this customer'
+                            return (
+                              <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => router.push(`/seller/orders/${order.id}`)}
+                                  className="w-8 h-8 rounded-full border border-gray-200 hover:border-orange-300 hover:bg-orange-50 flex items-center justify-center text-gray-400 hover:text-[#f4991a] transition-all"
+                                  title={t('view')}
+                                >
+                                  <Eye size={13} />
+                                </button>
+                                <button
+                                  onClick={() => canAct && router.push(`/seller/orders/${order.id}?edit=1`)}
+                                  disabled={!canAct}
+                                  className={cn(
+                                    'w-8 h-8 rounded-full border flex items-center justify-center transition-all',
+                                    canAct
+                                      ? 'border-gray-200 hover:border-orange-300 hover:bg-orange-50 text-gray-400 hover:text-[#f4991a] cursor-pointer'
+                                      : 'border-gray-100 bg-gray-50 text-gray-200 cursor-not-allowed'
+                                  )}
+                                  title={canAct ? t('edit') : blockedTitle}
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
+                                  onClick={() => canAct && setDeleteTarget(order)}
+                                  disabled={!canAct}
+                                  className={cn(
+                                    'w-8 h-8 rounded-full border flex items-center justify-center transition-all',
+                                    canAct
+                                      ? 'border-gray-200 hover:border-red-300 hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer'
+                                      : 'border-gray-100 bg-gray-50 text-gray-200 cursor-not-allowed'
+                                  )}
+                                  title={canAct ? 'Delete order' : blockedTitle}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            )
+                          })()}
                         </td>
                       </tr>
                       {isExpanded && Array.isArray(order.items) && order.items.length > 0 && (
@@ -468,6 +504,39 @@ export default function SellerOrdersPage() {
         </div>
 
       </div>
+
+      {/* ── Delete confirmation modal ── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <Trash2 size={22} className="text-red-500" />
+            </div>
+            <h3 className="text-base font-bold text-gray-800 text-center mb-1">Delete order?</h3>
+            <p className="text-sm text-gray-500 text-center mb-1">
+              <span className="font-semibold text-gray-700">{deleteTarget.tracking_number}</span>
+            </p>
+            <p className="text-xs text-gray-400 text-center mb-6">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold shadow-sm shadow-red-500/30 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deleting && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
