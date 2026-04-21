@@ -322,16 +322,18 @@ function syncNewRows_() {
   for (let r = 1; r < values.length; r++) {
     const row = values[r];
     if (row[statusCol]) continue;
-    if (!row[col('full name')] || !row[col('phone')]) continue;
+    const fullName = row[col("customer's fullname")] || row[col('full name')] || '';
+    const phone    = row[col("customer's phone")]    || row[col('phone')]     || '';
+    if (!fullName || !phone) continue;
     const payload = {
-      orderId:       row[col('order id')],
-      sku:           row[col('sku')],
-      fullName:      row[col('full name')],
-      phone:         row[col('phone')],
-      city:          row[col('city')],
-      totalCharge:   row[col('total charge')],
-      totalQuantity: row[col('total quantity')],
-      productUrl:    row[col('product url')],
+      orderId:       row[col("order's number")]    || row[col('order id')],
+      sku:           row[col("product's sku")]     || row[col('sku')],
+      fullName,
+      phone,
+      city:          row[col("customer's address1")] || row[col('city')] || '',
+      totalCharge:   row[col("order's total")]     || row[col('total charge')]    || 0,
+      totalQuantity: row[col("product's quantity")] || row[col('total quantity')] || 1,
+      productUrl:    row[col('product url')] || '',
     };
     try {
       const res = UrlFetchApp.fetch(ENDPOINT, {
