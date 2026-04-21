@@ -96,7 +96,27 @@ export default function OrdersPage() {
         q = q.or(`tracking_number.ilike.%${search.trim()}%,customer_name.ilike.%${search.trim()}%,customer_phone.ilike.%${search.trim()}%,customer_city.ilike.%${search.trim()}%`)
       }
       const { data, count } = await q
-      setOrders((data || []) as OrderRow[])
+      const rows = (data || []) as OrderRow[]
+
+      const productIds = new Set<string>()
+      rows.forEach(o => {
+        if (Array.isArray(o.items)) o.items.forEach((it: any) => { if (it.product_id) productIds.add(it.product_id) })
+      })
+      if (productIds.size > 0) {
+        const { data: products } = await supabase.from('products').select('id, image_url').in('id', [...productIds])
+        if (products && products.length > 0) {
+          const imgMap = new Map(products.map(p => [p.id, p.image_url]))
+          rows.forEach(o => {
+            if (Array.isArray(o.items)) {
+              o.items = o.items.map((it: any) =>
+                it.product_id && imgMap.has(it.product_id) ? { ...it, image_url: imgMap.get(it.product_id) } : it
+              )
+            }
+          })
+        }
+      }
+
+      setOrders(rows)
       setTotal(count || 0)
       setLoading(false)
     }
@@ -233,12 +253,23 @@ export default function OrdersPage() {
                           </div>
                         </td>
                         <td className="px-4 py-4 hidden md:table-cell">
-                          <div className="max-w-[160px]">
-                            {items.slice(0, 1).map((p, i) => (
-                              <div key={i} className="text-xs text-gray-600 truncate">{p.name || 'Item'}</div>
+                          <div className="max-w-[200px] space-y-1">
+                            {items.slice(0, 2).map((p, i) => (
+                              <div key={i} className="flex items-center gap-1.5">
+                                <div className="w-6 h-6 rounded bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                  {p.image_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Package size={10} className="text-gray-300" />
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-600 truncate">{p.name || 'Item'}</span>
+                                <span className="text-[10px] text-[#f4991a] font-bold flex-shrink-0">×{p.quantity || 1}</span>
+                              </div>
                             ))}
-                            {items.length > 1 && (
-                              <div className="text-xs text-gray-400">+{items.length - 1} more</div>
+                            {items.length > 2 && (
+                              <div className="text-[10px] text-gray-400 pl-7">+{items.length - 2} more</div>
                             )}
                           </div>
                         </td>

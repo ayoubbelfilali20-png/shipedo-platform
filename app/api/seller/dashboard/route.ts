@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { enrichOrderImages } from '@/lib/enrichOrderImages'
 
 export async function GET(req: NextRequest) {
   const sellerId = req.headers.get('x-seller-id')
@@ -22,8 +23,10 @@ export async function GET(req: NextRequest) {
       .order('name'),
   ])
 
+  const enrichedOrders = await enrichOrderImages(ordersRes.data || [], supabaseAdmin)
+
   return NextResponse.json({
-    orders: ordersRes.data || [],
+    orders: enrichedOrders,
     payouts: payoutsRes.data || [],
     products: productsRes.data || [],
   })
