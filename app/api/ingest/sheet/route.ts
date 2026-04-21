@@ -41,7 +41,8 @@ export async function POST(req: NextRequest) {
   }
 
   const total = parseFloat(body.totalCharge) || 0
-  const sku = body.sku ? String(body.sku).trim() : ''
+  const qty   = parseInt(body.totalQuantity)  || 1
+  const sku   = body.sku ? String(body.sku).trim() : ''
 
   // Reuse the Order ID from the sheet if present, otherwise generate one
   const trackingNumber =
@@ -66,14 +67,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // quantity is always 1 — total price comes directly from the sheet's "Order's total"
   const items = [
     {
       product_id: productId,
       name: productName,
       sku,
-      quantity: 1,
-      unit_price: total,
+      quantity: qty,
+      unit_price: qty > 0 ? total / qty : total,
     },
   ]
 
