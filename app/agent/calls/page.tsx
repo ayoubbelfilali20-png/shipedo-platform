@@ -113,15 +113,18 @@ export default function AgentCallsPage() {
     if (!id) { setLoading(false); return }
     const nowIso = new Date().toISOString()
     const cols = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, call_attempts, reminded_at, last_call_note, cancel_reason, created_at, seller_id'
-    const [{ data }, { data: confData }] = await Promise.all([
+    const [{ data }, { data: confData }, { data: cancelData }] = await Promise.all([
       supabase.from('orders').select(cols).eq('status', 'pending').eq('assigned_agent_id', id)
         .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`).order('created_at', { ascending: true })
         .limit(500),
       supabase.from('orders').select(cols).eq('status', 'confirmed').eq('printed', false)
         .order('created_at', { ascending: true })
         .limit(500),
+      supabase.from('orders').select(cols).eq('status', 'cancelled').eq('assigned_agent_id', id)
+        .order('created_at', { ascending: true })
+        .limit(500),
     ])
-    const rows = (data || []) as OrderRow[]
+    const rows = [...(data || []), ...(cancelData || [])] as OrderRow[]
     // Recalculate total from items if total_amount is 0 + backfill original_total
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
