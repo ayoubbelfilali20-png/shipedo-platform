@@ -52,8 +52,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const total = parseFloat(body.totalCharge)   || 0
-  const qty   = parseInt(body.totalQuantity)   || 1
+  // The user's Apps Script sends totalCharge=qty and totalQuantity=price (swapped)
+  const total = parseFloat(body.totalQuantity) || 0
+  const qty   = parseInt(body.totalCharge)     || 1
 
   // ── Match product by SKU
   let productId: string | null = null
