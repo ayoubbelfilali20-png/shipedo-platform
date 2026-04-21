@@ -124,6 +124,20 @@ export default function SellerDashboard() {
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
+
+    // Show cached data instantly
+    const CACHE_KEY = 'shipedo_seller_dash_v1_' + sellerId
+    try {
+      const cached = localStorage.getItem(CACHE_KEY)
+      if (cached) {
+        const { orders: co, payouts: cp, products: cpr } = JSON.parse(cached)
+        if (co) setOrders(co)
+        if (cp) setPayouts(cp)
+        if (cpr) setProducts(cpr)
+        setLoading(false)
+      }
+    } catch {}
+
     Promise.all([
       supabase.from('orders')
         .select('id, seller_id, status, total_amount, original_total, items, created_at, shipped_at, delivered_at, returned_at, last_call_at, shipped_to_agent_at')
@@ -133,10 +147,16 @@ export default function SellerDashboard() {
       supabase.from('seller_payouts').select('*').eq('seller_id', sellerId).eq('status', 'sent').order('period_end', { ascending: false }),
       supabase.from('products').select('id, name, sku, image_url').eq('seller_id', sellerId).order('name'),
     ]).then(([ordersRes, payoutsRes, productsRes]) => {
-      setOrders(ordersRes.data || [])
-      setPayouts(payoutsRes.data || [])
-      setProducts(productsRes.data || [])
+      const freshOrders   = ordersRes.data || []
+      const freshPayouts  = payoutsRes.data || []
+      const freshProducts = productsRes.data || []
+      setOrders(freshOrders)
+      setPayouts(freshPayouts)
+      setProducts(freshProducts)
       setLoading(false)
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ orders: freshOrders, payouts: freshPayouts, products: freshProducts }))
+      } catch {}
     })
   }, [])
 
