@@ -122,19 +122,16 @@ export default function SellerOrdersPage() {
       }
     } catch {}
 
-    // Fetch fresh in background
-    supabase.from('orders')
-      .select('id, tracking_number, seller_id, customer_name, customer_phone, customer_city, customer_address, country, items, total_amount, original_total, status, payment_method, source, subuser, created_at, call_attempts, reminded_at, cancel_reason')
-      .eq('seller_id', sellerId)
-      .in('status', CONFIRMATION_STATUSES)
-      .order('created_at', { ascending: false })
-      .limit(2000)
-      .then(({ data }) => {
-        const rows = normalizeRows(data || [])
+    // Fetch fresh via server API (faster: server→Supabase instead of browser→Supabase)
+    fetch('/api/seller/orders', { headers: { 'x-seller-id': sellerId } })
+      .then(r => r.json())
+      .then(data => {
+        const rows = normalizeRows(Array.isArray(data) ? data : [])
         setOrders(rows)
         setLoading(false)
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
       })
+      .catch(() => setLoading(false))
   }, [])
 
   /* ── Filter ── */
