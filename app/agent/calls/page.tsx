@@ -111,19 +111,8 @@ export default function AgentCallsPage() {
   const loadQueue = async (aid?: string | null) => {
     const id = aid ?? agentId
     if (!id) { setLoading(false); return }
-    const nowIso = new Date().toISOString()
-    const cols = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, call_attempts, reminded_at, last_call_note, cancel_reason, created_at, seller_id'
-    const [{ data }, { data: confData }, { data: cancelData }] = await Promise.all([
-      supabase.from('orders').select(cols).eq('status', 'pending').eq('assigned_agent_id', id)
-        .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`).order('created_at', { ascending: true })
-        .limit(500),
-      supabase.from('orders').select(cols).eq('status', 'confirmed').eq('printed', false)
-        .order('created_at', { ascending: true })
-        .limit(500),
-      supabase.from('orders').select(cols).eq('status', 'cancelled').eq('assigned_agent_id', id)
-        .order('created_at', { ascending: true })
-        .limit(500),
-    ])
+    const res = await fetch('/api/agent/calls', { headers: { 'x-agent-id': id } })
+    const { pending: data, confirmed: confData, cancelled: cancelData } = await res.json()
     const rows = [...(data || []), ...(cancelData || [])] as OrderRow[]
     // Recalculate total from items if total_amount is 0 + backfill original_total
     rows.forEach(o => {
