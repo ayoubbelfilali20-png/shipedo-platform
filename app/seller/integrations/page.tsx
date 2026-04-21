@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import Header from '@/components/dashboard/Header'
 import {
   Copy, CheckCircle, ExternalLink,
@@ -602,21 +602,6 @@ const integrations: Integration[] = [
 export default function SellerIntegrationsPage() {
   const [items, setItems] = useState(integrations)
   const [activeCategory, setActiveCategory] = useState<'all' | 'ecommerce' | 'sheets' | 'api'>('all')
-
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem('shipedo_seller')
-      const sellerId = s ? JSON.parse(s).id : null
-      if (!sellerId) return
-      fetch('/api/seller/sheet-token', { headers: { 'x-seller-id': sellerId } })
-        .then(r => r.json())
-        .then(d => {
-          if (d.token) {
-            setItems(prev => prev.map(i => i.id === 'google_sheets' ? { ...i, status: 'connected' as const } : i))
-          }
-        })
-    } catch {}
-  }, [])
 
   const connect = (id: string) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, status: 'connected' as const } : i))
