@@ -112,8 +112,8 @@ export default function AgentCallsPage() {
     const id = aid ?? agentId
     if (!id) { setLoading(false); return }
     const res = await fetch('/api/agent/calls', { headers: { 'x-agent-id': id } })
-    const { pending: data, confirmed: confData, cancelled: cancelData } = await res.json()
-    const rows = [...(data || []), ...(cancelData || [])] as OrderRow[]
+    const { pending: data, confirmed: confData } = await res.json()
+    const rows = [...(data || [])] as OrderRow[]
     // Recalculate total from items if total_amount is 0 + backfill original_total
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
