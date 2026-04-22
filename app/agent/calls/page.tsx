@@ -137,20 +137,6 @@ export default function AgentCallsPage() {
     setOrders(rows)
     setConfirmedOrders((confData || []) as OrderRow[])
     setLoading(false)
-    // Enrich items with product images
-    const sellerIds = [...new Set(rows.map(r => r.seller_id).filter(Boolean))]
-    if (sellerIds.length > 0) {
-      const { data: prods } = await supabase.from('products').select('id, image_url').in('seller_id', sellerIds)
-      if (prods && prods.length > 0) {
-        const imgMap = new Map(prods.map((p: any) => [p.id, p.image_url]))
-        setOrders(prev => prev.map(o => ({
-          ...o,
-          items: Array.isArray(o.items) ? o.items.map((it: any) =>
-            it.product_id && !it.image_url && imgMap.has(it.product_id) ? { ...it, image_url: imgMap.get(it.product_id) } : it
-          ) : o.items
-        })))
-      }
-    }
   }
 
   useEffect(() => {
@@ -485,9 +471,6 @@ export default function AgentCallsPage() {
                         x{order.call_attempts}
                       </span>
                     )}
-                    {order.status === 'cancelled' && (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white">Cancelled</span>
-                    )}
                   </div>
                 </div>
                 <span className="text-white/30 text-xs">{pendingCount - 1} more after this</span>
@@ -593,42 +576,61 @@ export default function AgentCallsPage() {
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                     <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
                     <div>
-                      <p className="text-xs font-bold text-red-700">Possible duplicate order</p>
-                      <p className="text-[10px] text-red-500">This client has another active order with the same products.</p>
+                      <p className="text-xs font-bold text-red-700">Duplicate order detected</p>
+                      <p className="text-[10px] text-red-500">This client already has an active order with the same products. Consider cancelling as duplicate.</p>
                     </div>
                   </div>
                 )}
 
                 {/* Client history */}
-                {clientHistory.length > 0 && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
-                    <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wide mb-2 flex items-center gap-1">
-                      <Clock size={10} /> Returning client &middot; {clientHistory.length} previous order{clientHistory.length > 1 ? 's' : ''}
-                    </p>
-                    <div className="space-y-1 max-h-28 overflow-y-auto">
-                      {clientHistory.map(h => {
-                        const hItems = Array.isArray(h.items) ? h.items : []
-                        const statusColor: Record<string, string> = {
-                          pending: 'text-yellow-600 bg-yellow-50', confirmed: 'text-emerald-600 bg-emerald-50',
-                          prepared: 'text-indigo-600 bg-indigo-50', shipped: 'text-blue-600 bg-blue-50',
-                          delivered: 'text-sky-600 bg-sky-50', returned: 'text-red-600 bg-red-50',
-                          cancelled: 'text-gray-500 bg-gray-50',
-                        }
-                        return (
-                          <div key={h.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-purple-100 text-[10px]">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="font-mono font-bold text-[#1a1c3a]">{h.tracking_number}</span>
-                              <span className="text-gray-400 truncate">{hItems.map((it: any) => it.name || 'Item').join(', ')}</span>
+                {clientHistory.length > 0 && (() => {
+                  const delivered = clientHistory.filter(h => h.status === 'delivered').length
+                  const returned = clientHistory.filter(h => h.status === 'returned').length
+                  const cancelled = clientHistory.filter(h => h.status === 'cancelled').length
+                  const trustScore = delivered > 0 && returned === 0 ? 'good' : returned > delivered ? 'risky' : 'neutral'
+                  return (
+                    <div className={cn('border rounded-xl p-3', trustScore === 'good' ? 'bg-emerald-50 border-emerald-200' : trustScore === 'risky' ? 'bg-red-50 border-red-200' : 'bg-purple-50 border-purple-200')}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className={cn('text-[10px] font-bold uppercase tracking-wide flex items-center gap-1', trustScore === 'good' ? 'text-emerald-700' : trustScore === 'risky' ? 'text-red-700' : 'text-purple-700')}>
+                          <Clock size={10} /> Returning client
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          {delivered > 0 && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">{delivered} delivered</span>}
+                          {returned > 0 && <span className="text-[9px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">{returned} returned</span>}
+                          {cancelled > 0 && <span className="text-[9px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{cancelled} cancelled</span>}
+                        </div>
+                      </div>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {clientHistory.map(h => {
+                          const hItems = Array.isArray(h.items) ? h.items : []
+                          const statusColor: Record<string, string> = {
+                            pending: 'text-yellow-600 bg-yellow-50', confirmed: 'text-emerald-600 bg-emerald-50',
+                            prepared: 'text-indigo-600 bg-indigo-50', shipped: 'text-blue-600 bg-blue-50',
+                            delivered: 'text-sky-600 bg-sky-50', returned: 'text-red-600 bg-red-50',
+                            cancelled: 'text-gray-500 bg-gray-50',
+                          }
+                          const d = new Date(h.created_at)
+                          const ago = Math.floor((Date.now() - d.getTime()) / 86400000)
+                          const timeLabel = ago === 0 ? 'today' : ago === 1 ? 'yesterday' : `${ago}d ago`
+                          return (
+                            <div key={h.id} className="flex items-center justify-between bg-white rounded-lg px-2.5 py-1.5 border border-gray-100 text-[10px]">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-mono font-bold text-[#1a1c3a]">{h.tracking_number}</span>
+                                <span className="text-gray-400 truncate">{hItems.map((it: any) => it.name || 'Item').join(', ')}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <span className="text-[9px] text-gray-400">{timeLabel}</span>
+                                <span className={cn('px-1.5 py-0.5 rounded font-bold', statusColor[h.status] || 'text-gray-500 bg-gray-50')}>
+                                  {h.status}
+                                </span>
+                              </div>
                             </div>
-                            <span className={cn('px-1.5 py-0.5 rounded font-bold flex-shrink-0', statusColor[h.status] || 'text-gray-500 bg-gray-50')}>
-                              {h.status}
-                            </span>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 {clientHistory.length === 0 && order && (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-2.5 flex items-center gap-2">

@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
 
   const nowIso = new Date().toISOString()
 
-  const [{ data }, { data: confData }, { data: cancelData }] = await Promise.all([
+  const [{ data }, { data: confData }] = await Promise.all([
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'pending').eq('assigned_agent_id', agentId)
       .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
@@ -18,20 +18,15 @@ export async function GET(req: NextRequest) {
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'confirmed').eq('printed', false)
       .order('created_at', { ascending: true }).limit(500),
-    supabaseAdmin.from('orders').select(COLS)
-      .eq('status', 'cancelled').eq('assigned_agent_id', agentId)
-      .order('created_at', { ascending: true }).limit(500),
   ])
 
-  const [enrichedPending, enrichedConfirmed, enrichedCancelled] = await Promise.all([
+  const [enrichedPending, enrichedConfirmed] = await Promise.all([
     enrichOrderImages(data || [], supabaseAdmin),
     enrichOrderImages(confData || [], supabaseAdmin),
-    enrichOrderImages(cancelData || [], supabaseAdmin),
   ])
 
   return NextResponse.json({
     pending: enrichedPending,
     confirmed: enrichedConfirmed,
-    cancelled: enrichedCancelled,
   })
 }
