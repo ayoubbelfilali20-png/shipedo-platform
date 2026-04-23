@@ -114,7 +114,7 @@ export default function AgentCallsPage() {
     if (!id) { setLoading(false); return }
     const res = await fetch('/api/agent/calls', { headers: { 'x-agent-id': id } })
     const { pending: data, confirmed: confData } = await res.json()
-    const rows = [...(data || [])] as OrderRow[]
+    const rows = ((data || []) as OrderRow[]).filter(o => o.status === 'pending')
     // Recalculate total from items if total_amount is 0 + backfill original_total
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
@@ -396,6 +396,11 @@ export default function AgentCallsPage() {
       reminded_at: logRemindedAt,
       cancel_reason: cancelReasonFinal,
     })
+
+    // Immediately remove from queue so cancelled/confirmed orders disappear instantly
+    if (action === 'cancelled' || action === 'confirmed') {
+      setOrders(prev => prev.filter(o => o.id !== order.id))
+    }
 
     setBusy(false)
     await loadQueue(agentId)
