@@ -11,6 +11,7 @@ import {
   MapPin, Clock, AlertCircle, Calendar, UserCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { detectDuplicates, type DuplicateInfo } from '@/lib/detectDuplicates'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
 
 type OrderRow = {
@@ -162,6 +163,8 @@ export default function AdminShippingPage() {
   }
 
   useEffect(() => { loadOrders() }, [])
+
+  const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 
   const cityByOrderId = useMemo(() => {
     const m = new Map<string, string | null>()
@@ -501,6 +504,7 @@ export default function AdminShippingPage() {
                   onTogglePrint={() => togglePrintQueue(order.id)}
                   onChangeStatus={(s) => changeStatus(order.id, s)}
                   processing={processing === order.id}
+                  duplicate={duplicateMap.get(order.id)}
                 />
               ))}
             </tbody>
@@ -546,12 +550,13 @@ export default function AdminShippingPage() {
 }
 
 /* ── Shipping Row ── */
-function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, processing }: {
+function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, processing, duplicate }: {
   order: OrderRow
   inPrintQueue: boolean
   onTogglePrint: () => void
   onChangeStatus: (s: string) => void
   processing: boolean
+  duplicate?: DuplicateInfo
 }) {
   const [statusOpen, setStatusOpen] = useState(false)
   const cfg = statusConfig[order.status as ShipStatus] || statusConfig.confirmed
@@ -578,7 +583,12 @@ function ShippingRow({ order, inPrintQueue, onTogglePrint, onChangeStatus, proce
 
       {/* Tracking */}
       <td className="px-4 py-3">
-        <p className="text-xs font-mono font-semibold text-[#1a1c3a]">{order.tracking_number}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-xs font-mono font-semibold text-[#1a1c3a]">{order.tracking_number}</p>
+          {duplicate?.isDuplicate && (
+            <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded" title={`Duplicate of ${duplicate.duplicateOf}`}>DUP</span>
+          )}
+        </div>
         <p className="text-[10px] text-gray-400 mt-0.5">{order.payment_method}</p>
       </td>
 

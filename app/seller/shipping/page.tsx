@@ -7,6 +7,7 @@ import {
   Download, Package, X, User, Phone, MapPin, Truck, Calendar, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { detectDuplicates } from '@/lib/detectDuplicates'
 
 type ShipStatus = 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned'
 
@@ -121,6 +122,8 @@ export default function SellerShippingPage() {
       setLoading(false)
     })
   }, [])
+
+  const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 
   const dateSearchFiltered = useMemo(() => {
     return orders.filter(o => {
@@ -277,7 +280,12 @@ export default function SellerShippingPage() {
                   onClick={() => setSelected(row)}
                   className="w-full grid grid-cols-[1.3fr_1fr_1.3fr_0.8fr_1.2fr_1fr_1.6fr] gap-3 px-5 py-4 items-center hover:bg-orange-50/30 transition-colors text-left"
                 >
-                  <div className="font-mono text-xs text-[#1a1c3a] font-semibold truncate">{row.tracking_number}</div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono text-xs text-[#1a1c3a] font-semibold truncate">{row.tracking_number}</span>
+                    {duplicateMap.get(row.id)?.isDuplicate && (
+                      <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded flex-shrink-0">DUP</span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500">{new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                   <div>
                     <p className="text-xs font-semibold text-[#1a1c3a] truncate">{row.customer_name}</p>

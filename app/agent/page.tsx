@@ -14,6 +14,7 @@ import {
   ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts'
 import { cn } from '@/lib/utils'
+import { detectDuplicates } from '@/lib/detectDuplicates'
 
 type OrderRow = {
   id: string
@@ -251,6 +252,9 @@ export default function AgentDashboard() {
       return matchSearch && matchStatus
     })
   }, [filteredByPeriod, search, statusFilter])
+
+  const allForDuplicates = useMemo(() => [...pending, ...orders], [pending, orders])
+  const duplicateMap = useMemo(() => detectDuplicates(allForDuplicates), [allForDuplicates])
 
   const advance = async (o: OrderRow) => {
     const nextStatus = statusFlow[o.status]?.next
@@ -510,7 +514,12 @@ export default function AgentDashboard() {
                   return (
                     <tr key={o.id} className="hover:bg-gray-50/50">
                       <td className="px-5 py-3">
-                        <div className="text-xs font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</span>
+                          {duplicateMap.get(o.id)?.isDuplicate && (
+                            <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-gray-400 mt-0.5">{new Date(o.created_at).toLocaleDateString()}</div>
                       </td>
                       <td className="px-4 py-3">

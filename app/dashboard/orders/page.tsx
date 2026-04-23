@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import StatusBadge from '@/components/dashboard/StatusBadge'
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { printOrderLabel, printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import Link from 'next/link'
+import { detectDuplicates } from '@/lib/detectDuplicates'
 
 type OrderRow = {
   id: string
@@ -129,6 +130,7 @@ export default function OrdersPage() {
     return () => clearTimeout(t)
   }, [searchInput])
 
+  const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
   const filtered = orders
 
   return (
@@ -232,7 +234,12 @@ export default function OrdersPage() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-xs font-mono font-semibold text-[#1a1c3a]">{order.tracking_number}</div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-mono font-semibold text-[#1a1c3a]">{order.tracking_number}</span>
+                            {duplicateMap.get(order.id)?.isDuplicate && (
+                              <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded" title={`Duplicate of ${duplicateMap.get(order.id)?.duplicateOf}`}>DUP</span>
+                            )}
+                          </div>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-1 inline-block ${
                             order.payment_method === 'COD'
                               ? 'bg-orange-50 text-orange-600'

@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useT, type TKey } from '@/lib/i18n'
 import OrderItemsDetails from '@/components/OrderItemsDetails'
+import { detectDuplicates } from '@/lib/detectDuplicates'
 
 type OrderRow = {
   id: string
@@ -151,6 +152,8 @@ export default function SellerOrdersPage() {
       )
     })
   }, [orders, search, statusFilter])
+
+  const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage   = Math.min(page, totalPages)
@@ -355,6 +358,11 @@ export default function SellerOrdersPage() {
                       <tr className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                         <td className="px-4 py-4">
                           <span className="text-xs font-mono text-gray-700">{order.tracking_number}</span>
+                          {duplicateMap.get(order.id)?.isDuplicate && (
+                            <span className="ml-1 text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded" title={`Duplicate of ${duplicateMap.get(order.id)?.duplicateOf}`}>
+                              DUPLICATE
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-xs font-semibold text-gray-600">

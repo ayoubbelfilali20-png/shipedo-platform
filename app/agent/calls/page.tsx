@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { decrementStockForOrderItems } from '@/lib/stock'
 import { cn } from '@/lib/utils'
+import { detectDuplicates } from '@/lib/detectDuplicates'
 import {
   Phone, CheckCircle, XCircle, Clock, MapPin, Package,
   AlertCircle, Calendar, MessageSquare, PhoneOff, MessageCircle,
@@ -157,6 +158,7 @@ export default function AgentCallsPage() {
 
   const order = orders[0] ?? null
   const pendingCount = orders.length
+  const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 
   useEffect(() => {
     if (!order) return
@@ -470,6 +472,9 @@ export default function AgentCallsPage() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${(order.call_attempts ?? 0) >= 3 ? 'bg-red-500 text-white' : (order.call_attempts ?? 0) >= 2 ? 'bg-orange-400 text-white' : 'bg-yellow-400 text-gray-800'}`}>
                         x{order.call_attempts}
                       </span>
+                    )}
+                    {duplicateMap.get(order.id)?.isDuplicate && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-500 text-white animate-pulse">DUPLICATE</span>
                     )}
                   </div>
                 </div>
@@ -934,18 +939,29 @@ export default function AgentCallsPage() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-[#1a1c3a] text-sm mb-3">Up Next ({Math.max(0, pendingCount - 1)})</h3>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {orders.slice(1, 12).map((o, i) => (
-                <div key={o.id} className="flex items-center gap-2.5 p-2.5 bg-gray-50 rounded-xl">
-                  <span className="w-5 h-5 rounded-full bg-[#1a1c3a]/10 text-[#1a1c3a] text-xs font-bold flex items-center justify-center">{i + 2}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-[#1a1c3a] truncate">{o.customer_name}</p>
-                    <p className="text-[10px] text-gray-400 font-mono">{o.tracking_number}</p>
+              {orders.slice(1, 12).map((o, i) => {
+                const dup = duplicateMap.get(o.id)
+                return (
+                  <div key={o.id} className={cn('flex items-center gap-2.5 p-2.5 rounded-xl', dup?.isDuplicate ? 'bg-red-50 border border-red-200' : 'bg-gray-50')}>
+                    <span className="w-5 h-5 rounded-full bg-[#1a1c3a]/10 text-[#1a1c3a] text-xs font-bold flex items-center justify-center">{i + 2}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-bold text-[#1a1c3a] truncate">{o.customer_name}</p>
+                        {dup?.isDuplicate && <span className="text-[8px] font-bold text-red-600 bg-red-100 px-1 py-0.5 rounded flex-shrink-0">DUP</span>}
+                      </div>
+                      <p className="text-[10px] text-gray-400 font-mono">{o.tracking_number}</p>
+                      {o.reminded_at && (
+                        <p className="text-[9px] text-indigo-500 flex items-center gap-0.5 mt-0.5">
+                          <Clock size={8} /> {new Date(o.reminded_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                    </div>
+                    {(o.call_attempts || 0) > 0 && (
+                      <span className="text-[10px] font-semibold text-orange-500">×{o.call_attempts}</span>
+                    )}
                   </div>
-                  {(o.call_attempts || 0) > 0 && (
-                    <span className="text-[10px] font-semibold text-orange-500">×{o.call_attempts}</span>
-                  )}
-                </div>
-              ))}
+                )
+              })}
               {pendingCount === 0 && <p className="text-xs text-gray-400 text-center py-4">Empty</p>}
             </div>
           </div>

@@ -11,6 +11,7 @@ import {
   RefreshCw, FileText, Calendar, UserCheck, MapPin,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { detectDuplicates } from '@/lib/detectDuplicates'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
 
 type OrderRow = {
@@ -278,6 +279,8 @@ export default function AgentShippingPage() {
       return true
     })
   }, [orders, search, dateFrom, dateTo, filterProduct, filterCity, cityByOrderId])
+
+  const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 
   const filtered = useMemo(
     () => filterStatus === 'all' ? baseFiltered : baseFiltered.filter(o => o.status === filterStatus),
@@ -623,6 +626,9 @@ export default function AgentShippingPage() {
                       </span>
                     )}
                     <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+                    {duplicateMap.get(order.id)?.isDuplicate && (
+                      <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
+                    )}
                     <span className="text-[10px] text-gray-400">{order.payment_method}</span>
                     {(order.total_amount || 0) > 0 && (
                       <span className="text-xs font-bold text-[#f4991a]">
