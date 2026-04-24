@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { decrementTotalQuantityForOrderItems } from '@/lib/stock'
 import { incrementStockForOrderItems } from '@/lib/stock'
@@ -476,7 +476,7 @@ export default function AgentHistoryPage() {
             const wasCalled = callCount > 0 || !!o.last_call_at
             const cfg = statusConfig[o.status] || statusConfig.pending
             return (
-              <div key={o.id} className={cn('bg-white rounded-xl border shadow-sm overflow-hidden', cfg.border)}>
+              <div key={o.id} className={cn('bg-white rounded-xl border shadow-sm', cfg.border)}>
                 {/* Header row */}
                 <div className="px-4 py-2.5 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
                   <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -836,12 +836,23 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
   onChangeStatus: (s: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
   const cfg = statusConfig[currentStatus] || statusConfig.pending
+
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.top, left: r.right - 170 })
+    }
+    setOpen(v => !v)
+  }
 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen(v => !v)}
+        ref={btnRef}
+        onClick={toggle}
         disabled={processing}
         className={cn(
           'flex items-center gap-1 px-2.5 py-1.5 rounded-full border-2 text-[11px] font-semibold transition-all',
@@ -854,8 +865,11 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
 
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1 min-w-[160px] max-h-[320px] overflow-y-auto">
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="fixed bg-white border border-gray-200 rounded-xl shadow-2xl z-50 py-1 w-[170px] max-h-[320px] overflow-y-auto"
+            style={{ top: Math.max(8, pos.top - 296), left: pos.left }}
+          >
             {allStatuses.map(s => {
               const c = statusConfig[s]
               return (
