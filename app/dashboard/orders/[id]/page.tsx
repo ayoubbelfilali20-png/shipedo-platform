@@ -29,16 +29,23 @@ type OrderRow = {
   seller_id?: string | null
 }
 
-const statusOptions = ['pending', 'confirmed', 'prepared', 'shipped', 'delivered', 'returned', 'cancelled']
+const statusOptions = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
 
 const statusColors: Record<string, string> = {
-  pending:   'bg-rose-50 text-rose-600 border-rose-300',
-  confirmed: 'bg-emerald-50 text-emerald-600 border-emerald-400',
-  prepared:  'bg-indigo-50 text-indigo-600 border-indigo-300',
-  shipped:   'bg-blue-50 text-blue-600 border-blue-300',
-  delivered: 'bg-sky-50 text-sky-600 border-sky-300',
-  returned:  'bg-red-50 text-red-600 border-red-300',
-  cancelled: 'bg-gray-50 text-gray-500 border-gray-300',
+  pending:          'bg-rose-50 text-rose-600 border-rose-300',
+  confirmed:        'bg-emerald-50 text-emerald-600 border-emerald-400',
+  prepared:         'bg-indigo-50 text-indigo-600 border-indigo-300',
+  shipped_to_agent: 'bg-purple-50 text-purple-600 border-purple-300',
+  shipped:          'bg-blue-50 text-blue-600 border-blue-300',
+  delivered:        'bg-sky-50 text-sky-600 border-sky-300',
+  returned:         'bg-red-50 text-red-600 border-red-300',
+  cancelled:        'bg-gray-50 text-gray-500 border-gray-300',
+}
+
+const statusLabelsAdmin: Record<string, string> = {
+  pending: 'Pending', confirmed: 'Confirmed', prepared: 'Prepared',
+  shipped_to_agent: 'Sent to Agent', shipped: 'Shipped',
+  delivered: 'Delivered', returned: 'Returned', cancelled: 'Cancelled',
 }
 
 export default function AdminOrderDetailPage() {
@@ -132,7 +139,7 @@ export default function AdminOrderDetailPage() {
           </button>
           <div className="flex items-center gap-2">
             <span className={cn('inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold border-2 whitespace-nowrap', statusColors[order.status] || statusColors.pending)}>
-              {order.status}
+              {statusLabelsAdmin[order.status] || order.status}
             </span>
             {order.status === 'confirmed' && (
               <button
@@ -221,7 +228,7 @@ export default function AdminOrderDetailPage() {
             <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1.5">Status</label>
               <select value={status} onChange={e => setStatus(e.target.value)} disabled={!editing} className={inputCls}>
-                {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                {statusOptions.map(s => <option key={s} value={s}>{statusLabelsAdmin[s] || s}</option>)}
               </select>
             </div>
             <div className="md:col-span-2">

@@ -660,7 +660,12 @@ export default function AgentDashboard() {
             <div className="flex items-center justify-between px-6 py-4 bg-[#1a1c3a] text-white">
               <div>
                 <p className="text-white/50 text-[10px] uppercase tracking-wider">Call History</p>
-                <p className="font-bold font-mono">{historyOrder.tracking_number}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-bold font-mono">{historyOrder.tracking_number}</p>
+                  <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', statusColors[historyOrder.status] || statusColors.pending)}>
+                    {statusLabels[historyOrder.status] || historyOrder.status}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={() => setHistoryOrder(null)}
@@ -677,12 +682,13 @@ export default function AgentDashboard() {
                   <div className="flex items-center justify-between mb-1">
                     <span className={cn(
                       'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase',
-                      log.action === 'confirmed'   && 'bg-emerald-100 text-emerald-700',
-                      log.action === 'not_reached' && 'bg-red-100 text-red-700',
-                      log.action === 'cancelled'   && 'bg-gray-200 text-gray-600',
-                      log.action === 'rescheduled' && 'bg-blue-100 text-blue-700',
+                      log.action === 'confirmed'        && 'bg-emerald-100 text-emerald-700',
+                      log.action === 'not_reached'      && 'bg-red-100 text-red-700',
+                      log.action === 'cancelled'        && 'bg-gray-200 text-gray-600',
+                      log.action === 'rescheduled'      && 'bg-blue-100 text-blue-700',
+                      log.action === 'whatsapp_contact' && 'bg-green-100 text-green-700',
                     )}>
-                      {log.action.replace('_', ' ')}
+                      {log.action === 'whatsapp_contact' ? 'WhatsApp' : log.action.replace('_', ' ')}
                     </span>
                     <span className="text-[10px] text-gray-400">{new Date(log.created_at).toLocaleString()}</span>
                   </div>
