@@ -224,7 +224,7 @@ export default function AgentCallsPage() {
           const dup = history.some(h => {
             const hItems = Array.isArray(h.items) ? h.items : []
             const hProducts = hItems.map((it: any) => (it.name || '').toLowerCase()).sort().join('|')
-            return hProducts === currentProducts && ['pending', 'confirmed', 'prepared', 'shipped'].includes(h.status)
+            return hProducts === currentProducts && ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped'].includes(h.status)
           })
           setIsDuplicate(dup)
         })
@@ -597,6 +597,8 @@ export default function AgentCallsPage() {
                   const delivered = clientHistory.filter(h => h.status === 'delivered').length
                   const returned = clientHistory.filter(h => h.status === 'returned').length
                   const cancelled = clientHistory.filter(h => h.status === 'cancelled').length
+                  const shippedToAgent = clientHistory.filter(h => h.status === 'shipped_to_agent').length
+                  const shipped = clientHistory.filter(h => h.status === 'shipped').length
                   const trustScore = delivered > 0 && returned === 0 ? 'good' : returned > delivered ? 'risky' : 'neutral'
                   return (
                     <div className={cn('border rounded-xl p-3', trustScore === 'good' ? 'bg-emerald-50 border-emerald-200' : trustScore === 'risky' ? 'bg-red-50 border-red-200' : 'bg-purple-50 border-purple-200')}>
@@ -605,6 +607,8 @@ export default function AgentCallsPage() {
                           <Clock size={10} /> Returning client
                         </p>
                         <div className="flex items-center gap-1.5">
+                          {shippedToAgent > 0 && <span className="text-[9px] font-bold text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded">{shippedToAgent} sent to agent</span>}
+                          {shipped > 0 && <span className="text-[9px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">{shipped} shipped</span>}
                           {delivered > 0 && <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded">{delivered} delivered</span>}
                           {returned > 0 && <span className="text-[9px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded">{returned} returned</span>}
                           {cancelled > 0 && <span className="text-[9px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{cancelled} cancelled</span>}
