@@ -35,19 +35,20 @@ type OrderRow = {
   seller_id?: string | null
 }
 
-type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  pending:   { label: 'Pending',   color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'    },
-  confirmed: { label: 'Confirmed', color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  prepared:  { label: 'Prepared',  color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200'  },
-  shipped:   { label: 'Shipped',   color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
-  delivered: { label: 'Delivered', color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200'     },
-  returned:  { label: 'Returned',  color: 'text-red-700',     bg: 'bg-red-50',     border: 'border-red-200'     },
-  cancelled: { label: 'Cancelled', color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
+  pending:          { label: 'Pending',        color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'    },
+  confirmed:        { label: 'Confirmed',      color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+  prepared:         { label: 'Prepared',       color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200'  },
+  shipped_to_agent: { label: 'Sent to Agent',  color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200'  },
+  shipped:          { label: 'Shipped',        color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
+  delivered:        { label: 'Delivered',      color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200'     },
+  returned:         { label: 'Returned',       color: 'text-red-700',     bg: 'bg-red-50',     border: 'border-red-200'     },
+  cancelled:        { label: 'Cancelled',      color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
 }
 
-const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped', 'delivered', 'returned', 'cancelled']
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
 
 function cleanPhone(p: string) {
   let num = (p || '').replace(/[^\d+]/g, '')
@@ -196,6 +197,7 @@ export default function AgentHistoryPage() {
     setBusy(orderId)
     const patch: any = { status: newStatus }
 
+    if (newStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
     if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
     if (newStatus === 'delivered') {
       patch.delivered_at = new Date().toISOString()
@@ -348,14 +350,16 @@ export default function AgentHistoryPage() {
   })
 
   const stats = useMemo(() => ({
-    total:     orders.length,
-    confirmed: orders.filter(o => o.status === 'confirmed').length,
-    prepared:  orders.filter(o => o.status === 'prepared').length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
-    cancelled: orders.filter(o => o.status === 'cancelled').length,
+    total:           orders.length,
+    confirmed:       orders.filter(o => o.status === 'confirmed').length,
+    prepared:        orders.filter(o => o.status === 'prepared').length,
+    shipped_to_agent: orders.filter(o => o.status === 'shipped_to_agent').length,
+    shipped:         orders.filter(o => o.status === 'shipped').length,
+    delivered:       orders.filter(o => o.status === 'delivered').length,
+    cancelled:       orders.filter(o => o.status === 'cancelled').length,
   }), [orders])
 
-  const rate = stats.total > 0 ? (((stats.confirmed + stats.prepared + stats.delivered) / stats.total) * 100).toFixed(1) : '0'
+  const rate = stats.total > 0 ? (((stats.confirmed + stats.prepared + stats.shipped_to_agent + stats.shipped + stats.delivered) / stats.total) * 100).toFixed(1) : '0'
 
   return (
     <div className="min-h-screen">
@@ -366,13 +370,15 @@ export default function AgentHistoryPage() {
 
       <div className="px-6 pt-5 pb-10 space-y-4">
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           {[
-            { label: 'Total',     value: stats.total,     icon: Phone,       color: 'text-[#1a1c3a]',   bg: 'bg-white'      },
-            { label: 'Confirmed', value: stats.confirmed, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Prepared',  value: stats.prepared,  icon: Package,     color: 'text-indigo-600',  bg: 'bg-indigo-50'  },
-            { label: 'Delivered', value: stats.delivered, icon: Truck,       color: 'text-sky-600',     bg: 'bg-sky-50'     },
-            { label: 'Success',   value: `${rate}%`,      icon: TrendingUp,  color: 'text-[#f4991a]',   bg: 'bg-orange-50'  },
+            { label: 'Total',          value: stats.total,           icon: Phone,       color: 'text-[#1a1c3a]',   bg: 'bg-white'      },
+            { label: 'Confirmed',      value: stats.confirmed,       icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Prepared',       value: stats.prepared,        icon: Package,     color: 'text-indigo-600',  bg: 'bg-indigo-50'  },
+            { label: 'Sent to Agent',  value: stats.shipped_to_agent, icon: Truck,       color: 'text-purple-600',  bg: 'bg-purple-50'  },
+            { label: 'Shipped',        value: stats.shipped,         icon: Truck,       color: 'text-blue-600',    bg: 'bg-blue-50'    },
+            { label: 'Delivered',      value: stats.delivered,       icon: Truck,       color: 'text-sky-600',     bg: 'bg-sky-50'     },
+            { label: 'Success',        value: `${rate}%`,            icon: TrendingUp,  color: 'text-[#f4991a]',   bg: 'bg-orange-50'  },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3`}>
               <div className="w-9 h-9 rounded-xl bg-white border border-gray-100 flex items-center justify-center flex-shrink-0">
@@ -432,13 +438,23 @@ export default function AgentHistoryPage() {
             {search && <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300"><X size={13} /></button>}
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            {(['all','pending','confirmed','prepared','shipped','delivered','returned','cancelled'] as const).map(f => (
+            {([
+              { value: 'all', label: 'All' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'confirmed', label: 'Confirmed' },
+              { value: 'prepared', label: 'Prepared' },
+              { value: 'shipped_to_agent', label: 'Sent to Agent' },
+              { value: 'shipped', label: 'Shipped' },
+              { value: 'delivered', label: 'Delivered' },
+              { value: 'returned', label: 'Returned' },
+              { value: 'cancelled', label: 'Cancelled' },
+            ] as const).map(f => (
               <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${filter === f ? 'bg-[#1a1c3a] text-white' : 'bg-white border border-gray-200 text-gray-500'}`}
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${filter === f.value ? 'bg-[#1a1c3a] text-white' : 'bg-white border border-gray-200 text-gray-500'}`}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
