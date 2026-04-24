@@ -48,21 +48,29 @@ type CallLog = {
 }
 
 const statusFlow: Record<string, { next?: string; label: string; color: string }> = {
-  pending:   { next: 'confirmed', label: 'Confirm',  color: 'bg-emerald-500 hover:bg-emerald-600' },
-  confirmed: { next: 'prepared',  label: 'Prepare',  color: 'bg-indigo-500 hover:bg-indigo-600'   },
-  prepared:  { next: 'shipped',   label: 'Ship',     color: 'bg-blue-500 hover:bg-blue-600'       },
-  shipped:   { next: 'delivered', label: 'Deliver',  color: 'bg-sky-500 hover:bg-sky-600'         },
-  delivered: { next: undefined,   label: '—',        color: '' },
+  pending:          { next: 'confirmed',       label: 'Confirm',        color: 'bg-emerald-500 hover:bg-emerald-600' },
+  confirmed:        { next: 'prepared',        label: 'Prepare',        color: 'bg-indigo-500 hover:bg-indigo-600'   },
+  prepared:         { next: 'shipped_to_agent', label: 'Send to Agent', color: 'bg-purple-500 hover:bg-purple-600'   },
+  shipped_to_agent: { next: 'shipped',         label: 'Ship',           color: 'bg-blue-500 hover:bg-blue-600'       },
+  shipped:          { next: 'delivered',       label: 'Deliver',        color: 'bg-sky-500 hover:bg-sky-600'         },
+  delivered:        { next: undefined,         label: '—',              color: '' },
 }
 
 const statusColors: Record<string, string> = {
-  pending:   'bg-yellow-50 text-yellow-700 border-yellow-200',
-  confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  prepared:  'bg-indigo-50 text-indigo-700 border-indigo-200',
-  shipped:   'bg-blue-50 text-blue-700 border-blue-200',
-  delivered: 'bg-sky-50 text-sky-700 border-sky-200',
-  cancelled: 'bg-gray-100 text-gray-500 border-gray-200',
-  returned:  'bg-red-50 text-red-700 border-red-200',
+  pending:          'bg-yellow-50 text-yellow-700 border-yellow-200',
+  confirmed:        'bg-emerald-50 text-emerald-700 border-emerald-200',
+  prepared:         'bg-indigo-50 text-indigo-700 border-indigo-200',
+  shipped_to_agent: 'bg-purple-50 text-purple-700 border-purple-200',
+  shipped:          'bg-blue-50 text-blue-700 border-blue-200',
+  delivered:        'bg-sky-50 text-sky-700 border-sky-200',
+  cancelled:        'bg-gray-100 text-gray-500 border-gray-200',
+  returned:         'bg-red-50 text-red-700 border-red-200',
+}
+
+const statusLabels: Record<string, string> = {
+  pending: 'Pending', confirmed: 'Confirmed', prepared: 'Prepared',
+  shipped_to_agent: 'Sent to Agent', shipped: 'Shipped',
+  delivered: 'Delivered', cancelled: 'Cancelled', returned: 'Returned',
 }
 
 function getRange(period: Period, customFrom: string, customTo: string): { from: Date | null; to: Date | null } {
@@ -191,18 +199,19 @@ export default function AgentDashboard() {
 
   const stats = useMemo(() => {
     const f = filteredByPeriod
-    const isDone = (s: string) => ['confirmed','prepared','shipped','delivered'].includes(s)
+    const isDone = (s: string) => ['confirmed','prepared','shipped_to_agent','shipped','delivered'].includes(s)
     return {
-      toCall:    pending.length,
-      total:     f.length,
-      confirmed: f.filter(o => o.status === 'confirmed').length,
-      prepared:  f.filter(o => o.status === 'prepared').length,
-      shipped:   f.filter(o => o.status === 'shipped').length,
-      delivered: f.filter(o => o.status === 'delivered').length,
-      cancelled: f.filter(o => o.status === 'cancelled').length,
-      paid:      f.filter(o => o.payment_status === 'paid').length,
-      done:      f.filter(o => isDone(o.status)).length,
-      revenue:   f.filter(o => o.status === 'delivered').reduce((s, o) => s + (o.total_amount || 0), 0),
+      toCall:          pending.length,
+      total:           f.length,
+      confirmed:       f.filter(o => o.status === 'confirmed').length,
+      prepared:        f.filter(o => o.status === 'prepared').length,
+      shipped_to_agent: f.filter(o => o.status === 'shipped_to_agent').length,
+      shipped:         f.filter(o => o.status === 'shipped').length,
+      delivered:       f.filter(o => o.status === 'delivered').length,
+      cancelled:       f.filter(o => o.status === 'cancelled').length,
+      paid:            f.filter(o => o.payment_status === 'paid').length,
+      done:            f.filter(o => isDone(o.status)).length,
+      revenue:         f.filter(o => o.status === 'delivered').reduce((s, o) => s + (o.total_amount || 0), 0),
     }
   }, [filteredByPeriod, pending])
 
@@ -225,7 +234,7 @@ export default function AgentDashboard() {
       })
       days.push({
         day,
-        confirmed: inDay.filter(o => ['confirmed','prepared','shipped','delivered'].includes(o.status)).length,
+        confirmed: inDay.filter(o => ['confirmed','prepared','shipped_to_agent','shipped','delivered'].includes(o.status)).length,
         delivered: inDay.filter(o => o.status === 'delivered').length,
       })
     }
@@ -233,11 +242,12 @@ export default function AgentDashboard() {
   }, [orders])
 
   const breakdown = useMemo(() => ([
-    { label: 'Confirmed', value: stats.confirmed, color: '#10b981' },
-    { label: 'Prepared',  value: stats.prepared,  color: '#6366f1' },
-    { label: 'Shipped',   value: stats.shipped,   color: '#3b82f6' },
-    { label: 'Delivered', value: stats.delivered, color: '#0ea5e9' },
-    { label: 'Cancelled', value: stats.cancelled, color: '#9ca3af' },
+    { label: 'Confirmed',       value: stats.confirmed,        color: '#10b981' },
+    { label: 'Prepared',        value: stats.prepared,         color: '#6366f1' },
+    { label: 'Sent to Agent',   value: stats.shipped_to_agent, color: '#9333ea' },
+    { label: 'Shipped',         value: stats.shipped,          color: '#3b82f6' },
+    { label: 'Delivered',       value: stats.delivered,        color: '#0ea5e9' },
+    { label: 'Cancelled',       value: stats.cancelled,        color: '#9ca3af' },
   ]), [stats])
 
   const tableRows = useMemo(() => {
@@ -260,8 +270,12 @@ export default function AgentDashboard() {
     const nextStatus = statusFlow[o.status]?.next
     if (!nextStatus) return
     setBusyId(o.id)
-    await supabase.from('orders').update({ status: nextStatus, last_call_at: new Date().toISOString() }).eq('id', o.id)
-    setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: nextStatus } : x))
+    const patch: any = { status: nextStatus, last_call_at: new Date().toISOString() }
+    if (nextStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
+    if (nextStatus === 'shipped') patch.shipped_at = new Date().toISOString()
+    if (nextStatus === 'delivered') patch.delivered_at = new Date().toISOString()
+    await supabase.from('orders').update(patch).eq('id', o.id)
+    setOrders(prev => prev.map(x => x.id === o.id ? { ...x, ...patch } : x))
     setBusyId(null)
   }
 
@@ -364,14 +378,15 @@ export default function AgentDashboard() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
-            { label: 'To Call',    value: stats.toCall,    icon: Phone,       color: 'text-rose-600',    bg: 'bg-rose-50'    },
-            { label: 'Total',      value: stats.total,     icon: Package,     color: 'text-[#1a1c3a]',   bg: 'bg-white'      },
-            { label: 'Confirmed',  value: stats.confirmed, icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Prepared',   value: stats.prepared,  icon: Package,     color: 'text-indigo-600',  bg: 'bg-indigo-50'  },
-            { label: 'Shipped',    value: stats.shipped,   icon: Send,        color: 'text-blue-600',    bg: 'bg-blue-50'    },
-            { label: 'Delivered',  value: stats.delivered, icon: Truck,       color: 'text-sky-600',     bg: 'bg-sky-50'     },
+            { label: 'To Call',       value: stats.toCall,          icon: Phone,       color: 'text-rose-600',    bg: 'bg-rose-50'    },
+            { label: 'Total',         value: stats.total,           icon: Package,     color: 'text-[#1a1c3a]',   bg: 'bg-white'      },
+            { label: 'Confirmed',     value: stats.confirmed,       icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Prepared',      value: stats.prepared,        icon: Package,     color: 'text-indigo-600',  bg: 'bg-indigo-50'  },
+            { label: 'Sent to Agent', value: stats.shipped_to_agent, icon: ArrowRight,  color: 'text-purple-600',  bg: 'bg-purple-50'  },
+            { label: 'Shipped',       value: stats.shipped,         icon: Send,        color: 'text-blue-600',    bg: 'bg-blue-50'    },
+            { label: 'Delivered',     value: stats.delivered,       icon: Truck,       color: 'text-sky-600',     bg: 'bg-sky-50'     },
             { label: 'Paid',       value: stats.paid,      icon: DollarSign,  color: 'text-[#f4991a]',   bg: 'bg-orange-50'  },
           ].map(s => (
             <div key={s.label} className={`${s.bg} rounded-2xl border border-gray-100 shadow-sm p-4`}>
@@ -478,6 +493,7 @@ export default function AgentDashboard() {
                 <option value="all">All status</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="prepared">Prepared</option>
+                <option value="shipped_to_agent">Sent to Agent</option>
                 <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
@@ -541,8 +557,8 @@ export default function AgentDashboard() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', statusColors[o.status] || statusColors.pending)}>
-                          {o.status}
+                        <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border', statusColors[o.status] || statusColors.pending)}>
+                          {statusLabels[o.status] || o.status}
                         </span>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
