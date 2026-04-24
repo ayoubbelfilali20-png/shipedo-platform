@@ -615,9 +615,15 @@ export default function AgentCallsPage() {
                           const hItems = Array.isArray(h.items) ? h.items : []
                           const statusColor: Record<string, string> = {
                             pending: 'text-yellow-600 bg-yellow-50', confirmed: 'text-emerald-600 bg-emerald-50',
-                            prepared: 'text-indigo-600 bg-indigo-50', shipped: 'text-blue-600 bg-blue-50',
+                            prepared: 'text-indigo-600 bg-indigo-50', shipped_to_agent: 'text-purple-600 bg-purple-50',
+                            shipped: 'text-blue-600 bg-blue-50',
                             delivered: 'text-sky-600 bg-sky-50', returned: 'text-red-600 bg-red-50',
                             cancelled: 'text-gray-500 bg-gray-50',
+                          }
+                          const statusLabel: Record<string, string> = {
+                            pending: 'Pending', confirmed: 'Confirmed', prepared: 'Prepared',
+                            shipped_to_agent: 'Sent to Agent', shipped: 'Shipped',
+                            delivered: 'Delivered', returned: 'Returned', cancelled: 'Cancelled',
                           }
                           const d = new Date(h.created_at)
                           const ago = Math.floor((Date.now() - d.getTime()) / 86400000)
@@ -631,7 +637,7 @@ export default function AgentCallsPage() {
                               <div className="flex items-center gap-1.5 flex-shrink-0">
                                 <span className="text-[9px] text-gray-400">{timeLabel}</span>
                                 <span className={cn('px-1.5 py-0.5 rounded font-bold', statusColor[h.status] || 'text-gray-500 bg-gray-50')}>
-                                  {h.status}
+                                  {statusLabel[h.status] || h.status}
                                 </span>
                               </div>
                             </div>

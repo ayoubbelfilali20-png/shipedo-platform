@@ -1,4 +1,4 @@
-export type OrderStatus = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
+export type OrderStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
 export type UserRole = 'admin' | 'seller' | 'agent'
 export type PaymentMethod = 'COD' | 'prepaid'
 

@@ -34,13 +34,15 @@ type OrderRow = {
 }
 
 const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
-  { value: 'all',       label: 'All'       },
-  { value: 'pending',   label: 'Pending'   },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'shipped',   label: 'Shipped'   },
-  { value: 'delivered', label: 'Delivered' },
-  { value: 'returned',  label: 'Returned'  },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'all',              label: 'All'            },
+  { value: 'pending',          label: 'Pending'        },
+  { value: 'confirmed',        label: 'Confirmed'      },
+  { value: 'prepared',         label: 'Prepared'       },
+  { value: 'shipped_to_agent', label: 'Sent to Agent'  },
+  { value: 'shipped',          label: 'Shipped'        },
+  { value: 'delivered',        label: 'Delivered'      },
+  { value: 'returned',         label: 'Returned'       },
+  { value: 'cancelled',        label: 'Cancelled'      },
 ]
 
 function orderToLabel(o: OrderRow): PrintLabelProps {
