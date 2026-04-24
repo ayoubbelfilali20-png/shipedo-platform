@@ -855,7 +855,7 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1 min-w-[150px]">
+          <div className="absolute right-0 bottom-full mb-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1 min-w-[160px] max-h-[320px] overflow-y-auto">
             {allStatuses.map(s => {
               const c = statusConfig[s]
               return (
@@ -871,6 +871,7 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
                     'bg-rose-500':    s === 'pending',
                     'bg-emerald-500': s === 'confirmed',
                     'bg-indigo-500':  s === 'prepared',
+                    'bg-purple-500':  s === 'shipped_to_agent',
                     'bg-blue-500':    s === 'shipped',
                     'bg-sky-500':     s === 'delivered',
                     'bg-red-500':     s === 'returned',
