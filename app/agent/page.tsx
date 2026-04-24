@@ -140,22 +140,25 @@ export default function AgentDashboard() {
   const [historyLogs, setHistoryLogs] = useState<CallLog[]>([])
 
   const CACHE_KEY = 'shipedo_agent_orders_v1'
+  const [fullDataLoaded, setFullDataLoaded] = useState(false)
 
-  const load = async (aid: string | null) => {
+  const load = async (aid: string | null, days?: number) => {
     if (!aid) { setLoading(false); return }
 
-    // Show cached data instantly if available
-    try {
-      const cached = localStorage.getItem(CACHE_KEY)
-      if (cached) {
-        const { pending: cp, orders: co } = JSON.parse(cached)
-        if (cp) setPending(cp)
-        if (co) setOrders(co)
-        setLoading(false)
-      }
-    } catch {}
+    if (!days) {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const { pending: cp, orders: co } = JSON.parse(cached)
+          if (cp) setPending(cp)
+          if (co) setOrders(co)
+          setLoading(false)
+        }
+      } catch {}
+    }
 
-    const res = await fetch('/api/agent/dashboard', { headers: { 'x-agent-id': aid } })
+    const url = days ? `/api/agent/dashboard?days=${days}` : '/api/agent/dashboard'
+    const res = await fetch(url, { headers: { 'x-agent-id': aid } })
     const { pending: pen = [], orders: ord = [] } = await res.json()
 
     const freshPending = pen as OrderRow[]
@@ -163,6 +166,7 @@ export default function AgentDashboard() {
     setPending(freshPending)
     setOrders(freshOrders)
     setLoading(false)
+    if (days && days >= 365) setFullDataLoaded(true)
 
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({ pending: freshPending, orders: freshOrders }))
@@ -184,6 +188,18 @@ export default function AgentDashboard() {
     setAgentId(aid)
     load(aid)
   }, [])
+
+  useEffect(() => {
+    if (fullDataLoaded || !agentId) return
+    const needsDays: Record<string, number> = {
+      last_week: 14, this_month: 31, all: 365, custom: 365,
+    }
+    const days = needsDays[period]
+    if (days) {
+      setLoading(true)
+      load(agentId, days)
+    }
+  }, [period])
 
   const filteredByPeriod = useMemo(() => {
     if (period === 'all') return orders

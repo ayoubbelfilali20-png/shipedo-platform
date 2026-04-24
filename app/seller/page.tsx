@@ -113,20 +113,37 @@ export default function SellerDashboard() {
   const [loading, setLoading]   = useState(true)
   const [period, setPeriod]     = useState<Period>('this_month')
   const [mobilePeriod, setMobilePeriod] = useState<'today' | 'week' | 'month' | 'all'>('month')
+  const [sellerId, setSellerId] = useState<string | null>(null)
+  const [fullDataLoaded, setFullDataLoaded] = useState(false)
+
+  const loadDashboard = async (sid: string, days?: number) => {
+    const url = days ? `/api/seller/dashboard?days=${days}` : '/api/seller/dashboard'
+    const res = await fetch(url, { headers: { 'x-seller-id': sid } })
+    const { orders: freshOrders = [], payouts: freshPayouts = [], products: freshProducts = [] } = await res.json()
+    setOrders(freshOrders)
+    setPayouts(freshPayouts)
+    setProducts(freshProducts)
+    setLoading(false)
+    if (days && days >= 365) setFullDataLoaded(true)
+    try {
+      const CACHE_KEY = 'shipedo_seller_dash_v1_' + sid
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ orders: freshOrders, payouts: freshPayouts, products: freshProducts }))
+    } catch {}
+  }
 
   useEffect(() => {
-    let sellerId: string | null = null
+    let sid: string | null = null
     try {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') { sellerId = u.id; setUserName(u.fullName || u.name || 'Seller') }
+        if (u.role === 'seller') { sid = u.id; setUserName(u.fullName || u.name || 'Seller') }
       }
     } catch {}
-    if (!sellerId) { setLoading(false); return }
+    if (!sid) { setLoading(false); return }
+    setSellerId(sid)
 
-    // Show cached data instantly
-    const CACHE_KEY = 'shipedo_seller_dash_v1_' + sellerId
+    const CACHE_KEY = 'shipedo_seller_dash_v1_' + sid
     try {
       const cached = localStorage.getItem(CACHE_KEY)
       if (cached) {
@@ -138,18 +155,20 @@ export default function SellerDashboard() {
       }
     } catch {}
 
-    fetch('/api/seller/dashboard', { headers: { 'x-seller-id': sellerId } })
-      .then(r => r.json())
-      .then(({ orders: freshOrders = [], payouts: freshPayouts = [], products: freshProducts = [] }) => {
-      setOrders(freshOrders)
-      setPayouts(freshPayouts)
-      setProducts(freshProducts)
-      setLoading(false)
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ orders: freshOrders, payouts: freshPayouts, products: freshProducts }))
-      } catch {}
-    })
+    loadDashboard(sid)
   }, [])
+
+  useEffect(() => {
+    if (fullDataLoaded || !sellerId) return
+    const needsDays: Record<string, number> = {
+      last_month: 60, this_year: 365, all: 365,
+    }
+    const days = needsDays[period]
+    if (days) {
+      setLoading(true)
+      loadDashboard(sellerId, days)
+    }
+  }, [period])
 
   const payoutSummary = useMemo(() => {
     const total = payouts.reduce((s, p) => s + Number(p.net_amount || 0), 0)

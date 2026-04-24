@@ -137,20 +137,30 @@ export default function AdminShippingPage() {
   const [filterCity, setFilterCity] = useState<string>('all')
   const [citiesExpanded, setCitiesExpanded] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
-  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [datePreset, setDatePreset] = useState<DatePreset>('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [fullDataLoaded, setFullDataLoaded] = useState(false)
 
   // Print queue
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
-  const loadOrders = async () => {
-    const { data } = await supabase
+  const loadOrders = async (loadAll = false) => {
+    let q = supabase
       .from('orders')
       .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason, assigned_agent_id')
       .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
-      .limit(2000)
+
+    if (!loadAll) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - 30)
+      q = q.gte('created_at', cutoff.toISOString()).limit(500)
+    } else {
+      q = q.limit(2000)
+    }
+
+    const { data } = await q
     const rows = (data || []) as OrderRow[]
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
@@ -160,9 +170,17 @@ export default function AdminShippingPage() {
     })
     setOrders(rows)
     setLoading(false)
+    if (loadAll) setFullDataLoaded(true)
   }
 
   useEffect(() => { loadOrders() }, [])
+
+  useEffect(() => {
+    if (!fullDataLoaded && (datePreset === 'all' || datePreset === 'last_month')) {
+      setLoading(true)
+      loadOrders(true)
+    }
+  }, [datePreset])
 
   const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 

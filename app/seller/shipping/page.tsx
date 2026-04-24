@@ -90,38 +90,62 @@ export default function SellerShippingPage() {
   const [loading, setLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState<ShipStatus | 'all'>('all')
   const [selectedProduct, setSelectedProduct] = useState<string>('all')
-  const [datePreset, setDatePreset] = useState<DatePreset>('all')
+  const [datePreset, setDatePreset] = useState<DatePreset>('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [selected, setSelected] = useState<OrderRow | null>(null)
   const perPage = 10
+  const [fullDataLoaded, setFullDataLoaded] = useState(false)
+  const [sellerId, setSellerId] = useState<string | null>(null)
+
+  const loadOrders = async (sid: string, loadAll = false) => {
+    let q = supabase.from('orders')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at')
+      .eq('seller_id', sid)
+      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
+      .order('created_at', { ascending: false })
+
+    if (!loadAll) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - 30)
+      q = q.gte('created_at', cutoff.toISOString()).limit(500)
+    } else {
+      q = q.limit(2000)
+    }
+
+    const { data } = await q
+    setOrders((data || []) as OrderRow[])
+    setLoading(false)
+    if (loadAll) setFullDataLoaded(true)
+  }
 
   useEffect(() => {
-    let sellerId: string | null = null
+    let sid: string | null = null
     try {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') sellerId = u.id
+        if (u.role === 'seller') sid = u.id
       }
     } catch {}
-    if (!sellerId) { setLoading(false); return }
+    if (!sid) { setLoading(false); return }
+    setSellerId(sid)
     Promise.all([
-      supabase.from('orders')
-        .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at')
-        .eq('seller_id', sellerId)
-        .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
-        .order('created_at', { ascending: false })
-        .limit(2000),
-      supabase.from('products').select('id, name, sku').eq('seller_id', sellerId).order('name'),
-    ]).then(([ordersRes, productsRes]) => {
-      setOrders((ordersRes.data || []) as OrderRow[])
+      loadOrders(sid),
+      supabase.from('products').select('id, name, sku').eq('seller_id', sid).order('name'),
+    ]).then(([_, productsRes]) => {
       setProducts(productsRes.data || [])
-      setLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    if (!fullDataLoaded && sellerId && (datePreset === 'all' || datePreset === 'last_month')) {
+      setLoading(true)
+      loadOrders(sellerId, true)
+    }
+  }, [datePreset])
 
   const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 

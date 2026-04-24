@@ -115,8 +115,9 @@ export default function AgentHistoryPage() {
   const [busy, setBusy] = useState<string | null>(null)
 
   // Date filter
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today')
   const [customDate, setCustomDate] = useState(getToday())
+  const [fullDataLoaded, setFullDataLoaded] = useState(false)
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -143,16 +144,24 @@ export default function AgentHistoryPage() {
   const [editRemindId, setEditRemindId] = useState<string | null>(null)
   const [editRemindDate, setEditRemindDate] = useState('')
 
-  const load = async (aid: string | null) => {
+  const load = async (aid: string | null, loadAll = false) => {
     if (!aid) { setLoading(false); return }
-    const { data } = await supabase
+    let q = supabase
       .from('orders')
       .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, notes, call_attempts, reminded_at, last_call_at, last_call_note, last_call_agent_id, created_at, shipped_at, delivered_at, returned_at, seller_id')
       .eq('assigned_agent_id', aid)
       .order('last_call_at', { ascending: false, nullsFirst: false })
-      .limit(2000)
+
+    if (!loadAll) {
+      const cutoff = new Date()
+      cutoff.setDate(cutoff.getDate() - 30)
+      q = q.gte('created_at', cutoff.toISOString()).limit(500)
+    } else {
+      q = q.limit(2000)
+    }
+
+    const { data } = await q
     const rows = (data || []) as OrderRow[]
-    // Recalculate total from items if total_amount is 0
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
         const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
@@ -161,7 +170,7 @@ export default function AgentHistoryPage() {
     })
     setOrders(rows)
     setLoading(false)
-    // Enrich items with product images
+    if (loadAll) setFullDataLoaded(true)
     const sellerIds = [...new Set(rows.map(r => r.seller_id).filter(Boolean))]
     if (sellerIds.length > 0) {
       const { data: prods } = await supabase.from('products').select('id, image_url').in('seller_id', sellerIds)
@@ -176,6 +185,13 @@ export default function AgentHistoryPage() {
       }
     }
   }
+
+  useEffect(() => {
+    if (!fullDataLoaded && agentId && dateFilter === 'all') {
+      setLoading(true)
+      load(agentId, true)
+    }
+  }, [dateFilter])
 
   useEffect(() => {
     try {
