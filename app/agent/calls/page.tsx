@@ -156,6 +156,13 @@ export default function AgentCallsPage() {
     setLoading(false)
   }, [])
 
+  // Auto-refresh every 30s to pick up reminded orders when their time arrives
+  useEffect(() => {
+    if (!agentId) return
+    const interval = setInterval(() => loadQueue(agentId), 30_000)
+    return () => clearInterval(interval)
+  }, [agentId])
+
   const order = orders[0] ?? null
   const pendingCount = orders.length
   const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
