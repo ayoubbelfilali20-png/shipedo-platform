@@ -144,8 +144,18 @@ export default function AgentHistoryPage() {
   const [editRemindId, setEditRemindId] = useState<string | null>(null)
   const [editRemindDate, setEditRemindDate] = useState('')
 
+  const CACHE_KEY = 'shipedo_agent_history_v1'
+
   const load = async (aid: string | null, loadAll = false) => {
     if (!aid) { setLoading(false); return }
+
+    if (!loadAll) {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY)
+        if (cached) { setOrders(JSON.parse(cached)); setLoading(false) }
+      } catch {}
+    }
+
     let q = supabase
       .from('orders')
       .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, notes, call_attempts, reminded_at, last_call_at, last_call_note, last_call_agent_id, created_at, shipped_at, delivered_at, returned_at, seller_id')
@@ -171,19 +181,7 @@ export default function AgentHistoryPage() {
     setOrders(rows)
     setLoading(false)
     if (loadAll) setFullDataLoaded(true)
-    const sellerIds = [...new Set(rows.map(r => r.seller_id).filter(Boolean))]
-    if (sellerIds.length > 0) {
-      const { data: prods } = await supabase.from('products').select('id, image_url').in('seller_id', sellerIds)
-      if (prods && prods.length > 0) {
-        const imgMap = new Map(prods.map((p: any) => [p.id, p.image_url]))
-        setOrders(prev => prev.map(o => ({
-          ...o,
-          items: Array.isArray(o.items) ? o.items.map((it: any) =>
-            it.product_id && !it.image_url && imgMap.has(it.product_id) ? { ...it, image_url: imgMap.get(it.product_id) } : it
-          ) : o.items
-        })))
-      }
-    }
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
   }
 
   useEffect(() => {

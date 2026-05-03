@@ -100,7 +100,16 @@ export default function SellerShippingPage() {
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
   const [sellerId, setSellerId] = useState<string | null>(null)
 
+  const CACHE_KEY_SHIP = 'shipedo_seller_shipping_v1'
+
   const loadOrders = async (sid: string, loadAll = false) => {
+    if (!loadAll) {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY_SHIP)
+        if (cached) { setOrders(JSON.parse(cached)); setLoading(false) }
+      } catch {}
+    }
+
     let q = supabase.from('orders')
       .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at')
       .eq('seller_id', sid)
@@ -116,9 +125,11 @@ export default function SellerShippingPage() {
     }
 
     const { data } = await q
-    setOrders((data || []) as OrderRow[])
+    const rows = (data || []) as OrderRow[]
+    setOrders(rows)
     setLoading(false)
     if (loadAll) setFullDataLoaded(true)
+    try { localStorage.setItem(CACHE_KEY_SHIP, JSON.stringify(rows)) } catch {}
   }
 
   useEffect(() => {

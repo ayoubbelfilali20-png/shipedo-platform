@@ -145,7 +145,16 @@ export default function AdminShippingPage() {
   // Print queue
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
+  const CACHE_KEY = 'shipedo_admin_shipping_v1'
+
   const loadOrders = async (loadAll = false) => {
+    if (!loadAll) {
+      try {
+        const cached = localStorage.getItem(CACHE_KEY)
+        if (cached) { setOrders(JSON.parse(cached)); setLoading(false) }
+      } catch {}
+    }
+
     let q = supabase
       .from('orders')
       .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason, assigned_agent_id')
@@ -171,6 +180,7 @@ export default function AdminShippingPage() {
     setOrders(rows)
     setLoading(false)
     if (loadAll) setFullDataLoaded(true)
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
   }
 
   useEffect(() => { loadOrders() }, [])

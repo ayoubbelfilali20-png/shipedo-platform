@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { enrichOrderImages } from '@/lib/enrichOrderImages'
 
 const COLS = 'id, tracking_number, customer_name, customer_phone, customer_city, items, total_amount, original_total, status, source, subuser, created_at, call_attempts, reminded_at, cancel_reason'
 const STATUSES = ['pending', 'confirmed', 'cancelled']
@@ -23,6 +22,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   }
 
-  const enriched = await enrichOrderImages(data || [], supabaseAdmin)
-  return NextResponse.json(enriched)
+  return NextResponse.json(data || [])
 }

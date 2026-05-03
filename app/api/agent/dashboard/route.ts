@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { enrichOrderImages } from '@/lib/enrichOrderImages'
 
 const COLS = 'id, tracking_number, customer_name, customer_phone, customer_city, items, total_amount, original_total, status, payment_status, notes, call_attempts, reminded_at, last_call_at, last_call_agent_id, created_at'
 
@@ -24,13 +23,8 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false }).limit(1000),
   ])
 
-  const [enrichedPending, enrichedOrders] = await Promise.all([
-    enrichOrderImages(pending || [], supabaseAdmin),
-    enrichOrderImages(orders || [], supabaseAdmin),
-  ])
-
   return NextResponse.json({
-    pending: enrichedPending,
-    orders: enrichedOrders,
+    pending: pending || [],
+    orders: orders || [],
   })
 }
