@@ -55,7 +55,7 @@ export default function SellerProductsPage() {
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
-    supabase.from('products').select('*').eq('seller_id', sellerId).order('created_at', { ascending: false }).then(({ data }) => {
+    supabase.from('products').select('id, name, sku, selling_price, stock, total_quantity, defective_quantity, status, image_url, created_at').eq('seller_id', sellerId).order('created_at', { ascending: false }).limit(200).then(({ data }) => {
       setProducts(data || [])
       setLoading(false)
     })

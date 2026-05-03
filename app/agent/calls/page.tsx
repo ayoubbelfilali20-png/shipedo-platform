@@ -159,7 +159,7 @@ export default function AgentCallsPage() {
   // Auto-refresh every 30s to pick up reminded orders when their time arrives
   useEffect(() => {
     if (!agentId) return
-    const interval = setInterval(() => loadQueue(agentId), 30_000)
+    const interval = setInterval(() => loadQueue(agentId), 60_000)
     return () => clearInterval(interval)
   }, [agentId])
 
@@ -218,11 +218,11 @@ export default function AgentCallsPage() {
     if (phone) {
       supabase
         .from('orders')
-        .select('*')
+        .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, status, created_at, delivered_at, returned_at, shipped_at')
         .eq('customer_phone', phone)
         .neq('id', order.id)
         .order('created_at', { ascending: false })
-        .limit(20)
+        .limit(10)
         .then(({ data }) => {
           const history = (data || []) as OrderRow[]
           setClientHistory(history)

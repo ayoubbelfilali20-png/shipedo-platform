@@ -69,7 +69,7 @@ export default function SellersPage() {
 
   const loadSellers = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('sellers').select('*').order('created_at', { ascending: false })
+    const { data, error } = await supabase.from('sellers').select('id, name, company, email, phone, password, city, status, notes, created_at, confirmation_fee_usd, upsell_fee_usd, cross_sell_fee_usd, shipping_fee_usd').order('created_at', { ascending: false }).limit(200)
     if (error) console.error('LOAD ERROR:', error.message, error.code)
     if (data) {
       setSellers(data.map(row => ({

@@ -33,8 +33,9 @@ export default function AdminWithdrawalsPage() {
     setLoading(true)
     const { data } = await supabase
       .from('withdraw_requests')
-      .select('*')
+      .select('id, seller_id, seller_name, amount_usd, method, account_details, status, requested_at, processed_at, note')
       .order('requested_at', { ascending: false })
+      .limit(200)
     setRequests((data ?? []) as WR[])
     setLoading(false)
   }

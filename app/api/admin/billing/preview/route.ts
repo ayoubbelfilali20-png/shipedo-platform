@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
       supabaseAdmin
         .from('orders')
         .select('id, seller_id, total_amount, status, created_at, tracking_number, customer_name, is_upsell, is_cross_sell')
-        .eq('status', 'delivered'),
+        .eq('status', 'delivered')
+        .gte('created_at', period.start)
+        .lt('created_at', period.end)
+        .limit(5000),
     ])
     if (sellersRes.error) return NextResponse.json({ success: false, error: sellersRes.error.message }, { status: 500 })
     if (ordersRes.error)  return NextResponse.json({ success: false, error: ordersRes.error.message },  { status: 500 })

@@ -91,7 +91,7 @@ export default function OrdersPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      let q = supabase.from('orders').select('*', { count: 'exact' })
+      let q = supabase.from('orders').select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, cancel_reason, printed, created_at, seller_id', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
       if (statusFilter !== 'all') q = q.eq('status', statusFilter)

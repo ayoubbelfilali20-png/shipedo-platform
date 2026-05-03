@@ -324,9 +324,10 @@ export default function AgentDashboard() {
     setHistoryOrder(o)
     const { data } = await supabase
       .from('call_logs')
-      .select('*')
+      .select('id, order_id, agent_name, action, note, reminded_at, created_at')
       .eq('order_id', o.id)
       .order('created_at', { ascending: false })
+      .limit(50)
     setHistoryLogs((data || []) as CallLog[])
   }
 

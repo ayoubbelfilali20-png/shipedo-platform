@@ -48,8 +48,8 @@ export default function SellerWalletPage() {
     setLoading(true)
     const [wRes, txRes, reqRes] = await Promise.all([
       supabase.from('seller_wallets').select('balance_usd').eq('seller_id', sid).maybeSingle(),
-      supabase.from('wallet_transactions').select('*').eq('seller_id', sid).order('created_at', { ascending: false }).limit(50),
-      supabase.from('withdraw_requests').select('*').eq('seller_id', sid).order('requested_at', { ascending: false }).limit(20),
+      supabase.from('wallet_transactions').select('id, seller_id, type, amount_usd, note, created_at').eq('seller_id', sid).order('created_at', { ascending: false }).limit(50),
+      supabase.from('withdraw_requests').select('id, seller_id, amount_usd, method, account_details, status, requested_at, processed_at').eq('seller_id', sid).order('requested_at', { ascending: false }).limit(20),
     ])
     setBalance(Number(wRes.data?.balance_usd ?? 0))
     setTxs((txRes.data ?? []) as Tx[])

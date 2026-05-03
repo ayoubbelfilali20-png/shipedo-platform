@@ -72,7 +72,7 @@ export default function AgentsPage() {
 
   const loadAgents = async () => {
     setLoading(true)
-    const { data } = await supabase.from('agents').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase.from('agents').select('id, name, email, phone, password, status, notes, created_at').order('created_at', { ascending: false }).limit(200)
     if (data) {
       setAgents(data.map(row => ({
         id: row.id,

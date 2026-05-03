@@ -52,7 +52,7 @@ export default function ProductsPage() {
   const [savingQty, setSavingQty] = useState(false)
 
   useEffect(() => {
-    supabase.from('products').select('*').order('created_at', { ascending: false }).then(({ data, error }) => {
+    supabase.from('products').select('id, name, sku, selling_price, stock, total_quantity, defective_quantity, status, image_url, seller_id, created_at').order('created_at', { ascending: false }).limit(500).then(({ data, error }) => {
       if (error) alert('LOAD products error: ' + error.message + ' / code ' + error.code)
       else if (!data || data.length === 0) console.log('Products query returned empty')
       else console.log('Loaded products:', data.length, data)

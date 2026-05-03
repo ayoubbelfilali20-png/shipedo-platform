@@ -262,7 +262,7 @@ export default function SellerNewOrderPage() {
       }
     } catch {}
     if (!sellerId) return
-    supabase.from('products').select('*').eq('seller_id', sellerId).then(({ data }) => {
+    supabase.from('products').select('id, name, sku, origin, selling_price, stock, image_url, description, status').eq('seller_id', sellerId).then(({ data }) => {
       setSellerProducts((data || []) as SellerProduct[])
     })
   }, [])

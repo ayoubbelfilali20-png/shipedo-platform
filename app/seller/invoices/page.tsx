@@ -54,7 +54,7 @@ export default function SellerInvoicesPage() {
     } catch {}
     if (!sellerId) { setLoading(false); return }
 
-    supabase.from('seller_invoices').select('*').eq('seller_id', sellerId).order('created_at', { ascending: false })
+    supabase.from('seller_invoices').select('id, seller_id, period_start, period_end, delivered_count, total_sales_usd, total_fees_usd, net_usd, status, created_at').eq('seller_id', sellerId).order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => { setRows((data ?? []) as InvoiceRow[]); setLoading(false) })
   }, [])
 

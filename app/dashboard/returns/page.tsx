@@ -44,7 +44,7 @@ export default function ReturnsPage() {
   useEffect(() => {
     supabase
       .from('orders')
-      .select('*')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, returned_at, created_at, seller_id, notes')
       .eq('status', 'returned')
       .order('returned_at', { ascending: false })
       .limit(100)
@@ -64,7 +64,7 @@ export default function ReturnsPage() {
 
     const { data } = await supabase
       .from('orders')
-      .select('*')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, returned_at, created_at, seller_id')
       .eq('tracking_number', q)
       .limit(1)
 

@@ -57,7 +57,7 @@ export default function SellerOrderDetailPage() {
 
   useEffect(() => {
     if (!id) return
-    supabase.from('orders').select('*').eq('id', id).limit(1).then(({ data }) => {
+    supabase.from('orders').select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, country, items, total_amount, original_total, status, payment_method, source, notes, call_attempts, reminded_at, last_call_note, created_at').eq('id', id).limit(1).then(({ data }) => {
       const row = data?.[0] as OrderRow | undefined
       if (row) {
         setOrder(row)
@@ -86,7 +86,7 @@ export default function SellerOrderDetailPage() {
     setSaving(false)
     setEditing(false)
     // refresh
-    const { data } = await supabase.from('orders').select('*').eq('id', order.id).limit(1)
+    const { data } = await supabase.from('orders').select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, country, items, total_amount, original_total, status, payment_method, source, notes, call_attempts, reminded_at, last_call_note, created_at').eq('id', order.id).limit(1)
     if (data?.[0]) setOrder(data[0] as OrderRow)
   }
 
