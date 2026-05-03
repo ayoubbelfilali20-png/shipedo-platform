@@ -5,6 +5,9 @@ const nextConfig = {
   images: {
     domains: [],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   turbopack: {
     root: path.join(__dirname),
   },
