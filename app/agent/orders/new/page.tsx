@@ -153,6 +153,13 @@ export default function AgentNewOrderPage() {
       alert('Error: ' + error.message)
       return
     }
+    // Send WhatsApp confirmation (fire-and-forget)
+    const productList = items.map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name} (x${q})` : it.name }).join(', ')
+    fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, customerName: fullName, trackingNumber: newId, productList }),
+    }).catch(() => {})
     setGeneratedId(newId)
   }
 

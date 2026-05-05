@@ -344,8 +344,9 @@ export default function ImportOrdersPage() {
         unit_price: it.unit_price,
       }))
 
+      const trackingNum = generateOrderId()
       const { error } = await supabase.from('orders').insert({
-        tracking_number: generateOrderId(),
+        tracking_number: trackingNum,
         seller_id: sellerId,
         seller_name: sellerName,
         assigned_agent_id: agentId,
@@ -362,8 +363,15 @@ export default function ImportOrdersPage() {
         payment_method: 'COD',
       })
 
-      if (error) failed++
-      else success++
+      if (error) { failed++; continue }
+      success++
+      // Send WhatsApp confirmation (fire-and-forget)
+      const productList = items.map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name} (x${q})` : it.name }).join(', ')
+      fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: order.customer_phone, customerName: order.customer_name, trackingNumber: trackingNum, productList }),
+      }).catch(() => {})
     }
 
     setImporting(false)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { pickAgentForOrder } from '@/lib/agentAssignment'
+import { sendOrderConfirmationMessage } from '@/lib/whatsapp'
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get('x-sheet-token')
@@ -107,6 +108,10 @@ export async function POST(req: NextRequest) {
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
   }
+
+  // Send WhatsApp confirmation (fire-and-forget, server-side)
+  const productList = items.map(it => { const q = it.quantity || 1; return q > 1 ? `${it.name} (x${q})` : it.name }).join(', ')
+  sendOrderConfirmationMessage(phone, fullName, trackingNumber, productList).catch(() => {})
 
   return NextResponse.json({ ok: true, order: data })
 }
