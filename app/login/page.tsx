@@ -80,8 +80,8 @@ export default function LoginPage() {
       }
 
       if (agent && agent.password === password) {
-        if (agent.status === 'inactive' || agent.status === 'suspended') {
-          setError('Your account is inactive. Contact admin.')
+        if (agent.status === 'suspended') {
+          setError('Your account is suspended. Contact admin.')
           setLoading(false)
           return
         }
