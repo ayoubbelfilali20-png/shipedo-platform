@@ -467,11 +467,14 @@ export default function AgentCallsPage() {
     }
   }, [order?.id])
 
+  const [waSendError, setWaSendError] = useState('')
+
   const sendWaReply = async () => {
     if (!waReply.trim() || !order || waSending) return
     setWaSending(true)
+    setWaSendError('')
     try {
-      await fetch('/api/whatsapp/send', {
+      const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -482,9 +485,45 @@ export default function AgentCallsPage() {
           agentName: agentName,
         }),
       })
-      setWaReply('')
-      await loadWaMessages(order.customer_phone)
-    } catch {}
+      const result = await res.json()
+      if (result.ok) {
+        setWaReply('')
+        await loadWaMessages(order.customer_phone)
+      } else {
+        setWaSendError(result.error || 'Failed to send')
+      }
+    } catch (err: any) {
+      setWaSendError(err.message || 'Network error')
+    }
+    setWaSending(false)
+  }
+
+  const sendWaImage = async (imageUrl: string, caption?: string) => {
+    if (!order || waSending) return
+    setWaSending(true)
+    setWaSendError('')
+    try {
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: order.customer_phone,
+          imageUrl,
+          caption: caption || '',
+          orderId: order.id,
+          agentId: agentId,
+          agentName: agentName,
+        }),
+      })
+      const result = await res.json()
+      if (result.ok) {
+        await loadWaMessages(order.customer_phone)
+      } else {
+        setWaSendError(result.error || 'Failed to send image')
+      }
+    } catch (err: any) {
+      setWaSendError(err.message || 'Network error')
+    }
     setWaSending(false)
   }
 
@@ -505,9 +544,101 @@ export default function AgentCallsPage() {
         </button>
       </div>
 
-      <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Main calling area */}
-        <div className="lg:col-span-2 space-y-4">
+      <div className="p-6 grid grid-cols-1 lg:grid-cols-4 gap-5">
+        {/* LEFT — WhatsApp Chat */}
+        <div className="lg:col-span-1 order-2 lg:order-1">
+          {order ? (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden lg:sticky lg:top-6">
+              <div className="bg-emerald-600 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageCircle size={14} className="text-white" />
+                  <div>
+                    <span className="text-white font-bold text-sm">WhatsApp</span>
+                    <p className="text-white/60 text-[10px]">{order.customer_phone}</p>
+                  </div>
+                </div>
+                <button onClick={() => loadWaMessages(order.customer_phone)} className="text-white/60 hover:text-white text-xs font-semibold">
+                  Refresh
+                </button>
+              </div>
+              <div className="h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto p-3 space-y-2 bg-[#e5ddd5]">
+                {waLoading ? (
+                  <p className="text-xs text-gray-500 text-center py-8">Loading...</p>
+                ) : waMessages.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-8">No messages yet</p>
+                ) : waMessages.map(m => (
+                  <div key={m.id} className={`flex ${m.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[90%] rounded-lg px-3 py-2 text-xs shadow-sm ${
+                      m.direction === 'outgoing'
+                        ? 'bg-[#dcf8c6] text-gray-800'
+                        : 'bg-white text-gray-800'
+                    }`}>
+                      {m.body?.startsWith('[Image]') ? (
+                        <div className="space-y-1">
+                          <div className="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-gray-400 text-xs">Image sent</div>
+                          {m.body.replace('[Image]', '').trim() && <p>{m.body.replace('[Image]', '').trim()}</p>}
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      )}
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        {m.agent_name && m.direction === 'outgoing' && (
+                          <span className="text-[9px] text-gray-400">{m.agent_name}</span>
+                        )}
+                        <span className="text-[9px] text-gray-400">
+                          {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {waSendError && (
+                <div className="px-3 py-1.5 bg-red-50 border-t border-red-200 text-[10px] text-red-600 font-semibold">
+                  {waSendError}
+                </div>
+              )}
+              {/* Send product images */}
+              {order.items && Array.isArray(order.items) && order.items.some((it: any) => it.image_url) && (
+                <div className="px-3 py-2 bg-gray-50 border-t border-gray-100 flex items-center gap-1.5 overflow-x-auto">
+                  <span className="text-[9px] text-gray-400 flex-shrink-0">Send image:</span>
+                  {order.items.filter((it: any) => it.image_url).map((it: any, i: number) => (
+                    <button key={i} onClick={() => sendWaImage(it.image_url, it.name || '')}
+                      disabled={waSending}
+                      className="flex-shrink-0 w-8 h-8 rounded border border-gray-200 overflow-hidden hover:border-emerald-400 disabled:opacity-40"
+                      title={`Send ${it.name}`}>
+                      <img src={it.image_url} alt={it.name} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="p-2 bg-gray-50 border-t border-gray-200 flex gap-2">
+                <input
+                  value={waReply}
+                  onChange={e => { setWaReply(e.target.value); setWaSendError('') }}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendWaReply()}
+                  placeholder="Type a message..."
+                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-full text-xs focus:outline-none focus:border-emerald-400"
+                />
+                <button
+                  onClick={sendWaReply}
+                  disabled={waSending || !waReply.trim()}
+                  className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 flex items-center justify-center text-white flex-shrink-0"
+                >
+                  {waSending ? <Clock size={12} /> : <MessageCircle size={12} />}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+              <MessageCircle size={32} className="mx-auto mb-3 text-gray-200" />
+              <p className="text-xs text-gray-400">Select an order to see WhatsApp chat</p>
+            </div>
+          )}
+        </div>
+
+        {/* CENTER — Main calling area */}
+        <div className="lg:col-span-2 space-y-4 order-1 lg:order-2">
           {loading ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-20 text-center text-sm text-gray-400">
               Loading queue…
@@ -1004,62 +1135,6 @@ export default function AgentCallsPage() {
 
         {/* Right sidebar */}
         <div className="space-y-4">
-          {/* WhatsApp Chat */}
-          {order && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="bg-emerald-600 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageCircle size={14} className="text-white" />
-                  <span className="text-white font-bold text-sm">WhatsApp</span>
-                </div>
-                <button onClick={() => loadWaMessages(order.customer_phone)} className="text-white/60 hover:text-white text-xs">
-                  Refresh
-                </button>
-              </div>
-              <div className="h-64 overflow-y-auto p-3 space-y-2 bg-[#e5ddd5]">
-                {waLoading ? (
-                  <p className="text-xs text-gray-500 text-center py-8">Loading...</p>
-                ) : waMessages.length === 0 ? (
-                  <p className="text-xs text-gray-500 text-center py-8">No messages yet</p>
-                ) : waMessages.map(m => (
-                  <div key={m.id} className={`flex ${m.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${
-                      m.direction === 'outgoing'
-                        ? 'bg-[#dcf8c6] text-gray-800'
-                        : 'bg-white text-gray-800'
-                    }`}>
-                      <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                      <div className="flex items-center justify-end gap-1 mt-1">
-                        {m.agent_name && m.direction === 'outgoing' && (
-                          <span className="text-[9px] text-gray-400">{m.agent_name}</span>
-                        )}
-                        <span className="text-[9px] text-gray-400">
-                          {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="p-2 bg-gray-50 border-t border-gray-200 flex gap-2">
-                <input
-                  value={waReply}
-                  onChange={e => setWaReply(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendWaReply()}
-                  placeholder="Type a message..."
-                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-full text-xs focus:outline-none focus:border-emerald-400"
-                />
-                <button
-                  onClick={sendWaReply}
-                  disabled={waSending || !waReply.trim()}
-                  className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 flex items-center justify-center text-white flex-shrink-0"
-                >
-                  {waSending ? <Clock size={12} /> : <MessageCircle size={12} />}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Up next */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-[#1a1c3a] text-sm mb-3">Up Next ({Math.max(0, pendingCount - 1)})</h3>

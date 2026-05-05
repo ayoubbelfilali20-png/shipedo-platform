@@ -14,11 +14,21 @@ export function formatPhone(phone: string): string {
   return num
 }
 
-export async function sendWhatsAppText(
-  phone: string,
-  text: string,
-  opts?: { orderId?: string; agentId?: string; agentName?: string },
-): Promise<boolean> {
+type SendOpts = { orderId?: string; agentId?: string; agentName?: string }
+
+async function storeMessage(phone: string, body: string, waMessageId: string | null, opts?: SendOpts) {
+  await supabaseAdmin.from('whatsapp_messages').insert({
+    order_id: opts?.orderId || null,
+    phone,
+    direction: 'outgoing',
+    body,
+    agent_id: opts?.agentId || 'system',
+    agent_name: opts?.agentName || 'System',
+    wa_message_id: waMessageId,
+  })
+}
+
+export async function sendWhatsAppText(phone: string, text: string, opts?: SendOpts): Promise<boolean> {
   if (!isWhatsAppConfigured()) return false
 
   const to = formatPhone(phone)
@@ -40,25 +50,49 @@ export async function sendWhatsAppText(
     })
     const data = await res.json()
     if (!res.ok) {
-      console.error('WhatsApp send error:', data)
+      console.error('WhatsApp send error:', JSON.stringify(data))
       return false
     }
 
-    // Store outgoing message
-    const waMessageId = data?.messages?.[0]?.id || null
-    await supabaseAdmin.from('whatsapp_messages').insert({
-      order_id: opts?.orderId || null,
-      phone: to,
-      direction: 'outgoing',
-      body: text,
-      agent_id: opts?.agentId || 'system',
-      agent_name: opts?.agentName || 'System',
-      wa_message_id: waMessageId,
-    })
-
+    await storeMessage(to, text, data?.messages?.[0]?.id || null, opts)
     return true
   } catch (err) {
     console.error('WhatsApp send failed:', err)
+    return false
+  }
+}
+
+export async function sendWhatsAppImage(phone: string, imageUrl: string, caption: string, opts?: SendOpts): Promise<boolean> {
+  if (!isWhatsAppConfigured()) return false
+
+  const to = formatPhone(phone)
+  if (!to) return false
+
+  try {
+    const res = await fetch(GRAPH_API, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'image',
+        image: { link: imageUrl, caption: caption || undefined },
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      console.error('WhatsApp image error:', JSON.stringify(data))
+      return false
+    }
+
+    const displayText = caption ? `[Image] ${caption}` : '[Image]'
+    await storeMessage(to, displayText, data?.messages?.[0]?.id || null, opts)
+    return true
+  } catch (err) {
+    console.error('WhatsApp image failed:', err)
     return false
   }
 }
