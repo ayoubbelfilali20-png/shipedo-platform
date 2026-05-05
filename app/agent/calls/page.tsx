@@ -94,6 +94,12 @@ export default function AgentCallsPage() {
   const [productSearch, setProductSearch] = useState('')
   const [savingItems, setSavingItems] = useState(false)
 
+  // WhatsApp chat
+  const [waMessages, setWaMessages] = useState<any[]>([])
+  const [waReply, setWaReply] = useState('')
+  const [waSending, setWaSending] = useState(false)
+  const [waLoading, setWaLoading] = useState(false)
+
   // Print queue — manual select
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
@@ -440,6 +446,46 @@ export default function AgentCallsPage() {
     await Promise.all(ids.map(id => supabase.from('orders').update({ printed: true }).eq('id', id)))
     setConfirmedOrders(prev => prev.filter(o => !ids.includes(o.id)))
     setPrintQueue(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n })
+  }
+
+  // Load WhatsApp chat when order changes
+  const loadWaMessages = async (phone: string) => {
+    setWaLoading(true)
+    try {
+      const res = await fetch(`/api/whatsapp/messages?phone=${encodeURIComponent(phone)}`)
+      const data = await res.json()
+      setWaMessages(Array.isArray(data) ? data : [])
+    } catch { setWaMessages([]) }
+    setWaLoading(false)
+  }
+
+  useEffect(() => {
+    if (order?.customer_phone) {
+      loadWaMessages(order.customer_phone)
+    } else {
+      setWaMessages([])
+    }
+  }, [order?.id])
+
+  const sendWaReply = async () => {
+    if (!waReply.trim() || !order || waSending) return
+    setWaSending(true)
+    try {
+      await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: order.customer_phone,
+          text: waReply.trim(),
+          orderId: order.id,
+          agentId: agentId,
+          agentName: agentName,
+        }),
+      })
+      setWaReply('')
+      await loadWaMessages(order.customer_phone)
+    } catch {}
+    setWaSending(false)
   }
 
   const inputCls = "w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
@@ -958,6 +1004,62 @@ export default function AgentCallsPage() {
 
         {/* Right sidebar */}
         <div className="space-y-4">
+          {/* WhatsApp Chat */}
+          {order && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="bg-emerald-600 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageCircle size={14} className="text-white" />
+                  <span className="text-white font-bold text-sm">WhatsApp</span>
+                </div>
+                <button onClick={() => loadWaMessages(order.customer_phone)} className="text-white/60 hover:text-white text-xs">
+                  Refresh
+                </button>
+              </div>
+              <div className="h-64 overflow-y-auto p-3 space-y-2 bg-[#e5ddd5]">
+                {waLoading ? (
+                  <p className="text-xs text-gray-500 text-center py-8">Loading...</p>
+                ) : waMessages.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-8">No messages yet</p>
+                ) : waMessages.map(m => (
+                  <div key={m.id} className={`flex ${m.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-lg px-3 py-2 text-xs ${
+                      m.direction === 'outgoing'
+                        ? 'bg-[#dcf8c6] text-gray-800'
+                        : 'bg-white text-gray-800'
+                    }`}>
+                      <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                      <div className="flex items-center justify-end gap-1 mt-1">
+                        {m.agent_name && m.direction === 'outgoing' && (
+                          <span className="text-[9px] text-gray-400">{m.agent_name}</span>
+                        )}
+                        <span className="text-[9px] text-gray-400">
+                          {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-2 bg-gray-50 border-t border-gray-200 flex gap-2">
+                <input
+                  value={waReply}
+                  onChange={e => setWaReply(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendWaReply()}
+                  placeholder="Type a message..."
+                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-full text-xs focus:outline-none focus:border-emerald-400"
+                />
+                <button
+                  onClick={sendWaReply}
+                  disabled={waSending || !waReply.trim()}
+                  className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 flex items-center justify-center text-white flex-shrink-0"
+                >
+                  {waSending ? <Clock size={12} /> : <MessageCircle size={12} />}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Up next */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h3 className="font-bold text-[#1a1c3a] text-sm mb-3">Up Next ({Math.max(0, pendingCount - 1)})</h3>
