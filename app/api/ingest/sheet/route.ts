@@ -53,6 +53,23 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Phone-based dedup: if a pending order with the same phone already exists for this seller, skip
+  const normalizedPhone = phone.replace(/[^\d]/g, '').slice(-9)
+  if (normalizedPhone.length >= 8) {
+    const { data: phoneOrders } = await supabaseAdmin
+      .from('orders')
+      .select('id, customer_phone')
+      .eq('seller_id', seller.id)
+      .in('status', ['pending', 'confirmed'])
+      .limit(1000)
+    const phoneDup = (phoneOrders || []).find((o: any) =>
+      (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9) === normalizedPhone
+    )
+    if (phoneDup) {
+      return NextResponse.json({ ok: true, order: phoneDup, skipped: 'duplicate_phone' })
+    }
+  }
+
   // The user's Apps Script sends totalCharge=qty and totalQuantity=price (swapped)
   const total = parseFloat(body.totalQuantity) || 0
   const qty   = parseInt(body.totalCharge)     || 1

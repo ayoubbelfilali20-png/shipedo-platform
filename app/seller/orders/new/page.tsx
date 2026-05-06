@@ -325,6 +325,21 @@ export default function SellerNewOrderPage() {
         if (u.role === 'seller') { sellerId = u.id; sellerName = u.name }
       }
     } catch {}
+    // Check for duplicate: same phone + pending/confirmed order
+    const normalizedPhone = phone.replace(/[^\d]/g, '').slice(-9)
+    if (normalizedPhone) {
+      const { data: existing } = await supabase
+        .from('orders')
+        .select('id, tracking_number, customer_phone')
+        .in('status', ['pending', 'confirmed'])
+        .limit(500)
+      const dup = (existing || []).find((o: any) => (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9) === normalizedPhone)
+      if (dup) {
+        const proceed = confirm(`A pending order already exists for this phone number (${dup.tracking_number}). Create anyway?`)
+        if (!proceed) { setSaving(false); return }
+      }
+    }
+
     const newId = generateOrderId()
     const items = rows.map(r => ({
       product_id: r.productId, name: r.name, sku: r.sku,

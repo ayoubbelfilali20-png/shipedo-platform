@@ -103,9 +103,17 @@ function cleanPhone(p: string) {
   if (/^0[17]\d{8}$/.test(num)) num = '254' + num.slice(1)
   return num
 }
-function openWhatsApp(phone: string, text: string) {
-  const num = cleanPhone(phone).replace(/^\+/, '')
-  window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(text)}`
+async function sendWaMsg(phone: string, text: string, orderId: string, agentId: string, agentName: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, text, orderId, agentId, agentName }),
+    })
+    return await res.json()
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Network error' }
+  }
 }
 
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
@@ -143,6 +151,7 @@ export default function AgentShippingPage() {
   const [filterCity, setFilterCity] = useState<string>('all')
   const [citiesExpanded, setCitiesExpanded] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
+  const [waSendStatus, setWaSendStatus] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({})
   const [datePreset, setDatePreset] = useState<DatePreset>('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -197,11 +206,9 @@ export default function AgentShippingPage() {
       .order('created_at', { ascending: false })
 
     if (!loadAll) {
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - 30)
-      q = q.gte('created_at', cutoff.toISOString()).limit(500)
+      q = q.limit(3000)
     } else {
-      q = q.limit(2000)
+      q = q.limit(10000)
     }
 
     const { data } = await q
@@ -675,11 +682,23 @@ export default function AgentShippingPage() {
                       <Phone size={12} />
                     </a>
                     <button
-                      onClick={() => {
-                        openWhatsApp(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)
-                        logWhatsAppContact(order.id, agentId, agentName, order.customer_name)
+                      disabled={waSendStatus[order.id] === 'sending'}
+                      onClick={async () => {
+                        setWaSendStatus(p => ({ ...p, [order.id]: 'sending' }))
+                        const msg = `Hello ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way. Please confirm your availability for delivery.`
+                        const result = await sendWaMsg(order.customer_phone, msg, order.id, agentId, agentName)
+                        setWaSendStatus(p => ({ ...p, [order.id]: result.ok ? 'sent' : 'failed' }))
+                        if (result.ok) logWhatsAppContact(order.id, agentId, agentName, order.customer_name)
+                        setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[order.id]; return n }), 2500)
                       }}
-                      className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
+                      className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                        waSendStatus[order.id] === 'sent' ? 'bg-emerald-500 text-white' :
+                        waSendStatus[order.id] === 'failed' ? 'bg-red-100 text-red-500' :
+                        waSendStatus[order.id] === 'sending' ? 'bg-emerald-100 text-emerald-400 animate-pulse' :
+                        'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
+                      )}
+                      title={waSendStatus[order.id] === 'sent' ? 'Sent!' : waSendStatus[order.id] === 'failed' ? 'Failed' : 'Send WhatsApp'}>
                       <MessageCircle size={12} />
                     </button>
                     <StatusDropdown

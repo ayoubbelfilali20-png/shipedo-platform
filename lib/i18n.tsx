@@ -72,6 +72,7 @@ const translations = {
   nav_new_order: { en: 'New Order', fr: 'Nouvelle commande', ar: 'طلب جديد' },
   nav_import_orders: { en: 'Import Orders', fr: 'Importer commandes', ar: 'استيراد الطلبات' },
   nav_shipping: { en: 'Shipping', fr: 'Expédition', ar: 'الشحن' },
+  nav_whatsapp: { en: 'WhatsApp', fr: 'WhatsApp', ar: 'واتساب' },
   nav_analytics: { en: 'Analytics', fr: 'Analyses', ar: 'التحليلات' },
   nav_products: { en: 'Products', fr: 'Produits', ar: 'المنتجات' },
   nav_all_products: { en: 'All Products', fr: 'Tous les produits', ar: 'جميع المنتجات' },

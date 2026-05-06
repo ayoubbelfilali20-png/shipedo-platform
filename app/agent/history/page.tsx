@@ -50,14 +50,32 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; b
 
 const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
 
+function getStatusDate(o: any): string {
+  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
+  if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
+  if (o.status === 'cancelled' && o.last_call_at) return o.last_call_at
+  if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
+  return o.created_at
+}
+
 function cleanPhone(p: string) {
   let num = (p || '').replace(/[^\d+]/g, '')
   if (/^0[17]\d{8}$/.test(num)) num = '254' + num.slice(1)
   return num
 }
-function openWhatsApp(phone: string, text: string) {
-  const num = cleanPhone(phone).replace(/^\+/, '')
-  window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(text)}`
+async function sendWaMsg(phone: string, text: string, orderId: string, agentId: string, agentName: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, text, orderId, agentId, agentName }),
+    })
+    return await res.json()
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Network error' }
+  }
 }
 
 async function logWhatsAppContact(orderId: string, agentId: string, agentName: string, customerName: string) {
@@ -113,6 +131,7 @@ export default function AgentHistoryPage() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<string>('all')
   const [busy, setBusy] = useState<string | null>(null)
+  const [waSendStatus, setWaSendStatus] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({})
 
   // Date filter
   const [dateFilter, setDateFilter] = useState<DateFilter>('today')
@@ -158,16 +177,14 @@ export default function AgentHistoryPage() {
 
     let q = supabase
       .from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, notes, call_attempts, reminded_at, last_call_at, last_call_note, last_call_agent_id, created_at, shipped_at, delivered_at, returned_at, seller_id')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, notes, call_attempts, reminded_at, last_call_at, last_call_note, last_call_agent_id, created_at, shipped_at, shipped_to_agent_at, delivered_at, returned_at, seller_id')
       .eq('assigned_agent_id', aid)
       .order('last_call_at', { ascending: false, nullsFirst: false })
 
     if (!loadAll) {
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - 30)
-      q = q.gte('created_at', cutoff.toISOString()).limit(500)
+      q = q.limit(3000)
     } else {
-      q = q.limit(2000)
+      q = q.limit(10000)
     }
 
     const { data } = await q
@@ -341,7 +358,7 @@ export default function AgentHistoryPage() {
 
   // Filter by date
   const filterByDate = (o: OrderRow) => {
-    const ref = o.last_call_at || o.created_at
+    const ref = getStatusDate(o)
     if (!ref) return true
     switch (dateFilter) {
       case 'today': return isSameDay(ref, getToday())
@@ -525,11 +542,23 @@ export default function AgentHistoryPage() {
                       <Phone size={12} />
                     </a>
                     <button
-                      onClick={() => {
-                        openWhatsApp(o.customer_phone, `Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)
-                        logWhatsAppContact(o.id, agentId || '', agentName, o.customer_name)
+                      disabled={waSendStatus[o.id] === 'sending'}
+                      onClick={async () => {
+                        setWaSendStatus(p => ({ ...p, [o.id]: 'sending' }))
+                        const msg = `Hello ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`
+                        const result = await sendWaMsg(o.customer_phone, msg, o.id, agentId || '', agentName)
+                        setWaSendStatus(p => ({ ...p, [o.id]: result.ok ? 'sent' : 'failed' }))
+                        if (result.ok) logWhatsAppContact(o.id, agentId || '', agentName, o.customer_name)
+                        setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[o.id]; return n }), 2500)
                       }}
-                      className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
+                      className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                        waSendStatus[o.id] === 'sent' ? 'bg-emerald-500 text-white' :
+                        waSendStatus[o.id] === 'failed' ? 'bg-red-100 text-red-500' :
+                        waSendStatus[o.id] === 'sending' ? 'bg-emerald-100 text-emerald-400 animate-pulse' :
+                        'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
+                      )}
+                      title={waSendStatus[o.id] === 'sent' ? 'Sent!' : waSendStatus[o.id] === 'failed' ? 'Failed' : 'Send WhatsApp'}>
                       <MessageCircle size={12} />
                     </button>
                     <StatusDropdown

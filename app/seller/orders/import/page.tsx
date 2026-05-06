@@ -323,7 +323,32 @@ export default function ImportOrdersPage() {
       } catch {}
     }
 
+    // Fetch existing pending/confirmed orders to prevent duplicates
+    const { data: existingOrders } = await supabase
+      .from('orders')
+      .select('customer_phone, items')
+      .eq('seller_id', sellerId)
+      .in('status', ['pending', 'confirmed'])
+    const existingPhoneProducts = new Set<string>()
+    ;(existingOrders || []).forEach((o: any) => {
+      const phone = (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
+      const productKey = Array.isArray(o.items) ? o.items.map((it: any) => (it.name || '').toLowerCase()).sort().join('|') : ''
+      if (phone) existingPhoneProducts.add(`${phone}::${productKey}`)
+    })
+
+    let skipped = 0
+
     for (const order of validOrders) {
+      // Check for duplicate: same phone + same products already pending/confirmed
+      const orderPhone = (order.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
+      const orderProductKey = order.items.map((it: any) => (it.name || '').toLowerCase()).sort().join('|')
+      const dupKey = `${orderPhone}::${orderProductKey}`
+      if (orderPhone && existingPhoneProducts.has(dupKey)) {
+        skipped++
+        continue
+      }
+      existingPhoneProducts.add(dupKey)
+
       // Pick agent with fewest pending
       let agentId: string | null = null
       if (agents.length === 1) {
@@ -375,7 +400,7 @@ export default function ImportOrdersPage() {
     }
 
     setImporting(false)
-    setResult({ success, failed })
+    setResult({ success, failed: failed + skipped })
   }
 
   const validCount = grouped.filter(g => g.errors.length === 0).length

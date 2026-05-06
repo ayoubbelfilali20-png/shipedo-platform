@@ -41,6 +41,7 @@ type OrderRow = {
   call_attempts?: number
   reminded_at?: string | null
   cancel_reason?: string | null
+  assigned_agent_id?: string | null
 }
 
 type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
@@ -103,9 +104,17 @@ function cleanPhone(p: string) {
   if (/^0[17]\d{8}$/.test(num)) num = '254' + num.slice(1)
   return num
 }
-function openWhatsApp(phone: string, text: string) {
-  const num = cleanPhone(phone).replace(/^\+/, '')
-  window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(text)}`
+async function sendWaMsg(phone: string, text: string, orderId: string, agentName: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, text, orderId, agentId: 'admin', agentName }),
+    })
+    return await res.json()
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Network error' }
+  }
 }
 
 async function logWhatsAppContact(orderId: string, adminName: string, customerName: string) {
@@ -141,12 +150,23 @@ export default function AdminShippingPage() {
   const [filterStatus, setFilterStatus] = useState<AllStatus | 'all'>('all')
   const [filterProduct, setFilterProduct] = useState<string>('all')
   const [filterCity, setFilterCity] = useState<string>('all')
+  const [filterAgent, setFilterAgent] = useState<string>('all')
   const [citiesExpanded, setCitiesExpanded] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
+  const [waSendStatus, setWaSendStatus] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({})
   const [datePreset, setDatePreset] = useState<DatePreset>('today')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
+  const [agentMap, setAgentMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    supabase.from('agents').select('id, name').then(({ data }) => {
+      const map: Record<string, string> = {}
+      ;(data || []).forEach((a: any) => { map[a.id] = a.name })
+      setAgentMap(map)
+    })
+  }, [])
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -179,11 +199,9 @@ export default function AdminShippingPage() {
       .order('created_at', { ascending: false })
 
     if (!loadAll) {
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - 30)
-      q = q.gte('created_at', cutoff.toISOString()).limit(500)
+      q = q.limit(5000)
     } else {
-      q = q.limit(2000)
+      q = q.limit(10000)
     }
 
     const { data } = await q
@@ -283,9 +301,10 @@ export default function AdminShippingPage() {
         if (!o.items.some((it: any) => (it.name || '').toLowerCase() === productLower)) return false
       }
       if (filterCity !== 'all' && cityByOrderId.get(o.id) !== filterCity) return false
+      if (filterAgent !== 'all' && o.assigned_agent_id !== filterAgent) return false
       return true
     })
-  }, [orders, search, dateFrom, dateTo, filterProduct, filterCity, cityByOrderId])
+  }, [orders, search, dateFrom, dateTo, filterProduct, filterCity, filterAgent, cityByOrderId])
 
   const filtered = useMemo(
     () => filterStatus === 'all' ? baseFiltered : baseFiltered.filter(o => o.status === filterStatus),
@@ -515,9 +534,21 @@ export default function AdminShippingPage() {
             {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          {(filterProduct !== 'all' || filterCity !== 'all' || search || filterStatus !== 'all') && (
+          <select
+            value={filterAgent}
+            onChange={e => setFilterAgent(e.target.value)}
+            className={cn(
+              'px-3 py-2.5 rounded-xl text-xs font-semibold border transition-all bg-white focus:outline-none focus:border-[#f4991a] min-w-[140px]',
+              filterAgent !== 'all' ? 'border-[#f4991a] text-[#f4991a]' : 'border-gray-200 text-gray-500'
+            )}
+          >
+            <option value="all">All Agents</option>
+            {Object.entries(agentMap).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
+
+          {(filterProduct !== 'all' || filterCity !== 'all' || filterAgent !== 'all' || search || filterStatus !== 'all') && (
             <button
-              onClick={() => { setFilterProduct('all'); setFilterCity('all'); setSearch(''); setFilterStatus('all') }}
+              onClick={() => { setFilterProduct('all'); setFilterCity('all'); setFilterAgent('all'); setSearch(''); setFilterStatus('all') }}
               className="px-3 py-2.5 text-xs font-semibold text-gray-500 hover:text-[#f4991a] flex items-center gap-1"
             >
               <X size={12} /> Clear
@@ -618,6 +649,9 @@ export default function AdminShippingPage() {
                       <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
                     )}
                     <span className="text-[10px] text-gray-400">{order.payment_method}</span>
+                    {order.assigned_agent_id && agentMap[order.assigned_agent_id] && (
+                      <span className="text-[9px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">{agentMap[order.assigned_agent_id]}</span>
+                    )}
                     {(order.total_amount || 0) > 0 && (
                       <span className="text-xs font-bold text-[#f4991a]">
                         KES {order.total_amount.toLocaleString()}
@@ -633,11 +667,23 @@ export default function AdminShippingPage() {
                       <Phone size={12} />
                     </a>
                     <button
-                      onClick={() => {
-                        openWhatsApp(order.customer_phone, `Hello 👋 ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way 🚚. Please confirm your availability for delivery.`)
-                        logWhatsAppContact(order.id, 'Admin', order.customer_name)
+                      disabled={waSendStatus[order.id] === 'sending'}
+                      onClick={async () => {
+                        setWaSendStatus(p => ({ ...p, [order.id]: 'sending' }))
+                        const msg = `Hello ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way. Please confirm your availability for delivery.`
+                        const result = await sendWaMsg(order.customer_phone, msg, order.id, 'Admin')
+                        setWaSendStatus(p => ({ ...p, [order.id]: result.ok ? 'sent' : 'failed' }))
+                        if (result.ok) logWhatsAppContact(order.id, 'Admin', order.customer_name)
+                        setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[order.id]; return n }), 2500)
                       }}
-                      className="w-7 h-7 rounded-lg bg-emerald-50 hover:bg-emerald-100 flex items-center justify-center text-emerald-600 transition-all">
+                      className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                        waSendStatus[order.id] === 'sent' ? 'bg-emerald-500 text-white' :
+                        waSendStatus[order.id] === 'failed' ? 'bg-red-100 text-red-500' :
+                        waSendStatus[order.id] === 'sending' ? 'bg-emerald-100 text-emerald-400 animate-pulse' :
+                        'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
+                      )}
+                      title={waSendStatus[order.id] === 'sent' ? 'Sent!' : waSendStatus[order.id] === 'failed' ? 'Failed' : 'Send WhatsApp'}>
                       <MessageCircle size={12} />
                     </button>
                     <StatusDropdown

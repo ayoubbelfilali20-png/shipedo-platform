@@ -32,6 +32,11 @@ type OrderRow = {
   reminded_at?: string | null
   last_call_at?: string | null
   last_call_agent_id?: string | null
+  assigned_agent_id?: string | null
+  shipped_at?: string | null
+  delivered_at?: string | null
+  returned_at?: string | null
+  shipped_to_agent_at?: string | null
   created_at: string
 }
 
@@ -71,6 +76,16 @@ const statusLabels: Record<string, string> = {
   pending: 'Pending', confirmed: 'Confirmed', prepared: 'Prepared',
   shipped_to_agent: 'Sent to Agent', shipped: 'Shipped',
   delivered: 'Delivered', cancelled: 'Cancelled', returned: 'Returned',
+}
+
+function getStatusDate(o: any): string {
+  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
+  if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
+  if (o.status === 'cancelled' && o.last_call_at) return o.last_call_at
+  if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
+  return o.created_at
 }
 
 function getRange(period: Period, customFrom: string, customTo: string): { from: Date | null; to: Date | null } {
@@ -135,6 +150,7 @@ export default function AgentDashboard() {
   const [search, setSearch]     = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [busyId, setBusyId]     = useState<string | null>(null)
+  const [waSendStatus, setWaSendStatus] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({})
   const [recallOrder, setRecallOrder] = useState<OrderRow | null>(null)
   const [historyOrder, setHistoryOrder] = useState<OrderRow | null>(null)
   const [historyLogs, setHistoryLogs] = useState<CallLog[]>([])
@@ -206,7 +222,7 @@ export default function AgentDashboard() {
     const { from, to } = getRange(period, customFrom, customTo)
     if (!from && !to) return orders
     return orders.filter(o => {
-      const ref = new Date(o.last_call_at || o.created_at)
+      const ref = new Date(getStatusDate(o))
       if (from && ref < from) return false
       if (to && ref >= to) return false
       return true
@@ -486,6 +502,27 @@ export default function AgentDashboard() {
           </div>
         </div>
 
+        {/* WhatsApp Web */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center">
+                <MessageCircle size={20} className="text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-[#1a1c3a] text-sm">WhatsApp Web</h3>
+                <p className="text-xs text-gray-400">Scan QR code to connect your WhatsApp</p>
+              </div>
+            </div>
+            <button
+              onClick={() => window.open('https://web.whatsapp.com', 'whatsapp_' + agentId, 'width=1100,height=750,scrollbars=yes,resizable=yes')}
+              className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold rounded-xl transition-all"
+            >
+              <MessageCircle size={15} /> Open WhatsApp Web
+            </button>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50 flex-wrap gap-3">
             <div>
@@ -597,12 +634,36 @@ export default function AgentDashboard() {
                             <Phone size={12} />
                           </a>
                           <button
-                            onClick={() => {
-                              const num = cleanPhone(o.customer_phone).replace(/^\+/, '')
-                              window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(`Hello 👋 ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`)}`
+                            disabled={waSendStatus[o.id] === 'sending'}
+                            onClick={async () => {
+                              setWaSendStatus(p => ({ ...p, [o.id]: 'sending' }))
+                              try {
+                                const res = await fetch('/api/whatsapp/send', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    phone: o.customer_phone,
+                                    text: `Hello ${o.customer_name}, regarding your order *${o.tracking_number}*. How can we help you?`,
+                                    orderId: o.id,
+                                    agentId: agentId || '',
+                                    agentName: agentName,
+                                  }),
+                                })
+                                const result = await res.json()
+                                setWaSendStatus(p => ({ ...p, [o.id]: result.ok ? 'sent' : 'failed' }))
+                              } catch {
+                                setWaSendStatus(p => ({ ...p, [o.id]: 'failed' }))
+                              }
+                              setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[o.id]; return n }), 2500)
                             }}
-                            title="WhatsApp"
-                            className="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center"
+                            title={waSendStatus[o.id] === 'sent' ? 'Sent!' : waSendStatus[o.id] === 'failed' ? 'Failed' : 'Send WhatsApp'}
+                            className={cn(
+                              "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                              waSendStatus[o.id] === 'sent' ? 'bg-emerald-600 text-white' :
+                              waSendStatus[o.id] === 'failed' ? 'bg-red-500 text-white' :
+                              waSendStatus[o.id] === 'sending' ? 'bg-emerald-400 text-white animate-pulse' :
+                              'bg-emerald-500 hover:bg-emerald-600 text-white'
+                            )}
                           >
                             <MessageCircle size={12} />
                           </button>

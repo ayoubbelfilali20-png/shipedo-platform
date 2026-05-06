@@ -31,6 +31,7 @@ type OrderRow = {
   printed?: boolean
   created_at: string
   seller_id?: string | null
+  assigned_agent_id?: string | null
 }
 
 const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
@@ -71,6 +72,15 @@ export default function OrdersPage() {
   const [searchInput, setSearchInput] = useState('')
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all')
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
+  const [agentMap, setAgentMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    supabase.from('agents').select('id, name').then(({ data }) => {
+      const map: Record<string, string> = {}
+      ;(data || []).forEach((a: any) => { map[a.id] = a.name })
+      setAgentMap(map)
+    })
+  }, [])
 
   const addToPrintQueue = (id: string) => {
     const o = orders.find(x => x.id === id)
@@ -91,7 +101,7 @@ export default function OrdersPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      let q = supabase.from('orders').select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, cancel_reason, printed, created_at, seller_id', { count: 'exact' })
+      let q = supabase.from('orders').select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, cancel_reason, printed, created_at, seller_id, assigned_agent_id', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
       if (statusFilter !== 'all') q = q.eq('status', statusFilter)
@@ -198,6 +208,7 @@ export default function OrdersPage() {
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5">Customer</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 hidden md:table-cell">Items</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 hidden lg:table-cell">City</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 hidden xl:table-cell">Agent</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5">Amount</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5">Status</th>
                   <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 py-3.5 hidden xl:table-cell">Date</th>
@@ -287,6 +298,11 @@ export default function OrdersPage() {
                             <MapPin size={12} className="text-gray-400" />
                             {order.customer_city}
                           </div>
+                        </td>
+                        <td className="px-4 py-4 hidden xl:table-cell">
+                          <span className="text-[11px] font-semibold text-gray-500">
+                            {order.assigned_agent_id ? (agentMap[order.assigned_agent_id] || '—') : '—'}
+                          </span>
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-xs font-bold text-[#1a1c3a]">

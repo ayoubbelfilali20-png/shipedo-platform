@@ -28,11 +28,11 @@ async function storeMessage(phone: string, body: string, waMessageId: string | n
   })
 }
 
-export async function sendWhatsAppText(phone: string, text: string, opts?: SendOpts): Promise<boolean> {
-  if (!isWhatsAppConfigured()) return false
+export async function sendWhatsAppText(phone: string, text: string, opts?: SendOpts): Promise<{ ok: boolean; error?: string }> {
+  if (!isWhatsAppConfigured()) return { ok: false, error: 'WhatsApp not configured — add WHATSAPP_TOKEN and WHATSAPP_PHONE_ID env vars' }
 
   const to = formatPhone(phone)
-  if (!to) return false
+  if (!to) return { ok: false, error: 'Invalid phone number' }
 
   try {
     const res = await fetch(GRAPH_API, {
@@ -50,23 +50,24 @@ export async function sendWhatsAppText(phone: string, text: string, opts?: SendO
     })
     const data = await res.json()
     if (!res.ok) {
-      console.error('WhatsApp send error:', JSON.stringify(data))
-      return false
+      const errMsg = data?.error?.message || data?.error?.error_data?.details || JSON.stringify(data?.error || data)
+      console.error('WhatsApp send error:', errMsg)
+      return { ok: false, error: errMsg }
     }
 
     await storeMessage(to, text, data?.messages?.[0]?.id || null, opts)
-    return true
-  } catch (err) {
+    return { ok: true }
+  } catch (err: any) {
     console.error('WhatsApp send failed:', err)
-    return false
+    return { ok: false, error: err.message || 'Network error' }
   }
 }
 
-export async function sendWhatsAppImage(phone: string, imageUrl: string, caption: string, opts?: SendOpts): Promise<boolean> {
-  if (!isWhatsAppConfigured()) return false
+export async function sendWhatsAppImage(phone: string, imageUrl: string, caption: string, opts?: SendOpts): Promise<{ ok: boolean; error?: string }> {
+  if (!isWhatsAppConfigured()) return { ok: false, error: 'WhatsApp not configured — add WHATSAPP_TOKEN and WHATSAPP_PHONE_ID env vars' }
 
   const to = formatPhone(phone)
-  if (!to) return false
+  if (!to) return { ok: false, error: 'Invalid phone number' }
 
   try {
     const res = await fetch(GRAPH_API, {
@@ -84,16 +85,17 @@ export async function sendWhatsAppImage(phone: string, imageUrl: string, caption
     })
     const data = await res.json()
     if (!res.ok) {
-      console.error('WhatsApp image error:', JSON.stringify(data))
-      return false
+      const errMsg = data?.error?.message || data?.error?.error_data?.details || JSON.stringify(data?.error || data)
+      console.error('WhatsApp image error:', errMsg)
+      return { ok: false, error: errMsg }
     }
 
     const displayText = caption ? `[Image] ${caption}` : '[Image]'
     await storeMessage(to, displayText, data?.messages?.[0]?.id || null, opts)
-    return true
-  } catch (err) {
+    return { ok: true }
+  } catch (err: any) {
     console.error('WhatsApp image failed:', err)
-    return false
+    return { ok: false, error: err.message || 'Network error' }
   }
 }
 
@@ -103,7 +105,7 @@ export async function sendOrderConfirmationMessage(
   trackingNumber: string,
   productList: string,
   orderId?: string,
-): Promise<boolean> {
+): Promise<{ ok: boolean; error?: string }> {
   const text =
     `Hello ${customerName}, your order *${trackingNumber}* for ${productList} is received.\n\n` +
     `Reply *YES* to confirm or *NO* to cancel.`

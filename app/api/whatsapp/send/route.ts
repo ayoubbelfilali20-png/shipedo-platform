@@ -16,14 +16,14 @@ export async function POST(req: NextRequest) {
   const opts = { orderId, agentId, agentName }
 
   if (imageUrl) {
-    const sent = await sendWhatsAppImage(phone, imageUrl, caption || '', opts)
-    return NextResponse.json({ ok: sent, error: sent ? undefined : 'Failed to send image' })
+    const result = await sendWhatsAppImage(phone, imageUrl, caption || '', opts)
+    return NextResponse.json(result)
   }
 
   if (!text) {
     return NextResponse.json({ ok: false, error: 'Missing text' }, { status: 400 })
   }
 
-  const sent = await sendWhatsAppText(phone, text, opts)
-  return NextResponse.json({ ok: sent, error: sent ? undefined : 'Failed to send message' })
+  const result = await sendWhatsAppText(phone, text, opts)
+  return NextResponse.json(result)
 }

@@ -29,6 +29,7 @@ type OrderRow = {
   status: string
   call_attempts?: number | null
   last_call_agent_id?: string | null
+  assigned_agent_id?: string | null
   reminded_at?: string | null
   created_at: string
 }
@@ -89,9 +90,9 @@ export default function AdminDashboard() {
       // Only fetch columns needed for stats — skip items/address/notes (huge jsonb)
       // Cap rows so dashboard stays fast as the orders table grows
       supabase.from('orders')
-        .select('id, seller_id, status, total_amount, original_total, call_attempts, last_call_agent_id, reminded_at, created_at, tracking_number, customer_name')
+        .select('id, seller_id, assigned_agent_id, status, total_amount, original_total, call_attempts, last_call_agent_id, reminded_at, created_at, tracking_number, customer_name')
         .order('created_at', { ascending: false })
-        .limit(5000),
+        .limit(10000),
       supabase.from('sellers').select('id, name, company, email, city, status'),
       supabase.from('agents').select('id, name, email, status'),
     ]).then(([o, s, a]) => {

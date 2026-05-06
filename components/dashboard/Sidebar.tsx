@@ -8,7 +8,7 @@ import {
   LogOut, ChevronRight, Truck as TruckIcon, PlaneTakeoff,
   ShieldCheck, Store, Headphones, PanelLeftClose, PanelLeftOpen,
   ShoppingBag, Search, ChevronDown, Plus, List, Clock, UserCog,
-  Send, RotateCcw, Upload
+  Send, RotateCcw, Upload, MessageCircle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
@@ -107,6 +107,7 @@ const agentNav: NavSection[] = [
       { href: '/agent/calls',        icon: Phone,           labelKey: 'nav_call_queue'   },
       { href: '/agent/history',      icon: Clock,           labelKey: 'nav_call_history' },
       { href: '/agent/shipping',     icon: TruckIcon,       labelKey: 'nav_shipping'     },
+      { href: '/agent/whatsapp',     icon: MessageCircle,   labelKey: 'nav_whatsapp'     },
       { href: '/agent/orders/new',   icon: Plus,            labelKey: 'nav_new_order'    },
     ],
   },
