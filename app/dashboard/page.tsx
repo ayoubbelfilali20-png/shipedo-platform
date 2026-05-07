@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import StatusBadge from '@/components/dashboard/StatusBadge'
-import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import {
@@ -32,6 +31,11 @@ type OrderRow = {
   assigned_agent_id?: string | null
   reminded_at?: string | null
   created_at: string
+  delivered_at?: string | null
+  shipped_at?: string | null
+  returned_at?: string | null
+  shipped_to_agent_at?: string | null
+  last_call_at?: string | null
 }
 
 type SellerRow = {
@@ -78,6 +82,16 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
   )
 }
 
+function getStatusDate(o: OrderRow): string {
+  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
+  if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
+  if (o.status === 'cancelled' && o.last_call_at) return o.last_call_at
+  if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
+  return o.created_at
+}
+
 export default function AdminDashboard() {
   const router = useRouter()
   const [orders, setOrders] = useState<OrderRow[]>([])
@@ -86,21 +100,14 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([
-      // Only fetch columns needed for stats — skip items/address/notes (huge jsonb)
-      // Cap rows so dashboard stays fast as the orders table grows
-      supabase.from('orders')
-        .select('id, seller_id, assigned_agent_id, status, total_amount, original_total, call_attempts, last_call_agent_id, reminded_at, created_at, tracking_number, customer_name')
-        .order('created_at', { ascending: false })
-        .limit(10000),
-      supabase.from('sellers').select('id, name, company, email, city, status'),
-      supabase.from('agents').select('id, name, email, status'),
-    ]).then(([o, s, a]) => {
-      setOrders((o.data || []) as OrderRow[])
-      setSellers((s.data || []) as SellerRow[])
-      setAgents((a.data || []) as AgentRow[])
-      setLoading(false)
-    })
+    fetch('/api/admin/dashboard')
+      .then(r => r.json())
+      .then(data => {
+        setOrders((data.orders || []) as OrderRow[])
+        setSellers((data.sellers || []) as SellerRow[])
+        setAgents((data.agents || []) as AgentRow[])
+        setLoading(false)
+      })
   }, [])
 
   const stats = useMemo(() => {
@@ -126,7 +133,7 @@ export default function AdminDashboard() {
       const rev = orders
         .filter(o => o.status === 'delivered')
         .filter(o => {
-          const d = new Date(o.created_at)
+          const d = new Date(getStatusDate(o))
           return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear()
         })
         .reduce((s, o) => s + (o.total_amount || 0), 0)

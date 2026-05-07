@@ -192,19 +192,8 @@ export default function AdminShippingPage() {
       } catch {}
     }
 
-    let q = supabase
-      .from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason, assigned_agent_id')
-      .in('status', ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled'])
-      .order('created_at', { ascending: false })
-
-    if (!loadAll) {
-      q = q.limit(5000)
-    } else {
-      q = q.limit(10000)
-    }
-
-    const { data } = await q
+    const res = await fetch(`/api/admin/shipping${loadAll ? '?all=1' : ''}`)
+    const { orders: data } = await res.json()
     const rows = (data || []) as OrderRow[]
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {

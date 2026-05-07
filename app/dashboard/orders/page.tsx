@@ -101,15 +101,11 @@ export default function OrdersPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
-      let q = supabase.from('orders').select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, cancel_reason, printed, created_at, seller_id, assigned_agent_id', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
-      if (statusFilter !== 'all') q = q.eq('status', statusFilter)
-      if (search.trim()) {
-        q = q.or(`tracking_number.ilike.%${search.trim()}%,customer_name.ilike.%${search.trim()}%,customer_phone.ilike.%${search.trim()}%,customer_city.ilike.%${search.trim()}%`)
-      }
-      const { data, count } = await q
-      const rows = (data || []) as OrderRow[]
+      const params = new URLSearchParams({ page: String(page), status: statusFilter })
+      if (search.trim()) params.set('search', search.trim())
+      const res = await fetch(`/api/admin/orders?${params}`)
+      const { orders: rawOrders, total: cnt } = await res.json()
+      const rows = (rawOrders || []) as OrderRow[]
 
       const productIds = new Set<string>()
       rows.forEach(o => {
@@ -130,7 +126,7 @@ export default function OrdersPage() {
       }
 
       setOrders(rows)
-      setTotal(count || 0)
+      setTotal(cnt || 0)
       setLoading(false)
     }
     load()

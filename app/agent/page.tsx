@@ -261,7 +261,7 @@ export default function AgentDashboard() {
       next.setDate(d.getDate() + 1)
       const day = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
       const inDay = orders.filter(o => {
-        const t = new Date(o.created_at)
+        const t = new Date(getStatusDate(o))
         return t >= d && t < next
       })
       days.push({
@@ -590,7 +590,7 @@ export default function AgentDashboard() {
                             <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
                           )}
                         </div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">{new Date(o.created_at).toLocaleDateString()}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{new Date(getStatusDate(o)).toLocaleDateString()}</div>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">

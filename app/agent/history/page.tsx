@@ -620,7 +620,7 @@ export default function AgentHistoryPage() {
                       </button>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-gray-400 flex-shrink-0">
-                      <span>{formatDate(o.created_at)}</span>
+                      <span>{formatDate(getStatusDate(o))}</span>
                       {o.last_call_at && <span>· {formatTime(o.last_call_at)}</span>}
                     </div>
                   </div>

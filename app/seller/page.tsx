@@ -213,7 +213,7 @@ export default function SellerDashboard() {
       const rev = orders
         .filter(o => o.status === 'delivered')
         .filter(o => {
-          const d = new Date(o.created_at)
+          const d = new Date(getStatusDate(o))
           return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear()
         })
         .reduce((s, o) => s + (o.total_amount || 0), 0)
