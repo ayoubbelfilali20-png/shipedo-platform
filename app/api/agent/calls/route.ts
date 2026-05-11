@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const [{ data }, { data: confData }] = await Promise.all([
     supabaseAdmin.from('orders').select(COLS)
-      .eq('status', 'pending').eq('assigned_agent_id', agentId)
+      .eq('status', 'pending')
       .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
       .order('created_at', { ascending: false }).limit(500),
     supabaseAdmin.from('orders').select(COLS)
