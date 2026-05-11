@@ -35,7 +35,7 @@ export async function assignUnassignedOrders() {
       const c = counts.get(id) || 0
       if (c < bestCount) { bestCount = c; bestId = id }
     }
-    await supabaseAdmin.from('orders').update({ assigned_agent_id: bestId }).eq('id', order.id)
+    await supabaseAdmin.from('orders').update({ assigned_agent_id: bestId }).eq('id', order.id).is('assigned_agent_id', null)
     counts.set(bestId, (counts.get(bestId) || 0) + 1)
   }
 }
