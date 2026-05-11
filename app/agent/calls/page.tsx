@@ -140,13 +140,13 @@ export default function AgentCallsPage() {
         supabase.from('orders').update({ original_total: o.total_amount }).eq('id', o.id).then(() => {})
       }
     })
-    // Sort: new orders first (never called), then reminded/unreached
+    // Sort: new orders first (never called), then reminded/unreached — newest first within each group
     rows.sort((a, b) => {
       const aNew = !a.call_attempts || a.call_attempts === 0
       const bNew = !b.call_attempts || b.call_attempts === 0
       if (aNew && !bNew) return -1
       if (!aNew && bNew) return 1
-      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
     setOrders(rows)
     setConfirmedOrders((confData || []) as OrderRow[])

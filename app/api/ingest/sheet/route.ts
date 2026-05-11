@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     unit_price: qty > 0 ? total / qty : total,
   }]
 
-  const assignedAgentId = await pickAgentForOrder(supabaseAdmin, String(body.city || ''))
+  const assignedAgentId = await pickAgentForOrder(supabaseAdmin)
 
   const { data, error } = await supabaseAdmin
     .from('orders')

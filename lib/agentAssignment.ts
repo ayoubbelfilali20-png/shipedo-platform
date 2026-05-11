@@ -1,9 +1,9 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
-export async function pickAgentForOrder(client: SupabaseClient, customerCity?: string): Promise<string | null> {
+export async function pickAgentForOrder(client: SupabaseClient): Promise<string | null> {
   const { data: agents } = await client
     .from('agents')
-    .select('id, city')
+    .select('id')
     .eq('status', 'active')
 
   if (!agents || agents.length === 0) return null
@@ -23,22 +23,12 @@ export async function pickAgentForOrder(client: SupabaseClient, customerCity?: s
     }
   })
 
-  const normCity = (c?: string | null) => (c || '').trim().toLowerCase()
-  const orderCity = normCity(customerCity)
-
-  let pool = agents
-  if (orderCity) {
-    const cityAgents = agents.filter(a => normCity(a.city) === orderCity)
-    if (cityAgents.length > 0) pool = cityAgents
-  }
-
   let bestId: string | null = null
   let bestCount = Infinity
-  for (const a of pool) {
-    const count = counts.get(a.id) || 0
+  for (const [id, count] of counts.entries()) {
     if (count < bestCount) {
       bestCount = count
-      bestId = a.id
+      bestId = id
     }
   }
   return bestId

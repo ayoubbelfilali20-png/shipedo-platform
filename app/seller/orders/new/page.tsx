@@ -346,7 +346,7 @@ export default function SellerNewOrderPage() {
       product_id: r.productId, name: r.name, sku: r.sku,
       quantity: parseInt(r.quantity) || 0, unit_price: parseFloat(r.unitPrice) || 0,
     }))
-    const assignedAgentId = await pickAgentForOrder(supabase as any, city)
+    const assignedAgentId = await pickAgentForOrder(supabase as any)
 
     const { error } = await supabase.from('orders').insert({
       tracking_number: newId,
