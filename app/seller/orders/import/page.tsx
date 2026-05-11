@@ -313,10 +313,12 @@ export default function ImportOrdersPage() {
     let pendingCounts = new Map<string, number>()
     if (agents.length > 1) {
       try {
-        const { data: pendingOrders } = await supabase
-          .from('orders').select('assigned_agent_id').eq('status', 'pending').not('assigned_agent_id', 'is', null)
+        const todayCutoff = new Date()
+        todayCutoff.setHours(0, 0, 0, 0)
+        const { data: todayOrders } = await supabase
+          .from('orders').select('assigned_agent_id').gte('created_at', todayCutoff.toISOString()).not('assigned_agent_id', 'is', null)
         agents.forEach(a => pendingCounts.set(a.id, 0))
-        ;(pendingOrders || []).forEach((o: any) => {
+        ;(todayOrders || []).forEach((o: any) => {
           if (pendingCounts.has(o.assigned_agent_id))
             pendingCounts.set(o.assigned_agent_id, (pendingCounts.get(o.assigned_agent_id) || 0) + 1)
         })
