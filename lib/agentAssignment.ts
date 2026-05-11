@@ -9,15 +9,18 @@ export async function pickAgentForOrder(client: SupabaseClient): Promise<string 
   if (!agents || agents.length === 0) return null
   if (agents.length === 1) return agents[0].id
 
-  const { data: activeOrders } = await client
+  const todayCutoff = new Date()
+  todayCutoff.setHours(0, 0, 0, 0)
+
+  const { data: todayOrders } = await client
     .from('orders')
     .select('assigned_agent_id')
-    .in('status', ['pending', 'confirmed', 'prepared'])
+    .gte('created_at', todayCutoff.toISOString())
     .not('assigned_agent_id', 'is', null)
 
   const counts = new Map<string, number>()
   agents.forEach(a => counts.set(a.id, 0))
-  ;(activeOrders || []).forEach((o: any) => {
+  ;(todayOrders || []).forEach((o: any) => {
     if (counts.has(o.assigned_agent_id)) {
       counts.set(o.assigned_agent_id, (counts.get(o.assigned_agent_id) || 0) + 1)
     }
