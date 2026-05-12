@@ -381,19 +381,14 @@ export default function AgentCallsPage() {
     } else if (action === 'not_reached') {
       patch.status = 'pending'
       const attempts = (order.call_attempts || 0) + 1
-      if (attempts <= 1) {
-        // 1st unreached → stays in queue, shows after new orders (no delay)
-        patch.reminded_at = null
-      } else if (attempts === 2) {
-        // 2nd unreached → retry after 3 hours
-        const remindDate = new Date(Date.now() + 3 * 60 * 60 * 1000)
+      if (attempts <= 2) {
+        // 1st & 2nd unreached → retry after 1 hour
+        const remindDate = new Date(Date.now() + 1 * 60 * 60 * 1000)
         patch.reminded_at = remindDate.toISOString()
         logRemindedAt = patch.reminded_at
       } else {
-        // 3rd+ unreached → retry next day at 9am
-        const remindDate = new Date()
-        remindDate.setDate(remindDate.getDate() + 1)
-        remindDate.setHours(9, 0, 0, 0)
+        // 3rd+ unreached → retry after 3 hours
+        const remindDate = new Date(Date.now() + 3 * 60 * 60 * 1000)
         patch.reminded_at = remindDate.toISOString()
         logRemindedAt = patch.reminded_at
       }
