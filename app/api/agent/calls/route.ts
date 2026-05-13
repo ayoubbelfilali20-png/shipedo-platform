@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const agentId = req.headers.get('x-agent-id')
   if (!agentId) return NextResponse.json({ ok: false }, { status: 401 })
 
-  await assignUnassignedOrders()
+  assignUnassignedOrders()
 
   const nowIso = new Date().toISOString()
 

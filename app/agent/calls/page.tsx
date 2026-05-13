@@ -134,11 +134,6 @@ export default function AgentCallsPage() {
         const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
         if (calc > 0) o.total_amount = calc
       }
-      // Backfill original_total for existing orders that don't have it
-      if (!o.original_total && o.total_amount > 0) {
-        o.original_total = o.total_amount
-        supabase.from('orders').update({ original_total: o.total_amount }).eq('id', o.id).then(() => {})
-      }
     })
     // Sort: new orders first (never called), then reminded/unreached — newest first within each group
     rows.sort((a, b) => {
