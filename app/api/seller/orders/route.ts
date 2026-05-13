@@ -10,27 +10,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'missing seller id' }, { status: 401 })
   }
 
-  const allOrders: any[] = []
-  let from = 0
-  const pageSize = 1000
+  const pages = [0, 1, 2, 3, 4]
 
-  while (true) {
-    const { data, error } = await supabaseAdmin
-      .from('orders')
-      .select(COLS)
-      .eq('seller_id', sellerId)
-      .in('status', STATUSES)
-      .order('created_at', { ascending: false })
-      .range(from, from + pageSize - 1)
+  const results = await Promise.all(
+    pages.map(p =>
+      supabaseAdmin.from('orders')
+        .select(COLS)
+        .eq('seller_id', sellerId)
+        .in('status', STATUSES)
+        .order('created_at', { ascending: false })
+        .range(p * 1000, (p + 1) * 1000 - 1)
+    )
+  )
 
-    if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
-    }
-    if (!data || data.length === 0) break
-    allOrders.push(...data)
-    if (data.length < pageSize) break
-    from += pageSize
+  const err = results.find(r => r.error)
+  if (err?.error) {
+    return NextResponse.json({ ok: false, error: err.error.message }, { status: 500 })
   }
 
+  const allOrders = results.flatMap(r => r.data || [])
   return NextResponse.json(allOrders)
 }
