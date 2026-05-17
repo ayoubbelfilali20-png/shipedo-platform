@@ -53,18 +53,23 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Phone-based dedup: if a pending order with the same phone already exists for this seller, skip
+  // Phone-based dedup: only skip if same phone AND same product within last 24h
   const normalizedPhone = phone.replace(/[^\d]/g, '').slice(-9)
-  if (normalizedPhone.length >= 8) {
+  if (normalizedPhone.length >= 8 && sku) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const { data: phoneOrders } = await supabaseAdmin
       .from('orders')
-      .select('id, customer_phone')
+      .select('id, customer_phone, items')
       .eq('seller_id', seller.id)
       .in('status', ['pending', 'confirmed'])
-      .limit(1000)
-    const phoneDup = (phoneOrders || []).find((o: any) =>
-      (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9) === normalizedPhone
-    )
+      .gte('created_at', since)
+      .limit(200)
+    const phoneDup = (phoneOrders || []).find((o: any) => {
+      const oPhone = (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
+      if (oPhone !== normalizedPhone) return false
+      const oItems = Array.isArray(o.items) ? o.items : []
+      return oItems.some((it: any) => it.sku === sku)
+    })
     if (phoneDup) {
       return NextResponse.json({ ok: true, order: phoneDup, skipped: 'duplicate_phone' })
     }

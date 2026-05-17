@@ -303,6 +303,29 @@ function setup() {
   SpreadsheetApp.getActive().toast('Shipedo sync installed ✔');
 }
 
+// Run this to force-sync ALL rows (clears ERR and re-sends everything)
+function syncAll() {
+  const sheet  = SpreadsheetApp.getActive().getActiveSheet();
+  const values = sheet.getDataRange().getValues();
+  if (values.length < 2) return;
+  const headers = values[0].map(h => String(h).trim().toLowerCase());
+  let statusCol = headers.findIndex(h => h === 'synced');
+  if (statusCol === -1) {
+    statusCol = headers.length;
+    sheet.getRange(1, statusCol + 1).setValue('Synced');
+  }
+  // Clear all ERR and empty statuses so they get re-synced
+  for (let r = 1; r < values.length; r++) {
+    const val = String(values[r][statusCol] || '');
+    if (!val || val.startsWith('ERR')) {
+      sheet.getRange(r + 1, statusCol + 1).setValue('');
+    }
+  }
+  SpreadsheetApp.flush();
+  syncNewRows_();
+  SpreadsheetApp.getActive().toast('Sync complete ✔');
+}
+
 function onChangeHandler(e) {
   if (!e || !['INSERT_ROW','EDIT','OTHER'].includes(e.changeType)) return;
   syncNewRows_();
