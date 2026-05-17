@@ -76,7 +76,6 @@ function formatDateOnly(dateStr: string) {
   return `${yyyy}-${mm}-${dd}`
 }
 
-const ORDERS_CACHE = (id: string) => `shipedo_seller_orders_v1_${id}`
 
 function normalizeRows(data: any[]): OrderRow[] {
   const rows = (data || []) as OrderRow[]
@@ -112,25 +111,12 @@ export default function SellerOrdersPage() {
     } catch {}
     if (!sellerId) { setLoading(false); return }
 
-    const CACHE_KEY = ORDERS_CACHE(sellerId)
-
-    // Show cached data instantly
-    try {
-      const cached = localStorage.getItem(CACHE_KEY)
-      if (cached) {
-        setOrders(JSON.parse(cached))
-        setLoading(false)
-      }
-    } catch {}
-
-    // Fetch fresh via server API (faster: server→Supabase instead of browser→Supabase)
     fetch('/api/seller/orders', { headers: { 'x-seller-id': sellerId } })
       .then(r => r.json())
       .then(data => {
         const rows = normalizeRows(Array.isArray(data) ? data : [])
         setOrders(rows)
         setLoading(false)
-        try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
       })
       .catch(() => setLoading(false))
   }, [])
@@ -167,17 +153,7 @@ export default function SellerOrdersPage() {
     if (!deleteTarget) return
     setDeleting(true)
     await supabase.from('orders').delete().eq('id', deleteTarget.id)
-    setOrders(prev => {
-      const updated = prev.filter(o => o.id !== deleteTarget.id)
-      try {
-        const stored = localStorage.getItem('shipedo_seller')
-        if (stored) {
-          const { id } = JSON.parse(stored)
-          localStorage.setItem(ORDERS_CACHE(id), JSON.stringify(updated))
-        }
-      } catch {}
-      return updated
-    })
+    setOrders(prev => prev.filter(o => o.id !== deleteTarget.id))
     setDeleteTarget(null)
     setDeleting(false)
   }

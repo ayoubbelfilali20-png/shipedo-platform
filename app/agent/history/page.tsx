@@ -163,17 +163,8 @@ export default function AgentHistoryPage() {
   const [editRemindId, setEditRemindId] = useState<string | null>(null)
   const [editRemindDate, setEditRemindDate] = useState('')
 
-  const CACHE_KEY = 'shipedo_agent_history_v1'
-
   const load = async (aid: string | null, loadAll = false) => {
     if (!aid) { setLoading(false); return }
-
-    if (!loadAll) {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY)
-        if (cached) { setOrders(JSON.parse(cached)); setLoading(false) }
-      } catch {}
-    }
 
     let q = supabase
       .from('orders')
@@ -198,7 +189,6 @@ export default function AgentHistoryPage() {
     setOrders(rows)
     setLoading(false)
     if (loadAll) setFullDataLoaded(true)
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
   }
 
   useEffect(() => {

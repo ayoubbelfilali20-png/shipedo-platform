@@ -186,17 +186,8 @@ export default function AgentShippingPage() {
     } catch {}
   }, [])
 
-  const CACHE_KEY = 'shipedo_agent_shipping_v1'
-
   const loadOrders = useCallback(async (loadAll = false) => {
     if (!agentId) return
-
-    if (!loadAll) {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY)
-        if (cached) { setOrders(JSON.parse(cached)); setLoading(false) }
-      } catch {}
-    }
 
     let q = supabase
       .from('orders')
@@ -222,7 +213,6 @@ export default function AgentShippingPage() {
     setOrders(rows)
     setLoading(false)
     if (loadAll) setFullDataLoaded(true)
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
   }, [agentId])
 
   useEffect(() => { if (agentId) loadOrders() }, [agentId, loadOrders])

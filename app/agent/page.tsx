@@ -155,23 +155,10 @@ export default function AgentDashboard() {
   const [historyOrder, setHistoryOrder] = useState<OrderRow | null>(null)
   const [historyLogs, setHistoryLogs] = useState<CallLog[]>([])
 
-  const CACHE_KEY = 'shipedo_agent_orders_v1'
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
 
   const load = async (aid: string | null, days?: number) => {
     if (!aid) { setLoading(false); return }
-
-    if (!days) {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY)
-        if (cached) {
-          const { pending: cp, orders: co } = JSON.parse(cached)
-          if (cp) setPending(cp)
-          if (co) setOrders(co)
-          setLoading(false)
-        }
-      } catch {}
-    }
 
     const url = days ? `/api/agent/dashboard?days=${days}` : '/api/agent/dashboard'
     const res = await fetch(url, { headers: { 'x-agent-id': aid } })
@@ -183,10 +170,6 @@ export default function AgentDashboard() {
     setOrders(freshOrders)
     setLoading(false)
     if (days && days >= 365) setFullDataLoaded(true)
-
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ pending: freshPending, orders: freshOrders }))
-    } catch {}
   }
 
   useEffect(() => {

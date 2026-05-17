@@ -182,16 +182,7 @@ export default function AdminShippingPage() {
   // Print queue
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
-  const CACHE_KEY = 'shipedo_admin_shipping_v1'
-
   const loadOrders = useCallback(async (loadAll = false) => {
-    if (!loadAll) {
-      try {
-        const cached = localStorage.getItem(CACHE_KEY)
-        if (cached) { setOrders(JSON.parse(cached)); setLoading(false) }
-      } catch {}
-    }
-
     const res = await fetch(`/api/admin/shipping${loadAll ? '?all=1' : ''}`)
     const { orders: data } = await res.json()
     const rows = (data || []) as OrderRow[]
@@ -204,7 +195,6 @@ export default function AdminShippingPage() {
     setOrders(rows)
     setLoading(false)
     if (loadAll) setFullDataLoaded(true)
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(rows)) } catch {}
   }, [])
 
   useEffect(() => { loadOrders() }, [loadOrders])
