@@ -135,13 +135,13 @@ export default function AgentCallsPage() {
         if (calc > 0) o.total_amount = calc
       }
     })
-    // Sort: new orders first (never called), then reminded/unreached — newest first within each group
+    // Sort: new orders first (never called), then reminded/unreached — oldest first (FIFO)
     rows.sort((a, b) => {
       const aNew = !a.call_attempts || a.call_attempts === 0
       const bNew = !b.call_attempts || b.call_attempts === 0
       if (aNew && !bNew) return -1
       if (!aNew && bNew) return 1
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
     setOrders(rows)
     setConfirmedOrders((confData || []) as OrderRow[])

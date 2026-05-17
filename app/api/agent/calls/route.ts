@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'pending').eq('assigned_agent_id', agentId)
       .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
-      .order('created_at', { ascending: false }).limit(500),
+      .order('created_at', { ascending: true }).limit(500),
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'confirmed').eq('assigned_agent_id', agentId).eq('printed', false)
       .order('created_at', { ascending: true }).limit(500),
