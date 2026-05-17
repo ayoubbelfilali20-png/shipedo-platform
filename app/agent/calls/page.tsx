@@ -122,13 +122,14 @@ export default function AgentCallsPage() {
   // Confirmed orders for the print sidebar
   const [confirmedOrders, setConfirmedOrders] = useState<OrderRow[]>([])
 
+  const [nextRemindAt, setNextRemindAt] = useState<string | null>(null)
+
   const loadQueue = async (aid?: string | null) => {
     const id = aid ?? agentId
     if (!id) { setLoading(false); return }
     const res = await fetch('/api/agent/calls', { headers: { 'x-agent-id': id } })
-    const { pending: data, confirmed: confData } = await res.json()
+    const { pending: data, confirmed: confData, nextRemindAt: nra } = await res.json()
     const rows = ((data || []) as OrderRow[]).filter(o => o.status === 'pending')
-    // Recalculate total from items if total_amount is 0 + backfill original_total
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
         const calc = o.items.reduce((s: number, it: any) => s + (Number(it.unit_price || it.price || 0) * (Number(it.quantity) || 1)), 0)
@@ -145,6 +146,7 @@ export default function AgentCallsPage() {
     })
     setOrders(rows)
     setConfirmedOrders((confData || []) as OrderRow[])
+    setNextRemindAt(nra || null)
     setLoading(false)
   }
 
@@ -164,12 +166,20 @@ export default function AgentCallsPage() {
     setLoading(false)
   }, [])
 
-  // Auto-refresh every 30s to pick up reminded orders when their time arrives
+  // Auto-refresh: at the exact reminded_at time + fallback every 2 min for new orders
   useEffect(() => {
     if (!agentId) return
-    const interval = setInterval(() => loadQueue(agentId), 60_000)
-    return () => clearInterval(interval)
+    const fallback = setInterval(() => loadQueue(agentId), 120_000)
+    return () => clearInterval(fallback)
   }, [agentId])
+
+  useEffect(() => {
+    if (!agentId || !nextRemindAt) return
+    const ms = new Date(nextRemindAt).getTime() - Date.now() + 1000
+    if (ms <= 0) { loadQueue(agentId); return }
+    const timer = setTimeout(() => loadQueue(agentId), ms)
+    return () => clearTimeout(timer)
+  }, [agentId, nextRemindAt])
 
   const order = orders[0] ?? null
   const pendingCount = orders.length

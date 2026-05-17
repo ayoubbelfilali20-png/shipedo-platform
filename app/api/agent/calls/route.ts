@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const nowIso = new Date().toISOString()
 
-  const [{ data }, { data: confData }] = await Promise.all([
+  const [{ data }, { data: confData }, { data: nextRemind }] = await Promise.all([
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'pending').eq('assigned_agent_id', agentId)
       .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
@@ -20,10 +20,15 @@ export async function GET(req: NextRequest) {
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'confirmed').eq('assigned_agent_id', agentId).eq('printed', false)
       .order('created_at', { ascending: true }).limit(500),
+    supabaseAdmin.from('orders').select('reminded_at')
+      .eq('status', 'pending').eq('assigned_agent_id', agentId)
+      .gt('reminded_at', nowIso)
+      .order('reminded_at', { ascending: true }).limit(1),
   ])
 
   return NextResponse.json({
     pending: data || [],
     confirmed: confData || [],
+    nextRemindAt: nextRemind?.[0]?.reminded_at || null,
   })
 }
