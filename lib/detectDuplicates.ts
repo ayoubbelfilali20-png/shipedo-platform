@@ -1,11 +1,13 @@
 export type DuplicateInfo = {
   isDuplicate: boolean
+  isSameClient: boolean
   duplicateOf?: string // tracking number of the other order
+  otherOrders?: string[] // tracking numbers of all other orders from same client
 }
 
 export function detectDuplicates(orders: any[]): Map<string, DuplicateInfo> {
   const result = new Map<string, DuplicateInfo>()
-  const activeStatuses = ['pending', 'confirmed', 'prepared', 'shipped']
+  const activeStatuses = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped']
 
   // Group orders by normalized phone number
   const byPhone = new Map<string, any[]>()
@@ -20,22 +22,20 @@ export function detectDuplicates(orders: any[]): Map<string, DuplicateInfo> {
   for (const [, group] of byPhone) {
     if (group.length < 2) continue
 
-    for (let i = 0; i < group.length; i++) {
-      const a = group[i]
-      if (!activeStatuses.includes(a.status)) continue
+    const activeGroup = group.filter(o => activeStatuses.includes(o.status))
+    if (activeGroup.length < 2) continue
+
+    for (const a of activeGroup) {
       const aProducts = getProductKey(a.items)
+      const others = activeGroup.filter(b => b.id !== a.id)
+      const exactDup = others.find(b => getProductKey(b.items) === aProducts)
 
-      for (let j = 0; j < group.length; j++) {
-        if (i === j) continue
-        const b = group[j]
-        if (!activeStatuses.includes(b.status)) continue
-        const bProducts = getProductKey(b.items)
-
-        if (aProducts === bProducts) {
-          result.set(a.id, { isDuplicate: true, duplicateOf: b.tracking_number })
-          break
-        }
-      }
+      result.set(a.id, {
+        isDuplicate: !!exactDup,
+        isSameClient: true,
+        duplicateOf: exactDup?.tracking_number,
+        otherOrders: others.map(b => b.tracking_number),
+      })
     }
   }
 

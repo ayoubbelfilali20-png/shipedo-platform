@@ -581,9 +581,17 @@ export default function AgentCallsPage() {
                     {duplicateMap.get(order.id)?.isDuplicate && (
                       <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-500 text-white animate-pulse">DUPLICATE</span>
                     )}
+                    {duplicateMap.get(order.id)?.isSameClient && !duplicateMap.get(order.id)?.isDuplicate && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-white">SAME CLIENT</span>
+                    )}
                   </div>
                 </div>
-                <span className="text-white/30 text-xs">{pendingCount - 1} more after this</span>
+                <span className="text-white/30 text-xs">
+                  {pendingCount - 1} more after this
+                  {duplicateMap.get(order.id)?.otherOrders && duplicateMap.get(order.id)!.otherOrders!.length > 0 && (
+                    <> · Also: {duplicateMap.get(order.id)!.otherOrders!.join(', ')}</>
+                  )}
+                </span>
               </div>
 
               <div className="p-6 space-y-4">
@@ -1074,12 +1082,13 @@ export default function AgentCallsPage() {
               {orders.slice(1, 12).map((o, i) => {
                 const dup = duplicateMap.get(o.id)
                 return (
-                  <div key={o.id} className={cn('flex items-center gap-2.5 p-2.5 rounded-xl', dup?.isDuplicate ? 'bg-red-50 border border-red-200' : 'bg-gray-50')}>
+                  <div key={o.id} className={cn('flex items-center gap-2.5 p-2.5 rounded-xl', dup?.isDuplicate ? 'bg-red-50 border border-red-200' : dup?.isSameClient ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50')}>
                     <span className="w-5 h-5 rounded-full bg-[#1a1c3a]/10 text-[#1a1c3a] text-xs font-bold flex items-center justify-center">{i + 2}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1">
                         <p className="text-xs font-bold text-[#1a1c3a] truncate">{o.customer_name}</p>
                         {dup?.isDuplicate && <span className="text-[8px] font-bold text-red-600 bg-red-100 px-1 py-0.5 rounded flex-shrink-0">DUP</span>}
+                        {dup?.isSameClient && !dup?.isDuplicate && <span className="text-[8px] font-bold text-amber-600 bg-amber-100 px-1 py-0.5 rounded flex-shrink-0">SAME CLIENT</span>}
                       </div>
                       <p className="text-[10px] text-gray-400 font-mono">{o.tracking_number}</p>
                       {o.reminded_at && (

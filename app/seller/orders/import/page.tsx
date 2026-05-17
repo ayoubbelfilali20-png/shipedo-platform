@@ -303,7 +303,7 @@ export default function ImportOrdersPage() {
     let success = 0
     let failed = 0
 
-    // Get agent for round-robin
+    // Get agents + existing orders for assignment
     let agents: { id: string }[] = []
     try {
       const { data } = await supabase.from('agents').select('id').eq('status', 'active')
@@ -311,56 +311,43 @@ export default function ImportOrdersPage() {
     } catch {}
 
     let pendingCounts = new Map<string, number>()
-    if (agents.length > 1) {
+    const phoneToAgent = new Map<string, string>()
+    if (agents.length >= 1) {
       try {
         const todayCutoff = new Date()
         todayCutoff.setHours(0, 0, 0, 0)
         const { data: todayOrders } = await supabase
-          .from('orders').select('assigned_agent_id').gte('created_at', todayCutoff.toISOString()).not('assigned_agent_id', 'is', null)
+          .from('orders').select('assigned_agent_id, customer_phone').gte('created_at', todayCutoff.toISOString()).not('assigned_agent_id', 'is', null)
         agents.forEach(a => pendingCounts.set(a.id, 0))
+        const agentIdSet = new Set(agents.map(a => a.id))
         ;(todayOrders || []).forEach((o: any) => {
           if (pendingCounts.has(o.assigned_agent_id))
             pendingCounts.set(o.assigned_agent_id, (pendingCounts.get(o.assigned_agent_id) || 0) + 1)
+          const ph = (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
+          if (ph && agentIdSet.has(o.assigned_agent_id)) phoneToAgent.set(ph, o.assigned_agent_id)
         })
       } catch {}
     }
 
-    // Fetch existing pending/confirmed orders to prevent duplicates
-    const { data: existingOrders } = await supabase
-      .from('orders')
-      .select('customer_phone, items')
-      .eq('seller_id', sellerId)
-      .in('status', ['pending', 'confirmed'])
-    const existingPhoneProducts = new Set<string>()
-    ;(existingOrders || []).forEach((o: any) => {
-      const phone = (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
-      const productKey = Array.isArray(o.items) ? o.items.map((it: any) => (it.name || '').toLowerCase()).sort().join('|') : ''
-      if (phone) existingPhoneProducts.add(`${phone}::${productKey}`)
-    })
-
     let skipped = 0
 
     for (const order of validOrders) {
-      // Check for duplicate: same phone + same products already pending/confirmed
+      // Pick agent: same client → same agent, otherwise least-loaded
       const orderPhone = (order.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
-      const orderProductKey = order.items.map((it: any) => (it.name || '').toLowerCase()).sort().join('|')
-      const dupKey = `${orderPhone}::${orderProductKey}`
-      if (orderPhone && existingPhoneProducts.has(dupKey)) {
-        skipped++
-        continue
-      }
-      existingPhoneProducts.add(dupKey)
-
-      // Pick agent with fewest pending
       let agentId: string | null = null
-      if (agents.length === 1) {
+      if (orderPhone && phoneToAgent.has(orderPhone)) {
+        agentId = phoneToAgent.get(orderPhone)!
+      } else if (agents.length === 1) {
         agentId = agents[0].id
       } else if (agents.length > 1) {
         let best = Infinity
         for (const [id, c] of pendingCounts.entries()) {
           if (c < best) { best = c; agentId = id }
         }
-        if (agentId) pendingCounts.set(agentId, (pendingCounts.get(agentId) || 0) + 1)
+      }
+      if (agentId) {
+        pendingCounts.set(agentId, (pendingCounts.get(agentId) || 0) + 1)
+        if (orderPhone) phoneToAgent.set(orderPhone, agentId)
       }
 
       const items = order.items.map(it => ({
