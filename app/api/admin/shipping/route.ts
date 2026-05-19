@@ -7,36 +7,29 @@ export async function GET(req: NextRequest) {
   const all = req.nextUrl.searchParams.get('all') === '1'
   const days = Number(req.nextUrl.searchParams.get('days')) || 30
 
-  let query = supabaseAdmin.from('orders').select(COLS)
-
-  if (!all) {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - days)
-    query = query.gte('created_at', cutoff.toISOString())
-  }
-
-  const { data, error } = await query
-    .order('created_at', { ascending: false })
-    .limit(1000)
-
-  if (error) {
-    return NextResponse.json({ orders: [] }, { status: 500 })
-  }
-
   if (all) {
-    const pages = [1, 2, 3, 4]
-    const more = await Promise.all(
+    const pages = [0, 1, 2, 3, 4]
+    const results = await Promise.all(
       pages.map(p =>
         supabaseAdmin.from('orders').select(COLS)
           .order('created_at', { ascending: false })
           .range(p * 1000, (p + 1) * 1000 - 1)
       )
     )
-    const orders = [
-      ...(data || []),
-      ...more.flatMap(r => r.data || []),
-    ]
-    return NextResponse.json({ orders })
+    return NextResponse.json({ orders: results.flatMap(r => r.data || []) })
+  }
+
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffIso = cutoff.toISOString()
+
+  const { data, error } = await supabaseAdmin.from('orders').select(COLS)
+    .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso}`)
+    .order('created_at', { ascending: false })
+    .limit(1000)
+
+  if (error) {
+    return NextResponse.json({ orders: [] }, { status: 500 })
   }
 
   return NextResponse.json({ orders: data || [] })

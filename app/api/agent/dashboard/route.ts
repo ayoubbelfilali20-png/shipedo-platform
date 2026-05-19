@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   const days = Number(req.nextUrl.searchParams.get('days')) || 7
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days)
+  const cutoffIso = cutoff.toISOString()
 
   const [{ data: pending }, { data: orders }] = await Promise.all([
     supabaseAdmin.from('orders').select(COLS)
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false }).limit(1000),
     supabaseAdmin.from('orders').select(COLS)
       .eq('assigned_agent_id', agentId).neq('status', 'pending')
-      .gte('created_at', cutoff.toISOString())
+      .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso}`)
       .order('created_at', { ascending: false }).limit(1000),
   ])
 

@@ -10,7 +10,7 @@ async function fetchAllSellerOrders(sellerId: string, cutoffIso: string) {
       supabaseAdmin.from('orders')
         .select(cols)
         .eq('seller_id', sellerId)
-        .gte('created_at', cutoffIso)
+        .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso}`)
         .order('created_at', { ascending: false })
         .range(p * 1000, (p + 1) * 1000 - 1)
     )

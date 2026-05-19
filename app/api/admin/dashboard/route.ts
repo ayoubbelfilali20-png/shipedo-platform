@@ -7,16 +7,6 @@ export async function GET(req: NextRequest) {
   const all = (req as any).nextUrl?.searchParams?.get('all') === '1'
   const days = Number((req as any).nextUrl?.searchParams?.get('days')) || 30
 
-  const baseQuery = () => {
-    let q = supabaseAdmin.from('orders').select(ORDER_COLS)
-    if (!all) {
-      const cutoff = new Date()
-      cutoff.setDate(cutoff.getDate() - days)
-      q = q.gte('created_at', cutoff.toISOString())
-    }
-    return q
-  }
-
   if (all) {
     const pages = [0, 1, 2, 3, 4]
     const [p0, p1, p2, p3, p4, { data: sellers }, { data: agents }] = await Promise.all([
@@ -28,8 +18,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ orders, sellers: sellers || [], agents: agents || [] })
   }
 
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffIso = cutoff.toISOString()
+
   const [{ data: orders }, { data: sellers }, { data: agents }] = await Promise.all([
-    baseQuery().order('created_at', { ascending: false }).limit(1000),
+    supabaseAdmin.from('orders').select(ORDER_COLS)
+      .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso}`)
+      .order('created_at', { ascending: false }).limit(1000),
     supabaseAdmin.from('sellers').select('id, name, company, email, city, status'),
     supabaseAdmin.from('agents').select('id, name, email, status'),
   ])
