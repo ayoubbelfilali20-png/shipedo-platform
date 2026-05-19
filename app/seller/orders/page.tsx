@@ -339,6 +339,11 @@ export default function SellerOrdersPage() {
                               DUPLICATE
                             </span>
                           )}
+                          {duplicateMap.get(order.id)?.isSameClient && !duplicateMap.get(order.id)?.isDuplicate && (
+                            <span className="ml-1 text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded" title={`Also: ${duplicateMap.get(order.id)?.otherOrders?.join(', ')}`}>
+                              SAME CLIENT
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-xs font-semibold text-gray-600">

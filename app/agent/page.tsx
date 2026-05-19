@@ -570,7 +570,10 @@ export default function AgentDashboard() {
                         <div className="flex items-center gap-1">
                           <span className="text-xs font-mono font-bold text-[#1a1c3a]">{o.tracking_number}</span>
                           {duplicateMap.get(o.id)?.isDuplicate && (
-                            <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
+                            <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded" title={`Duplicate of ${duplicateMap.get(o.id)?.duplicateOf}`}>DUP</span>
+                          )}
+                          {duplicateMap.get(o.id)?.isSameClient && !duplicateMap.get(o.id)?.isDuplicate && (
+                            <span className="text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded" title={`Also: ${duplicateMap.get(o.id)?.otherOrders?.join(', ')}`}>SAME CLIENT</span>
                           )}
                         </div>
                         <div className="text-[10px] text-gray-400 mt-0.5">{new Date(getStatusDate(o)).toLocaleDateString()}</div>

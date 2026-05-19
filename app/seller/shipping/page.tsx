@@ -320,6 +320,9 @@ export default function SellerShippingPage() {
                     {duplicateMap.get(row.id)?.isDuplicate && (
                       <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded flex-shrink-0">DUP</span>
                     )}
+                    {duplicateMap.get(row.id)?.isSameClient && !duplicateMap.get(row.id)?.isDuplicate && (
+                      <span className="text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded flex-shrink-0">SAME CLIENT</span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500">{new Date(row.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                   <div>
