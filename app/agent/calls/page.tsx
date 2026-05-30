@@ -136,12 +136,17 @@ export default function AgentCallsPage() {
         if (calc > 0) o.total_amount = calc
       }
     })
-    // Sort: new orders first (never called), then reminded/unreached — oldest first (FIFO)
+    // Sort: 1) new orders (never called) oldest first, 2) reminded orders by reminded_at
     rows.sort((a, b) => {
       const aNew = !a.call_attempts || a.call_attempts === 0
       const bNew = !b.call_attempts || b.call_attempts === 0
       if (aNew && !bNew) return -1
       if (!aNew && bNew) return 1
+      if (!aNew && !bNew) {
+        const aRemind = a.reminded_at ? new Date(a.reminded_at).getTime() : 0
+        const bRemind = b.reminded_at ? new Date(b.reminded_at).getTime() : 0
+        return aRemind - bRemind
+      }
       return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     })
     setOrders(rows)
@@ -166,10 +171,10 @@ export default function AgentCallsPage() {
     setLoading(false)
   }, [])
 
-  // Auto-refresh: at the exact reminded_at time + fallback every 2 min for new orders
+  // Auto-refresh: every 45s for new orders + exact timer for reminded orders
   useEffect(() => {
     if (!agentId) return
-    const fallback = setInterval(() => loadQueue(agentId), 120_000)
+    const fallback = setInterval(() => loadQueue(agentId), 45_000)
     return () => clearInterval(fallback)
   }, [agentId])
 
@@ -541,7 +546,17 @@ export default function AgentCallsPage() {
       <div className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="font-bold text-[#1a1c3a] text-lg">Call Queue</h1>
-          <p className="text-xs text-gray-400 mt-0.5">{pendingCount} order(s) waiting</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {pendingCount} order(s) waiting
+            {(() => {
+              const newCount = orders.filter(o => !o.call_attempts || o.call_attempts === 0).length
+              const retryCount = pendingCount - newCount
+              if (newCount > 0 && retryCount > 0) return ` · ${newCount} new · ${retryCount} follow-up`
+              if (newCount > 0) return ` · ${newCount} new`
+              if (retryCount > 0) return ` · ${retryCount} follow-up`
+              return ''
+            })()}
+          </p>
         </div>
         <button
           onClick={() => { setLoading(true); loadQueue(agentId) }}
