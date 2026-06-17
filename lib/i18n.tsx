@@ -98,6 +98,7 @@ const translations = {
   nav_customers: { en: 'Customers', fr: 'Clients', ar: 'العملاء' },
   nav_sellers: { en: 'Sellers', fr: 'Vendeurs', ar: 'البائعون' },
   nav_agents: { en: 'Agents', fr: 'Agents', ar: 'الوكلاء' },
+  nav_delivery_agents: { en: 'Delivery Agents', fr: 'Livreurs', ar: 'عمال التوصيل' },
   nav_returns: { en: 'Returns', fr: 'Retours', ar: 'المرتجعات' },
 
   /* ── Periods ── */

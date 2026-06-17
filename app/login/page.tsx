@@ -91,8 +91,35 @@ export default function LoginPage() {
         return
       }
 
+      // Try delivery agent
+      let dAgent: any = null
+      let dAgentErr: any = null
+      try {
+        const res = await supabase
+          .from('delivery_agents')
+          .select('id, email, password, status, name')
+          .eq('email', email)
+          .limit(1)
+        dAgent = res.data?.[0] || null
+        dAgentErr = res.error
+      } catch (ex) {
+        dAgentErr = ex
+      }
+
+      if (dAgent && dAgent.password === password) {
+        if (dAgent.status === 'suspended') {
+          setError('Your account is suspended. Contact admin.')
+          setLoading(false)
+          return
+        }
+        setUser({ role: 'delivery', id: dAgent.id, email: dAgent.email, name: dAgent.name })
+        router.push('/delivery')
+        setLoading(false)
+        return
+      }
+
       setLoading(false)
-      const dbErr = sellerErr || agentErr
+      const dbErr = sellerErr || agentErr || dAgentErr
       setError(dbErr ? `Database error: ${dbErr.message || dbErr}` : 'Invalid email or password.')
     } catch (err: any) {
       console.error('Login error:', err)
