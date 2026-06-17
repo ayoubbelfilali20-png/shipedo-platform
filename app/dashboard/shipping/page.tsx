@@ -42,6 +42,7 @@ type OrderRow = {
   reminded_at?: string | null
   cancel_reason?: string | null
   assigned_agent_id?: string | null
+  delivery_tracking?: string | null
 }
 
 type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
@@ -178,6 +179,10 @@ export default function AdminShippingPage() {
   const [editNoteId, setEditNoteId] = useState<string | null>(null)
   const [editNote, setEditNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+
+  // Delivery tracking modal
+  const [trackingModal, setTrackingModal] = useState<{ orderId: string; newStatus: string } | null>(null)
+  const [deliveryTrackingInput, setDeliveryTrackingInput] = useState('')
 
   // Print queue
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
@@ -330,12 +335,25 @@ export default function AdminShippingPage() {
       .sort((a, b) => b.total - a.total)
   }, [orders, search, dateFrom, dateTo, filterProduct, cityByOrderId])
 
-  const changeStatus = async (orderId: string, newStatus: string) => {
+  const changeStatus = async (orderId: string, newStatus: string, deliveryTracking?: string) => {
+    if ((newStatus === 'shipped_to_agent' || newStatus === 'shipped') && !deliveryTracking && deliveryTracking !== '') {
+      const order = orders.find(o => o.id === orderId)
+      setDeliveryTrackingInput(order?.delivery_tracking || '')
+      setTrackingModal({ orderId, newStatus })
+      return
+    }
+
     setProcessing(orderId)
     const patch: any = { status: newStatus }
 
-    if (newStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
-    if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
+    if (newStatus === 'shipped_to_agent') {
+      patch.shipped_to_agent_at = new Date().toISOString()
+      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
+    }
+    if (newStatus === 'shipped') {
+      patch.shipped_at = new Date().toISOString()
+      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
+    }
     if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (newStatus === 'returned') {
       patch.returned_at = new Date().toISOString()
@@ -624,6 +642,11 @@ export default function AdminShippingPage() {
                       </span>
                     )}
                     <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+                    {order.delivery_tracking && (
+                      <span className="text-[10px] font-mono font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded" title="Delivery tracking">
+                        {order.delivery_tracking}
+                      </span>
+                    )}
                     {duplicateMap.get(order.id)?.isDuplicate && (
                       <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded" title={`Duplicate of ${duplicateMap.get(order.id)?.duplicateOf}`}>DUP</span>
                     )}
@@ -827,6 +850,45 @@ export default function AdminShippingPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+        {/* Delivery tracking modal */}
+        {trackingModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="font-bold text-[#1a1c3a]">Delivery Tracking Number</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Enter the delivery company tracking number (optional)</p>
+              </div>
+              <div className="p-5 space-y-3">
+                <input
+                  value={deliveryTrackingInput}
+                  onChange={e => setDeliveryTrackingInput(e.target.value)}
+                  placeholder="e.g. SPX-KE-123456789"
+                  autoFocus
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                />
+              </div>
+              <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+                <button
+                  onClick={() => { setTrackingModal(null); setDeliveryTrackingInput('') }}
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const { orderId, newStatus } = trackingModal
+                    setTrackingModal(null)
+                    changeStatus(orderId, newStatus, deliveryTrackingInput.trim() || '')
+                    setDeliveryTrackingInput('')
+                  }}
+                  className="flex-1 py-2.5 bg-[#1a1c3a] hover:bg-[#2a2c4a] text-white text-sm font-bold rounded-xl"
+                >
+                  {deliveryTrackingInput.trim() ? 'Save & Update Status' : 'Skip & Update Status'}
+                </button>
+              </div>
             </div>
           </div>
         )}

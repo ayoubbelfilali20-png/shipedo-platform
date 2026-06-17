@@ -653,6 +653,11 @@ export default function AgentShippingPage() {
                       </span>
                     )}
                     <span className="text-xs font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+                    {(order as any).delivery_tracking && (
+                      <span className="text-[10px] font-mono font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                        {(order as any).delivery_tracking}
+                      </span>
+                    )}
                     {duplicateMap.get(order.id)?.isDuplicate && (
                       <span className="text-[8px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded" title={`Duplicate of ${duplicateMap.get(order.id)?.duplicateOf}`}>DUP</span>
                     )}
