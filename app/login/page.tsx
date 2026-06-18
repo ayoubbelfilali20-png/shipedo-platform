@@ -118,8 +118,35 @@ export default function LoginPage() {
         return
       }
 
+      // Try storage agent
+      let sAgent: any = null
+      let sAgentErr: any = null
+      try {
+        const res = await supabase
+          .from('storage_agents')
+          .select('id, email, password, status, name')
+          .eq('email', email)
+          .limit(1)
+        sAgent = res.data?.[0] || null
+        sAgentErr = res.error
+      } catch (ex) {
+        sAgentErr = ex
+      }
+
+      if (sAgent && sAgent.password === password) {
+        if (sAgent.status === 'suspended') {
+          setError('Your account is suspended. Contact admin.')
+          setLoading(false)
+          return
+        }
+        setUser({ role: 'storage', id: sAgent.id, email: sAgent.email, name: sAgent.name })
+        router.push('/storage')
+        setLoading(false)
+        return
+      }
+
       setLoading(false)
-      const dbErr = sellerErr || agentErr || dAgentErr
+      const dbErr = sellerErr || agentErr || dAgentErr || sAgentErr
       setError(dbErr ? `Database error: ${dbErr.message || dbErr}` : 'Invalid email or password.')
     } catch (err: any) {
       console.error('Login error:', err)
