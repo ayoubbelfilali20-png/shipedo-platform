@@ -4,11 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Truck, Eye, EyeOff, ArrowRight, Mail, Lock, Shield } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { setUser } from '@/lib/auth'
-
-const ADMIN_EMAIL = 'ayoub.belfilali20@gmail.com'
-const ADMIN_PASSWORD = 'ayoubilyas@20'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -24,132 +20,32 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Admin hardcoded login
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        setUser({ role: 'admin', email: ADMIN_EMAIL, name: 'Admin' })
-        router.push('/dashboard')
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const result = await res.json()
+
+      if (!result.ok) {
+        setError(result.error || 'Invalid email or password.')
         setLoading(false)
         return
       }
 
-      // Try seller
-      let seller: any = null
-      let sellerErr: any = null
-      try {
-        const res = await supabase
-          .from('sellers')
-          .select('id, email, password, status, name, company')
-          .eq('email', email)
-          .limit(1)
-        seller = res.data?.[0] || null
-        sellerErr = res.error
-      } catch (ex) {
-        console.error('Seller query crash:', ex)
-        sellerErr = ex
-      }
+      const user = result.user
+      setUser(user)
 
-      if (seller && seller.password === password) {
-        if (seller.status === 'suspended') {
-          setError('Your account is suspended. Contact admin.')
-          setLoading(false)
-          return
-        }
-        setUser({
-          role: 'seller', id: seller.id, email: seller.email,
-          name: seller.company || seller.name, fullName: seller.name,
-        })
-        router.push('/seller')
-        setLoading(false)
-        return
+      const routes: Record<string, string> = {
+        admin: '/dashboard',
+        seller: '/seller',
+        agent: '/agent',
+        delivery: '/delivery',
+        storage: '/storage',
       }
-
-      // Try agent
-      let agent: any = null
-      let agentErr: any = null
-      try {
-        const res = await supabase
-          .from('agents')
-          .select('id, email, password, status, name')
-          .eq('email', email)
-          .limit(1)
-        agent = res.data?.[0] || null
-        agentErr = res.error
-      } catch (ex) {
-        console.error('Agent query crash:', ex)
-        agentErr = ex
-      }
-
-      if (agent && agent.password === password) {
-        if (agent.status === 'suspended') {
-          setError('Your account is suspended. Contact admin.')
-          setLoading(false)
-          return
-        }
-        setUser({ role: 'agent', id: agent.id, email: agent.email, name: agent.name })
-        router.push('/agent')
-        setLoading(false)
-        return
-      }
-
-      // Try delivery agent
-      let dAgent: any = null
-      let dAgentErr: any = null
-      try {
-        const res = await supabase
-          .from('delivery_agents')
-          .select('id, email, password, status, name')
-          .eq('email', email)
-          .limit(1)
-        dAgent = res.data?.[0] || null
-        dAgentErr = res.error
-      } catch (ex) {
-        dAgentErr = ex
-      }
-
-      if (dAgent && dAgent.password === password) {
-        if (dAgent.status === 'suspended') {
-          setError('Your account is suspended. Contact admin.')
-          setLoading(false)
-          return
-        }
-        setUser({ role: 'delivery', id: dAgent.id, email: dAgent.email, name: dAgent.name })
-        router.push('/delivery')
-        setLoading(false)
-        return
-      }
-
-      // Try storage agent
-      let sAgent: any = null
-      let sAgentErr: any = null
-      try {
-        const res = await supabase
-          .from('storage_agents')
-          .select('id, email, password, status, name')
-          .eq('email', email)
-          .limit(1)
-        sAgent = res.data?.[0] || null
-        sAgentErr = res.error
-      } catch (ex) {
-        sAgentErr = ex
-      }
-
-      if (sAgent && sAgent.password === password) {
-        if (sAgent.status === 'suspended') {
-          setError('Your account is suspended. Contact admin.')
-          setLoading(false)
-          return
-        }
-        setUser({ role: 'storage', id: sAgent.id, email: sAgent.email, name: sAgent.name })
-        router.push('/storage')
-        setLoading(false)
-        return
-      }
-
+      router.push(routes[user.role] || '/login')
       setLoading(false)
-      const dbErr = sellerErr || agentErr || dAgentErr || sAgentErr
-      setError(dbErr ? `Database error: ${dbErr.message || dbErr}` : 'Invalid email or password.')
     } catch (err: any) {
-      console.error('Login error:', err)
       setLoading(false)
       setError(`Error: ${err.message || err}`)
     }
