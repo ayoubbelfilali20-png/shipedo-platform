@@ -34,7 +34,7 @@ type OrderRow = {
   created_at: string
 }
 
-const COLS = 'id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, customer_address, items, total_amount, status, payment_method, printed, print_count, notes, last_call_note, shipped_to_agent_at, shipped_at, delivered_at, returned_at, last_call_at, created_at'
+const COLS = 'id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, customer_address, items, total_amount, status, payment_method, printed, print_count, notes, last_call_note, shipped_to_agent_at, shipped_at, delivered_at, returned_at, last_call_at, created_at, last_call_agent_id, assigned_agent_id'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
@@ -93,13 +93,24 @@ export default function StorageOrdersPage() {
   const [datePreset, setDatePreset] = useState<DatePreset>('all')
   const [processing, setProcessing] = useState<string | null>(null)
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
+  const [agentMap, setAgentMap] = useState<Record<string, string>>({})
+  const [trackingModal, setTrackingModal] = useState<string | null>(null)
+  const [deliveryTrackingInput, setDeliveryTrackingInput] = useState('')
 
   useEffect(() => {
-    supabase.from('orders').select(COLS)
-      .in('status', allStatuses)
-      .order('created_at', { ascending: false })
-      .limit(1000)
-      .then(({ data }) => { setOrders((data || []) as OrderRow[]); setLoading(false) })
+    Promise.all([
+      supabase.from('orders').select(COLS)
+        .in('status', allStatuses)
+        .order('created_at', { ascending: false })
+        .limit(1000),
+      supabase.from('agents').select('id, name'),
+    ]).then(([ordersRes, agentsRes]) => {
+      setOrders((ordersRes.data || []) as OrderRow[])
+      const map: Record<string, string> = {}
+      ;(agentsRes.data || []).forEach((a: any) => { map[a.id] = a.name })
+      setAgentMap(map)
+      setLoading(false)
+    })
   }, [])
 
   // Realtime updates
@@ -154,11 +165,21 @@ export default function StorageOrdersPage() {
     })
   }, [orders, search, filterStatus, dateFrom, dateTo])
 
-  const changeStatus = async (orderId: string, newStatus: string) => {
+  const changeStatus = async (orderId: string, newStatus: string, deliveryTracking?: string) => {
+    if (newStatus === 'shipped_to_agent' && deliveryTracking === undefined) {
+      const order = orders.find(o => o.id === orderId)
+      setDeliveryTrackingInput(order?.delivery_tracking || '')
+      setTrackingModal(orderId)
+      return
+    }
+
     setProcessing(orderId)
     const patch: any = { status: newStatus }
     if (newStatus === 'prepared') { patch.shipped_to_agent_at = null; patch.shipped_at = null; patch.delivered_at = null; patch.returned_at = null }
-    if (newStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
+    if (newStatus === 'shipped_to_agent') {
+      patch.shipped_to_agent_at = new Date().toISOString()
+      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
+    }
     if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
     if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (newStatus === 'returned') {
@@ -278,6 +299,11 @@ export default function StorageOrdersPage() {
                   )}
                   <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full', cfg.color, cfg.bg)}>{cfg.label}</span>
                   <span className="text-[10px] text-gray-400">{order.payment_method}</span>
+                  {(order as any).last_call_agent_id && agentMap[(order as any).last_call_agent_id] && (
+                    <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                      {agentMap[(order as any).last_call_agent_id]}
+                    </span>
+                  )}
                   {(order.total_amount || 0) > 0 && (
                     <span className="text-xs font-bold text-[#f4991a]">KES {order.total_amount.toLocaleString()}</span>
                   )}
@@ -326,6 +352,41 @@ export default function StorageOrdersPage() {
           )
         })}
       </div>
+
+      {/* Delivery tracking modal */}
+      {trackingModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-[#1a1c3a]">Delivery Tracking Number</h3>
+              <p className="text-[11px] text-gray-400 mt-0.5">Enter the delivery company tracking number (optional)</p>
+            </div>
+            <div className="p-5">
+              <input
+                value={deliveryTrackingInput}
+                onChange={e => setDeliveryTrackingInput(e.target.value)}
+                placeholder="e.g. SPX-KE-123456789"
+                autoFocus
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+              />
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+              <button onClick={() => { setTrackingModal(null); setDeliveryTrackingInput('') }}
+                className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-50">
+                Cancel
+              </button>
+              <button onClick={() => {
+                const id = trackingModal
+                setTrackingModal(null)
+                changeStatus(id, 'shipped_to_agent', deliveryTrackingInput.trim() || '')
+                setDeliveryTrackingInput('')
+              }} className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-xl">
+                {deliveryTrackingInput.trim() ? 'Save & Send to Agent' : 'Skip & Send to Agent'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
