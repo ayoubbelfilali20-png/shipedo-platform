@@ -12,11 +12,19 @@ export async function GET(req: NextRequest) {
 
   const nowIso = new Date().toISOString()
 
-  const [{ data }, { data: confData }, { data: nextRemind }] = await Promise.all([
+  const [{ data: newOrders }, { data: followUp }, { data: confData }, { data: nextRemind }] = await Promise.all([
+    // New orders (never called) — oldest first
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'pending').eq('assigned_agent_id', agentId)
-      .or(`reminded_at.is.null,reminded_at.lte.${nowIso}`)
+      .is('reminded_at', null)
+      .or('call_attempts.is.null,call_attempts.eq.0')
       .order('created_at', { ascending: true }).limit(500),
+    // Follow-up orders (called before, reminded_at passed) — earliest reminder first
+    supabaseAdmin.from('orders').select(COLS)
+      .eq('status', 'pending').eq('assigned_agent_id', agentId)
+      .not('reminded_at', 'is', null)
+      .lte('reminded_at', nowIso)
+      .order('reminded_at', { ascending: true }).limit(500),
     supabaseAdmin.from('orders').select(COLS)
       .eq('status', 'confirmed').eq('assigned_agent_id', agentId).eq('printed', false)
       .order('created_at', { ascending: true }).limit(500),
@@ -26,8 +34,11 @@ export async function GET(req: NextRequest) {
       .order('reminded_at', { ascending: true }).limit(1),
   ])
 
+  // New orders first, then follow-ups
+  const pending = [...(newOrders || []), ...(followUp || [])]
+
   return NextResponse.json({
-    pending: data || [],
+    pending,
     confirmed: confData || [],
     nextRemindAt: nextRemind?.[0]?.reminded_at || null,
   })
