@@ -20,7 +20,7 @@ const roleConfig: Record<string, { label: string; badge: string; avatarBg: strin
   seller:   { label: 'Seller',         badge: 'bg-[#f4991a]/20 text-orange-300',  avatarBg: 'from-[#f4991a] to-orange-600',  name: 'Seller',   icon: Store       },
   agent:    { label: 'Call Agent',     badge: 'bg-blue-500/20 text-blue-300',     avatarBg: 'from-blue-500 to-blue-700',     name: 'Agent',    icon: Headphones  },
   delivery: { label: 'Delivery Agent', badge: 'bg-emerald-500/20 text-emerald-300', avatarBg: 'from-emerald-500 to-emerald-700', name: 'Delivery', icon: TruckIcon },
-  storage:  { label: 'Storage Agent',  badge: 'bg-amber-500/20 text-amber-300',    avatarBg: 'from-amber-500 to-amber-700',    name: 'Storage',  icon: Package     },
+  storage:  { label: 'Storage Agent',  badge: 'bg-amber-500/20 text-amber-300',    avatarBg: 'from-amber-500 to-amber-700',    name: 'Storage',  icon: Warehouse   },
 }
 
 /* ─── Nav types ───────────────────────────────────────── */
@@ -43,8 +43,8 @@ const adminNav: NavSection[] = [
       { href: '/dashboard/sellers',     icon: Store,        labelKey: 'nav_sellers'     },
       { href: '/dashboard/agents',           icon: UserCog,      labelKey: 'nav_agents'           },
       { href: '/dashboard/delivery-agents', icon: TruckIcon,    labelKey: 'nav_delivery_agents'  },
-      { href: '/dashboard/storage-agents',  icon: Package,      labelKey: 'nav_storage_agents'   },
-      { href: '/dashboard/shipping',        icon: Package,      labelKey: 'nav_shipping'         },
+      { href: '/dashboard/storage-agents',  icon: Warehouse,    labelKey: 'nav_storage_agents'   },
+      { href: '/dashboard/shipping',        icon: TruckIcon,    labelKey: 'nav_shipping'         },
       { href: '/dashboard/returns',     icon: RotateCcw,    labelKey: 'nav_returns'     },
       { href: '/dashboard/expeditions', icon: PlaneTakeoff, labelKey: 'nav_expeditions' },
       { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'     },
