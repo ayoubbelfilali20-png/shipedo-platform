@@ -41,8 +41,9 @@ export default function DeliveryAgentsPage() {
   const [created, setCreated] = useState<DeliveryAgent | null>(null)
 
   useEffect(() => {
-    supabase.from('delivery_agents').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setAgents((data || []) as DeliveryAgent[]); setLoading(false) })
+    fetch('/api/admin/delivery-agents').then(r => r.json())
+      .then(result => { setAgents((result.agents || []) as DeliveryAgent[]); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
   const filtered = agents.filter(a => {
@@ -53,25 +54,36 @@ export default function DeliveryAgentsPage() {
   const handleAdd = async () => {
     if (!name.trim() || !email.trim()) return
     setSaving(true)
-    const { data, error } = await supabase.from('delivery_agents').insert({
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim() || null,
-      password,
-      notes: notes.trim() || null,
-    }).select().single()
-    if (data) {
-      setAgents(prev => [data as DeliveryAgent, ...prev])
-      setCreated(data as DeliveryAgent)
-      setName(''); setEmail(''); setPhone(''); setNotes(''); setPassword(generatePassword())
-      setShowAdd(false)
-    }
+    try {
+      const res = await fetch('/api/admin/delivery-agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim() || null,
+          password,
+          notes: notes.trim() || null,
+        }),
+      })
+      const result = await res.json()
+      if (result.ok && result.agent) {
+        setAgents(prev => [result.agent as DeliveryAgent, ...prev])
+        setCreated(result.agent as DeliveryAgent)
+        setName(''); setEmail(''); setPhone(''); setNotes(''); setPassword(generatePassword())
+        setShowAdd(false)
+      }
+    } catch {}
     setSaving(false)
   }
 
   const toggleStatus = async (id: string, current: string) => {
     const next = current === 'active' ? 'inactive' : 'active'
-    await supabase.from('delivery_agents').update({ status: next }).eq('id', id)
+    await fetch('/api/admin/delivery-agents', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status: next }),
+    })
     setAgents(prev => prev.map(a => a.id === id ? { ...a, status: next } : a))
   }
 
