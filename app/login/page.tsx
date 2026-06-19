@@ -43,8 +43,7 @@ export default function LoginPage() {
         delivery: '/delivery',
         storage: '/storage',
       }
-      router.push(routes[user.role] || '/login')
-      setLoading(false)
+      window.location.href = routes[user.role] || '/login'
     } catch (err: any) {
       setLoading(false)
       setError(`Error: ${err.message || err}`)
