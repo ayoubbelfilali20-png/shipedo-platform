@@ -5,7 +5,9 @@ const ADMIN_EMAIL = 'ayoub.belfilali20@gmail.com'
 const ADMIN_PASSWORD = 'ayoubilyas@20'
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json()
+  const body = await req.json()
+  const email = (body.email || '').trim().toLowerCase()
+  const password = body.password || ''
   if (!email || !password) {
     return NextResponse.json({ ok: false, error: 'Email and password required' }, { status: 400 })
   }
