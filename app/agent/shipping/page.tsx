@@ -153,6 +153,8 @@ export default function AgentShippingPage() {
   const [processing, setProcessing] = useState<string | null>(null)
   const [waSendStatus, setWaSendStatus] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({})
   const [datePreset, setDatePreset] = useState<DatePreset>('today')
+  const [trackingModal, setTrackingModal] = useState<{ orderId: string; newStatus: string } | null>(null)
+  const [deliveryTrackingInput, setDeliveryTrackingInput] = useState('')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
@@ -362,12 +364,25 @@ export default function AgentShippingPage() {
       .sort((a, b) => b.total - a.total)
   }, [orders, search, dateFrom, dateTo, filterProduct, cityByOrderId])
 
-  const changeStatus = async (orderId: string, newStatus: string) => {
+  const changeStatus = async (orderId: string, newStatus: string, deliveryTracking?: string) => {
+    if ((newStatus === 'shipped_to_agent' || newStatus === 'shipped') && deliveryTracking === undefined) {
+      const order = orders.find(o => o.id === orderId)
+      setDeliveryTrackingInput((order as any)?.delivery_tracking || '')
+      setTrackingModal({ orderId, newStatus })
+      return
+    }
+
     setProcessing(orderId)
     const patch: any = { status: newStatus }
 
-    if (newStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
-    if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
+    if (newStatus === 'shipped_to_agent') {
+      patch.shipped_to_agent_at = new Date().toISOString()
+      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
+    }
+    if (newStatus === 'shipped') {
+      patch.shipped_at = new Date().toISOString()
+      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
+    }
     if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (newStatus === 'returned') {
       patch.returned_at = new Date().toISOString()
@@ -865,6 +880,34 @@ export default function AgentShippingPage() {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+        {/* Delivery tracking modal */}
+        {trackingModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="font-bold text-[#1a1c3a]">Delivery Tracking Number</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Enter the delivery company tracking number (optional)</p>
+              </div>
+              <div className="p-5">
+                <input value={deliveryTrackingInput} onChange={e => setDeliveryTrackingInput(e.target.value)}
+                  placeholder="e.g. SPX-KE-123456789" autoFocus
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+              </div>
+              <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
+                <button onClick={() => { setTrackingModal(null); setDeliveryTrackingInput('') }}
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-50">Cancel</button>
+                <button onClick={() => {
+                  const { orderId, newStatus } = trackingModal
+                  setTrackingModal(null)
+                  changeStatus(orderId, newStatus, deliveryTrackingInput.trim() || '')
+                  setDeliveryTrackingInput('')
+                }} className="flex-1 py-2.5 bg-[#1a1c3a] hover:bg-[#2a2c4a] text-white text-sm font-bold rounded-xl">
+                  {deliveryTrackingInput.trim() ? 'Save & Update' : 'Skip & Update'}
+                </button>
+              </div>
             </div>
           </div>
         )}
