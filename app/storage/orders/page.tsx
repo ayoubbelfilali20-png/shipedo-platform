@@ -101,7 +101,7 @@ export default function StorageOrdersPage() {
     Promise.all([
       supabase.from('orders').select(COLS)
         .in('status', allStatuses)
-        .order('created_at', { ascending: false })
+        .order('last_call_at', { ascending: false, nullsFirst: false })
         .limit(1000),
       supabase.from('agents').select('id, name'),
     ]).then(([ordersRes, agentsRes]) => {
@@ -162,7 +162,7 @@ export default function StorageOrdersPage() {
         o.customer_phone?.includes(q) ||
         o.customer_city?.toLowerCase().includes(q)
       )
-    })
+    }).sort((a, b) => new Date(getStatusDate(b)).getTime() - new Date(getStatusDate(a)).getTime())
   }, [orders, search, filterStatus, dateFrom, dateTo])
 
   const changeStatus = async (orderId: string, newStatus: string, deliveryTracking?: string) => {

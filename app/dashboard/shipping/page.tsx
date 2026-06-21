@@ -295,10 +295,10 @@ export default function AdminShippingPage() {
     })
   }, [orders, search, dateFrom, dateTo, filterProduct, filterCity, filterAgent, cityByOrderId])
 
-  const filtered = useMemo(
-    () => filterStatus === 'all' ? baseFiltered : baseFiltered.filter(o => o.status === filterStatus),
-    [baseFiltered, filterStatus],
-  )
+  const filtered = useMemo(() => {
+    const list = filterStatus === 'all' ? baseFiltered : baseFiltered.filter(o => o.status === filterStatus)
+    return list.sort((a, b) => new Date(getStatusDate(b)).getTime() - new Date(getStatusDate(a)).getTime())
+  }, [baseFiltered, filterStatus])
 
   const counts = useMemo(() => {
     const acc = {} as Record<string, number>
