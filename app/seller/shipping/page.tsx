@@ -172,7 +172,7 @@ export default function SellerShippingPage() {
       if (to && statusDate > to) return false
       if (searchQuery) {
         const q = searchQuery.toLowerCase()
-        if (!(o.tracking_number?.toLowerCase().includes(q) || o.customer_name?.toLowerCase().includes(q) || o.customer_phone?.includes(q) || o.customer_city?.toLowerCase().includes(q))) return false
+        if (!(o.tracking_number?.toLowerCase().includes(q) || ((o as any).delivery_tracking || '').toLowerCase().includes(q) || o.customer_name?.toLowerCase().includes(q) || o.customer_phone?.includes(q) || o.customer_city?.toLowerCase().includes(q))) return false
       }
       return true
     })

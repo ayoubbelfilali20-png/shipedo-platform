@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   if (status !== 'all') q = q.eq('status', status)
   if (search) {
-    q = q.or(`tracking_number.ilike.%${search}%,customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%,customer_city.ilike.%${search}%`)
+    q = q.or(`tracking_number.ilike.%${search}%,delivery_tracking.ilike.%${search}%,customer_name.ilike.%${search}%,customer_phone.ilike.%${search}%,customer_city.ilike.%${search}%`)
   }
 
   const { data, count } = await q

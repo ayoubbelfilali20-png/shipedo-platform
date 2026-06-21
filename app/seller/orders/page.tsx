@@ -130,6 +130,7 @@ export default function SellerOrdersPage() {
       if (!s) return true
       return (
         (o.tracking_number || '').toLowerCase().includes(s) ||
+        ((o as any).delivery_tracking || '').toLowerCase().includes(s) ||
         (o.customer_name || '').toLowerCase().includes(s) ||
         (o.customer_phone || '').includes(s) ||
         (o.customer_city || '').toLowerCase().includes(s) ||

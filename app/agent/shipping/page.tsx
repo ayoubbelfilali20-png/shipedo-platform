@@ -290,6 +290,7 @@ export default function AgentShippingPage() {
     return orders.filter(o => {
       const matchesSearch = !q ||
         o.tracking_number?.toLowerCase().includes(q) ||
+        ((o as any).delivery_tracking || '').toLowerCase().includes(q) ||
         o.customer_phone?.includes(q) ||
         o.customer_name?.toLowerCase().includes(q) ||
         o.customer_city?.toLowerCase().includes(q) ||
@@ -329,6 +330,7 @@ export default function AgentShippingPage() {
     orders.forEach(o => {
       const matchesSearch = !q ||
         o.tracking_number?.toLowerCase().includes(q) ||
+        ((o as any).delivery_tracking || '').toLowerCase().includes(q) ||
         o.customer_phone?.includes(q) ||
         o.customer_name?.toLowerCase().includes(q) ||
         o.customer_city?.toLowerCase().includes(q) ||

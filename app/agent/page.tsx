@@ -270,6 +270,7 @@ export default function AgentDashboard() {
     return filteredByPeriod.filter(o => {
       const matchSearch = !q ||
         o.tracking_number?.toLowerCase().includes(q) ||
+        ((o as any).delivery_tracking || '').toLowerCase().includes(q) ||
         o.customer_name?.toLowerCase().includes(q) ||
         (o.customer_phone || '').includes(search) ||
         (o.customer_city || '').toLowerCase().includes(q)

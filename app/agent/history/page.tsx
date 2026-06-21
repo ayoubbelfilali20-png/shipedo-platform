@@ -363,6 +363,7 @@ export default function AgentHistoryPage() {
   const filtered = orders.filter(o => {
     const q = search.toLowerCase()
     const matchSearch = o.tracking_number.toLowerCase().includes(q) ||
+      ((o as any).delivery_tracking || '').toLowerCase().includes(q) ||
       (o.customer_name || '').toLowerCase().includes(q) ||
       (o.customer_phone || '').includes(q)
     const matchFilter = filter === 'all' || o.status === filter

@@ -272,6 +272,7 @@ export default function AdminShippingPage() {
     return orders.filter(o => {
       const matchesSearch = !q ||
         o.tracking_number?.toLowerCase().includes(q) ||
+        (o.delivery_tracking || '').toLowerCase().includes(q) ||
         o.customer_phone?.includes(q) ||
         o.customer_name?.toLowerCase().includes(q) ||
         o.customer_city?.toLowerCase().includes(q) ||
@@ -309,6 +310,7 @@ export default function AdminShippingPage() {
     orders.forEach(o => {
       const matchesSearch = !q ||
         o.tracking_number?.toLowerCase().includes(q) ||
+        (o.delivery_tracking || '').toLowerCase().includes(q) ||
         o.customer_phone?.includes(q) ||
         o.customer_name?.toLowerCase().includes(q) ||
         o.customer_city?.toLowerCase().includes(q) ||
