@@ -325,19 +325,20 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
                     <div className="text-sm font-bold text-[#1a1c3a]">{user.name}</div>
                   </div>
                   <div className="p-2">
-                    <Link
-                      href={role === 'seller' ? '/seller/profile' : role === 'agent' ? '/agent/profile' : '/dashboard/profile'}
-                      onClick={() => setDropOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
-                    >
-                      <User size={14} /> Profile
-                    </Link>
+                    {role !== 'delivery' && role !== 'storage' && (
+                      <Link
+                        href={role === 'seller' ? '/seller/profile' : role === 'agent' ? '/agent/profile' : '/dashboard/profile'}
+                        onClick={() => setDropOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+                      >
+                        <User size={14} /> Profile
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         try {
-                          const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : 'shipedo_admin'
-                          localStorage.removeItem(key)
-                          localStorage.removeItem('shipedo_user')
+                          const keys = ['shipedo_seller', 'shipedo_agent', 'shipedo_admin', 'shipedo_delivery', 'shipedo_storage', 'shipedo_user']
+                          keys.forEach(k => localStorage.removeItem(k))
                         } catch {}
                         window.location.href = '/login'
                       }}
