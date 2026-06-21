@@ -262,11 +262,14 @@ export default function AgentShippingPage() {
 
   const productOptions = useMemo(() => {
     const set = new Map<string, string>()
+    const colors = /\s*(BLACK|WHITE|BLUE|RED|GREY|GRAY|GOLD|NAVY BLUE|NAVY|GREEN|PINK|SILVER|PURPLE|YELLOW|RED AND BLACK|RED AND WHITE|,\s*(BLACK|WHITE|BLUE|RED|GREY|GOLD))\s*$/i
     orders.forEach(o => {
       const items = Array.isArray(o.items) ? o.items : []
       items.forEach((it: any) => {
-        const name = (it.name || '').trim()
-        if (name) set.set(name.toLowerCase(), name)
+        const raw = (it.name || '').trim()
+        if (!raw) return
+        const base = raw.replace(colors, '').trim() || raw
+        set.set(base.toLowerCase(), base)
       })
     })
     return Array.from(set.values()).sort()
@@ -301,7 +304,8 @@ export default function AgentShippingPage() {
       if (dateTo && statusDate > dateTo) return false
       if (filterProduct !== 'all') {
         if (!Array.isArray(o.items)) return false
-        if (!o.items.some((it: any) => (it.name || '').toLowerCase() === productLower)) return false
+        const colorsRe = /\s*(BLACK|WHITE|BLUE|RED|GREY|GRAY|GOLD|NAVY BLUE|NAVY|GREEN|PINK|SILVER|PURPLE|YELLOW|RED AND BLACK|RED AND WHITE|,\s*(BLACK|WHITE|BLUE|RED|GREY|GOLD))\s*$/i
+        if (!o.items.some((it: any) => (it.name || '').replace(colorsRe, '').trim().toLowerCase() === productLower)) return false
       }
       if (filterCity !== 'all' && cityByOrderId.get(o.id) !== filterCity) return false
       return true
@@ -341,7 +345,8 @@ export default function AgentShippingPage() {
       if (dateTo && statusDate > dateTo) return
       if (filterProduct !== 'all') {
         if (!Array.isArray(o.items)) return
-        if (!o.items.some((it: any) => (it.name || '').toLowerCase() === productLower)) return
+        const colorsRe2 = /\s*(BLACK|WHITE|BLUE|RED|GREY|GRAY|GOLD|NAVY BLUE|NAVY|GREEN|PINK|SILVER|PURPLE|YELLOW|RED AND BLACK|RED AND WHITE|,\s*(BLACK|WHITE|BLUE|RED|GREY|GOLD))\s*$/i
+        if (!o.items.some((it: any) => (it.name || '').replace(colorsRe2, '').trim().toLowerCase() === productLower)) return
       }
       const c = cityByOrderId.get(o.id)
       if (!c) return
