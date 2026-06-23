@@ -765,11 +765,21 @@ export default function AdminShippingPage() {
                         <CheckCircle size={11} /> Confirmed: {new Date(order.last_call_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </span>
                     )}
-                    {order.shipped_to_agent_at && (
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded-lg px-2 py-0.5">
-                        <UserCheck size={11} /> To Agent: {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </span>
-                    )}
+                    {order.shipped_to_agent_at && (() => {
+                      const days = Math.floor((Date.now() - new Date(order.shipped_to_agent_at).getTime()) / 86400000)
+                      return (
+                        <>
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded-lg px-2 py-0.5">
+                            <UserCheck size={11} /> To Agent: {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          {order.status === 'shipped_to_agent' && days >= 7 && (
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg ${days >= 14 ? 'bg-red-600 text-white' : days >= 10 ? 'bg-orange-500 text-white' : 'bg-amber-400 text-gray-900'}`}>
+                              <Clock size={10} /> {days} days
+                            </span>
+                          )}
+                        </>
+                      )
+                    })()}
                     {order.shipped_at && (
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-2 py-0.5">
                         <Truck size={11} /> Shipped: {new Date(order.shipped_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
