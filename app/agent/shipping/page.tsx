@@ -373,7 +373,7 @@ export default function AgentShippingPage() {
     }
 
     setProcessing(orderId)
-    const patch: any = { status: newStatus }
+    const patch: any = { status: newStatus, last_call_at: new Date().toISOString() }
 
     if (newStatus === 'shipped_to_agent') {
       patch.shipped_to_agent_at = new Date().toISOString()
