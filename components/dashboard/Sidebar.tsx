@@ -45,6 +45,7 @@ const adminNav: NavSection[] = [
       { href: '/dashboard/delivery-agents', icon: TruckIcon,    labelKey: 'nav_delivery_agents'  },
       { href: '/dashboard/storage-agents',  icon: Warehouse,    labelKey: 'nav_storage_agents'   },
       { href: '/dashboard/shipping',        icon: TruckIcon,    labelKey: 'nav_shipping'         },
+      { href: '/dashboard/delayed',         icon: Clock,        labelKey: 'nav_delayed'          },
       { href: '/dashboard/returns',     icon: RotateCcw,    labelKey: 'nav_returns'     },
       { href: '/dashboard/expeditions', icon: PlaneTakeoff, labelKey: 'nav_expeditions' },
       { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'     },

@@ -100,6 +100,7 @@ const translations = {
   nav_agents: { en: 'Agents', fr: 'Agents', ar: 'الوكلاء' },
   nav_delivery_agents: { en: 'Delivery Agents', fr: 'Livreurs', ar: 'عمال التوصيل' },
   nav_storage_agents: { en: 'Storage Agents', fr: 'Magasiniers', ar: 'عمال المخزن' },
+  nav_delayed: { en: 'Delayed Orders', fr: 'Retards', ar: 'طلبات متأخرة' },
   nav_returns: { en: 'Returns', fr: 'Retours', ar: 'المرتجعات' },
 
   /* ── Periods ── */

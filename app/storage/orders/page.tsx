@@ -177,8 +177,9 @@ export default function StorageOrdersPage() {
     const patch: any = { status: newStatus, last_call_at: new Date().toISOString() }
     if (newStatus === 'prepared') { patch.shipped_to_agent_at = null; patch.shipped_at = null; patch.delivered_at = null; patch.returned_at = null }
     if (newStatus === 'shipped_to_agent') {
-      patch.shipped_to_agent_at = new Date().toISOString()
-      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
+      const existing = orders.find(o => o.id === orderId)
+      if (!existing?.shipped_to_agent_at) patch.shipped_to_agent_at = new Date().toISOString()
+      if (deliveryTracking !== undefined) patch.delivery_tracking = deliveryTracking || null
     }
     if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
     if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
