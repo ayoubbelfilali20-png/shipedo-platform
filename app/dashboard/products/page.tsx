@@ -50,13 +50,19 @@ export default function ProductsPage() {
   const [editProduct, setEditProduct] = useState<any>(null)
   const [editQty, setEditQty] = useState({ stock: 0, total_quantity: 0, defective_quantity: 0 })
   const [savingQty, setSavingQty] = useState(false)
+  const [sellerMap, setSellerMap] = useState<Record<string, string>>({})
+  const [filterSeller, setFilterSeller] = useState<string>('all')
 
   useEffect(() => {
-    supabase.from('products').select('id, name, sku, selling_price, stock, total_quantity, defective_quantity, status, image_url, seller_id, created_at').order('created_at', { ascending: false }).limit(500).then(({ data, error }) => {
-      if (error) alert('LOAD products error: ' + error.message + ' / code ' + error.code)
-      else if (!data || data.length === 0) console.log('Products query returned empty')
-      else console.log('Loaded products:', data.length, data)
-      setProducts(data || [])
+    Promise.all([
+      supabase.from('products').select('id, name, sku, selling_price, buying_price, stock, total_quantity, defective_quantity, status, image_url, seller_id, origin, category, created_at').order('created_at', { ascending: false }).limit(500),
+      supabase.from('sellers').select('id, name, company'),
+    ]).then(([prodRes, sellerRes]) => {
+      const sMap: Record<string, string> = {}
+      ;(sellerRes.data || []).forEach((s: any) => { sMap[s.id] = s.company || s.name })
+      setSellerMap(sMap)
+      const prods = (prodRes.data || []).map((p: any) => ({ ...p, sellerName: sMap[p.seller_id] || '—' }))
+      setProducts(prods)
       setLoading(false)
     })
   }, [])
@@ -88,9 +94,10 @@ export default function ProductsPage() {
 
   const filtered = products.filter(p => {
     const q = search.toLowerCase()
-    const matchSearch = (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q)
+    const matchSearch = (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q) || (p.sellerName || '').toLowerCase().includes(q)
     const matchStatus = statusFilter === 'all' || p.status === statusFilter
-    return matchSearch && matchStatus
+    const matchSeller = filterSeller === 'all' || p.seller_id === filterSeller
+    return matchSearch && matchStatus && matchSeller
   })
 
   const stats = {
@@ -161,6 +168,11 @@ export default function ProductsPage() {
               </button>
             ))}
           </div>
+          <select value={filterSeller} onChange={e => setFilterSeller(e.target.value)}
+            className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all bg-white focus:outline-none focus:border-[#f4991a] min-w-[140px] ${filterSeller !== 'all' ? 'border-[#f4991a] text-[#f4991a]' : 'border-gray-200 text-gray-500'}`}>
+            <option value="all">All Sellers</option>
+            {Object.entries(sellerMap).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+          </select>
           <Link
             href="/dashboard/products/new"
             className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex-shrink-0"
