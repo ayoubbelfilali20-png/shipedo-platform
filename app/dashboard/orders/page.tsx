@@ -251,6 +251,11 @@ export default function OrdersPage() {
                             {duplicateMap.get(order.id)?.isSameClient && !duplicateMap.get(order.id)?.isDuplicate && (
                               <span className="text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded" title={`Also: ${duplicateMap.get(order.id)?.otherOrders?.join(', ')}`}>SAME CLIENT</span>
                             )}
+                            {order.status === 'pending' && ((order as any).call_attempts || 0) > 0 && (
+                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${((order as any).call_attempts || 0) >= 3 ? 'bg-red-500 text-white' : ((order as any).call_attempts || 0) >= 2 ? 'bg-orange-400 text-white' : 'bg-yellow-400 text-gray-800'}`}>
+                                Unreached x{(order as any).call_attempts}
+                              </span>
+                            )}
                           </div>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium mt-1 inline-block ${
                             order.payment_method === 'COD'

@@ -661,6 +661,11 @@ export default function AdminShippingPage() {
                     {duplicateMap.get(order.id)?.isSameClient && !duplicateMap.get(order.id)?.isDuplicate && (
                       <span className="text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded" title={`Also: ${duplicateMap.get(order.id)?.otherOrders?.join(', ')}`}>SAME CLIENT</span>
                     )}
+                    {order.status === 'pending' && (order.call_attempts || 0) > 0 && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${(order.call_attempts || 0) >= 3 ? 'bg-red-500 text-white' : (order.call_attempts || 0) >= 2 ? 'bg-orange-400 text-white' : 'bg-yellow-400 text-gray-800'}`}>
+                        Unreached x{order.call_attempts}
+                      </span>
+                    )}
                     <span className="text-[10px] text-gray-400">{order.payment_method}</span>
                     {order.assigned_agent_id && agentMap[order.assigned_agent_id] && (
                       <span className="text-[9px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">{agentMap[order.assigned_agent_id]}</span>
