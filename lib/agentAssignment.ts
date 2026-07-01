@@ -16,14 +16,13 @@ export async function pickAgentForOrder(client: SupabaseClient, customerPhone?: 
         .from('orders')
         .select('assigned_agent_id, customer_phone')
         .not('assigned_agent_id', 'is', null)
-        .in('status', ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped'])
-        .limit(500)
+        .ilike('customer_phone', `%${normalized}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
       const agentIds = new Set(agents.map(a => a.id))
-      const match = (existing || []).find((o: any) => {
-        const oPhone = (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
-        return oPhone === normalized && agentIds.has(o.assigned_agent_id)
-      })
-      if (match) return match.assigned_agent_id
+      if (existing?.[0] && agentIds.has(existing[0].assigned_agent_id)) {
+        return existing[0].assigned_agent_id
+      }
     }
   }
 

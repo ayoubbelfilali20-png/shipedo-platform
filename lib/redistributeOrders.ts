@@ -23,24 +23,32 @@ export async function assignUnassignedOrders() {
 
     const agentIds = agents.map(a => a.id)
     const agentIdSet = new Set(agentIds)
-
-    // Build phone→agent map from existing assigned orders
-    const phones = unassigned
-      .map(o => (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9))
-      .filter(p => p.length >= 8)
     const phoneToAgent = new Map<string, string>()
 
-    if (phones.length > 0) {
-      const { data: existing } = await supabaseAdmin
-        .from('orders')
-        .select('assigned_agent_id, customer_phone')
-        .not('assigned_agent_id', 'is', null)
-        .in('status', ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped'])
-        .limit(1000)
-      ;(existing || []).forEach((o: any) => {
-        const ph = (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
-        if (ph && agentIdSet.has(o.assigned_agent_id)) phoneToAgent.set(ph, o.assigned_agent_id)
-      })
+    // For each unique phone, check if they already have an assigned order
+    const uniquePhones = new Set<string>()
+    unassigned.forEach(o => {
+      const ph = (o.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
+      if (ph.length >= 8) uniquePhones.add(ph)
+    })
+
+    if (uniquePhones.size > 0) {
+      // Query existing assigned orders matching these phones
+      const phoneArr = Array.from(uniquePhones)
+      const patterns = phoneArr.map(p => `%${p}`)
+      for (const pattern of patterns) {
+        const { data: match } = await supabaseAdmin
+          .from('orders')
+          .select('assigned_agent_id, customer_phone')
+          .not('assigned_agent_id', 'is', null)
+          .ilike('customer_phone', pattern)
+          .order('created_at', { ascending: false })
+          .limit(1)
+        if (match?.[0] && agentIdSet.has(match[0].assigned_agent_id)) {
+          const ph = (match[0].customer_phone || '').replace(/[^\d]/g, '').slice(-9)
+          phoneToAgent.set(ph, match[0].assigned_agent_id)
+        }
+      }
     }
 
     const batches = new Map<string, string[]>()
