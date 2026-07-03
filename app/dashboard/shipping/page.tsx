@@ -351,7 +351,7 @@ export default function AdminShippingPage() {
     }
 
     setProcessing(orderId)
-    const patch: any = { status: newStatus, last_call_at: new Date().toISOString() }
+    const patch: any = { status: newStatus }
 
     if (newStatus === 'shipped_to_agent') {
       const existing = orders.find(o => o.id === orderId)
