@@ -281,9 +281,11 @@ export default function AdminShippingPage() {
         o.customer_city?.toLowerCase().includes(q) ||
         o.customer_address?.toLowerCase().includes(q)
       if (!matchesSearch) return false
-      const statusDate = new Date(getStatusDate(o))
-      if (dateFrom && statusDate < dateFrom) return false
-      if (dateTo && statusDate > dateTo) return false
+      if (dateFrom || dateTo) {
+        const dates = [o.created_at, o.last_call_at, o.shipped_to_agent_at, o.shipped_at, o.delivered_at, o.returned_at].filter((d): d is string => !!d).map(d => new Date(d))
+        const anyMatch = dates.some(d => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo))
+        if (!anyMatch) return false
+      }
       if (filterProduct !== 'all') {
         if (!Array.isArray(o.items)) return false
         const colorsRe = /\s*(BLACK|WHITE|BLUE|RED|GREY|GRAY|GOLD|NAVY BLUE|NAVY|GREEN|PINK|SILVER|PURPLE|YELLOW|RED AND BLACK|RED AND WHITE|,\s*(BLACK|WHITE|BLUE|RED|GREY|GOLD))\s*$/i
@@ -320,9 +322,10 @@ export default function AdminShippingPage() {
         o.customer_city?.toLowerCase().includes(q) ||
         o.customer_address?.toLowerCase().includes(q)
       if (!matchesSearch) return
-      const statusDate = new Date(getStatusDate(o))
-      if (dateFrom && statusDate < dateFrom) return
-      if (dateTo && statusDate > dateTo) return
+      if (dateFrom || dateTo) {
+        const dates = [o.created_at, o.last_call_at, o.shipped_to_agent_at, o.shipped_at, o.delivered_at, o.returned_at].filter((d): d is string => !!d).map(d => new Date(d))
+        if (!dates.some(d => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo))) return
+      }
       if (filterProduct !== 'all') {
         if (!Array.isArray(o.items)) return
         const colorsRe2 = /\s*(BLACK|WHITE|BLUE|RED|GREY|GRAY|GOLD|NAVY BLUE|NAVY|GREEN|PINK|SILVER|PURPLE|YELLOW|RED AND BLACK|RED AND WHITE|,\s*(BLACK|WHITE|BLUE|RED|GREY|GOLD))\s*$/i
@@ -351,8 +354,10 @@ export default function AdminShippingPage() {
     }
 
     setProcessing(orderId)
+    const nowIso = new Date().toISOString()
     const patch: any = { status: newStatus }
 
+    if (newStatus === 'confirmed' || newStatus === 'prepared') patch.last_call_at = nowIso
     if (newStatus === 'shipped_to_agent') {
       const existing = orders.find(o => o.id === orderId)
       if (!existing?.shipped_to_agent_at) patch.shipped_to_agent_at = new Date().toISOString()

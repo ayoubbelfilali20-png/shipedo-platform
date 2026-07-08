@@ -373,8 +373,10 @@ export default function AgentShippingPage() {
     }
 
     setProcessing(orderId)
+    const nowIso = new Date().toISOString()
     const patch: any = { status: newStatus }
 
+    if (newStatus === 'confirmed' || newStatus === 'prepared') patch.last_call_at = nowIso
     if (newStatus === 'shipped_to_agent') {
       const existing = orders.find(o => o.id === orderId)
       if (!(existing as any)?.shipped_to_agent_at) patch.shipped_to_agent_at = new Date().toISOString()

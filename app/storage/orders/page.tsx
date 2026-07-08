@@ -174,7 +174,9 @@ export default function StorageOrdersPage() {
     }
 
     setProcessing(orderId)
+    const nowIso = new Date().toISOString()
     const patch: any = { status: newStatus }
+    if (newStatus === 'confirmed' || newStatus === 'prepared') patch.last_call_at = nowIso
     if (newStatus === 'prepared') { patch.shipped_to_agent_at = null; patch.shipped_at = null; patch.delivered_at = null; patch.returned_at = null }
     if (newStatus === 'shipped_to_agent') {
       const existing = orders.find(o => o.id === orderId)
