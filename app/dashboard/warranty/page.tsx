@@ -39,6 +39,16 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
+function parseDDMMYYYY(s: string): string {
+  const parts = s.split(/[\/\-\.]/)
+  if (parts.length === 3) {
+    const [dd, mm, yyyy] = parts
+    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
+    if (!isNaN(d.getTime())) return d.toISOString()
+  }
+  return new Date().toISOString()
+}
+
 function printInvoice(inv: WarrantyInvoice) {
   const w = window.open('', '_blank', 'width=800,height=900')
   if (!w) return
@@ -125,11 +135,10 @@ export default function WarrantyPage() {
   const [productName, setProductName] = useState('')
   const [productPrice, setProductPrice] = useState('')
   const [warrantyText, setWarrantyText] = useState(DEFAULT_WARRANTY)
-  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [warrantyStart, setWarrantyStart] = useState(() => new Date().toISOString().slice(0, 10))
-  const [warrantyEnd, setWarrantyEnd] = useState(() => {
-    const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString().slice(0, 10)
-  })
+  const toDD = (d: Date) => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+  const [invoiceDate, setInvoiceDate] = useState(() => toDD(new Date()))
+  const [warrantyStart, setWarrantyStart] = useState(() => toDD(new Date()))
+  const [warrantyEnd, setWarrantyEnd] = useState(() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return toDD(d) })
   const searchTimeout = useRef<any>(null)
 
   useEffect(() => {
@@ -190,9 +199,9 @@ export default function WarrantyPage() {
           product_name: productName.trim(),
           product_price: parseFloat(productPrice) || 0,
           warranty_text: warrantyText.trim(),
-          invoice_date: new Date(invoiceDate).toISOString(),
-          warranty_start: new Date(warrantyStart).toISOString(),
-          warranty_end: new Date(warrantyEnd).toISOString(),
+          invoice_date: parseDDMMYYYY(invoiceDate),
+          warranty_start: parseDDMMYYYY(warrantyStart),
+          warranty_end: parseDDMMYYYY(warrantyEnd),
         }),
       })
       const result = await res.json()
@@ -200,9 +209,9 @@ export default function WarrantyPage() {
         setInvoices(prev => [result.invoice, ...prev])
         printInvoice(result.invoice)
         setCustomerName(''); setCustomerPhone(''); setProductName(''); setProductPrice('')
-        setWarrantyText(DEFAULT_WARRANTY); setInvoiceDate(new Date().toISOString().slice(0, 10))
-        setWarrantyStart(new Date().toISOString().slice(0, 10))
-        const d = new Date(); d.setFullYear(d.getFullYear() + 1); setWarrantyEnd(d.toISOString().slice(0, 10))
+        setWarrantyText(DEFAULT_WARRANTY); setInvoiceDate(toDD(new Date()))
+        setWarrantyStart(toDD(new Date()))
+        const d = new Date(); d.setFullYear(d.getFullYear() + 1); setWarrantyEnd(toDD(d))
         setShowForm(false)
       }
     } catch {}
@@ -298,20 +307,20 @@ export default function WarrantyPage() {
                 className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Invoice Date</label>
-              <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Invoice Date (DD/MM/YYYY)</label>
+              <input value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} placeholder="10/07/2026"
+                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono focus:outline-none focus:border-[#f4991a]" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Warranty Start</label>
-                <input type="date" value={warrantyStart} onChange={e => setWarrantyStart(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Warranty Start (DD/MM/YYYY)</label>
+                <input value={warrantyStart} onChange={e => setWarrantyStart(e.target.value)} placeholder="10/07/2026"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono focus:outline-none focus:border-[#f4991a]" />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Warranty End</label>
-                <input type="date" value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#f4991a]" />
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Warranty End (DD/MM/YYYY)</label>
+                <input value={warrantyEnd} onChange={e => setWarrantyEnd(e.target.value)} placeholder="10/07/2027"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono focus:outline-none focus:border-[#f4991a]" />
               </div>
             </div>
           </div>
