@@ -30,7 +30,10 @@ type OrderMatch = {
   total_amount: number
 }
 
-const DEFAULT_WARRANTY = `We are not responsible if the product stops working due to customer misuse. The issue must be from our side, not a client problem. We can replace the product if it is no longer working due to a manufacturing defect.`
+const DEFAULT_WARRANTY = `Covers manufacturing defects only.
+Does not cover broken screens, liquid damage, physical damage, power surges, misuse, accessories, or normal wear and tear.
+The original invoice must be presented for all warranty claims.
+Repair or replacement is at the seller's discretion after product inspection.`
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -88,10 +91,11 @@ function printInvoice(inv: WarrantyInvoice) {
 </table>
 <div class="warranty-box">
   <div class="warranty-title">⛨ Warranty Terms</div>
+  <div style="font-size:13px;font-weight:700;color:#1a1c3a;margin-bottom:8px">Warranty Period: ${fmtDate(inv.warranty_start)} — ${fmtDate(inv.warranty_end)}</div>
   <div class="warranty-text">${inv.warranty_text.replace(/\n/g, '<br>')}</div>
   <div class="warranty-dates">
-    <div><div class="label">Warranty Start</div><div class="value">${fmtDate(inv.warranty_start)}</div></div>
-    <div><div class="label">Warranty End</div><div class="value">${fmtDate(inv.warranty_end)}</div></div>
+    <div><div class="label">Start Date</div><div class="value">${fmtDate(inv.warranty_start)}</div></div>
+    <div><div class="label">End Date</div><div class="value">${fmtDate(inv.warranty_end)}</div></div>
   </div>
 </div>
 <div class="footer">
