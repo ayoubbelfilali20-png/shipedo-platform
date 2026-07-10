@@ -5,7 +5,9 @@ CREATE TABLE IF NOT EXISTS warranty_invoices (
   customer_phone text,
   product_name text NOT NULL,
   product_price numeric NOT NULL DEFAULT 0,
-  warranty_text text NOT NULL DEFAULT 'This product is covered under warranty. We are not responsible if the product stops working. The issue is from us, not a client problem. We can replace it if it is no longer working.',
+  warranty_text text NOT NULL,
   invoice_date timestamptz NOT NULL DEFAULT now(),
+  warranty_start timestamptz NOT NULL DEFAULT now(),
+  warranty_end timestamptz NOT NULL DEFAULT (now() + interval '1 year'),
   created_at timestamptz NOT NULL DEFAULT now()
 );
