@@ -123,12 +123,14 @@ export default function AgentCallsPage() {
   const [confirmedOrders, setConfirmedOrders] = useState<OrderRow[]>([])
 
   const [nextRemindAt, setNextRemindAt] = useState<string | null>(null)
+  const [realCounts, setRealCounts] = useState<{ new: number; followUp: number }>({ new: 0, followUp: 0 })
 
   const loadQueue = async (aid?: string | null) => {
     const id = aid ?? agentId
     if (!id) { setLoading(false); return }
     const res = await fetch('/api/agent/calls', { headers: { 'x-agent-id': id } })
-    const { pending: data, confirmed: confData, nextRemindAt: nra } = await res.json()
+    const { pending: data, confirmed: confData, nextRemindAt: nra, counts } = await res.json()
+    if (counts) setRealCounts({ new: Number(counts.new) || 0, followUp: Number(counts.followUp) || 0 })
     const rows = ((data || []) as OrderRow[]).filter(o => o.status === 'pending')
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
@@ -547,15 +549,10 @@ export default function AgentCallsPage() {
         <div>
           <h1 className="font-bold text-[#1a1c3a] text-lg">Call Queue</h1>
           <p className="text-xs text-gray-400 mt-0.5">
-            {pendingCount} order(s) waiting
-            {(() => {
-              const newCount = orders.filter(o => !o.call_attempts || o.call_attempts === 0).length
-              const retryCount = pendingCount - newCount
-              if (newCount > 0 && retryCount > 0) return ` · ${newCount} new · ${retryCount} follow-up`
-              if (newCount > 0) return ` · ${newCount} new`
-              if (retryCount > 0) return ` · ${retryCount} follow-up`
-              return ''
-            })()}
+            {realCounts.new + realCounts.followUp} order(s) waiting
+            {realCounts.new > 0 && realCounts.followUp > 0 ? ` · ${realCounts.new} new · ${realCounts.followUp} follow-up` :
+             realCounts.new > 0 ? ` · ${realCounts.new} new` :
+             realCounts.followUp > 0 ? ` · ${realCounts.followUp} follow-up` : ''}
           </p>
         </div>
         <button

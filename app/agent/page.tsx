@@ -156,18 +156,20 @@ export default function AgentDashboard() {
   const [historyLogs, setHistoryLogs] = useState<CallLog[]>([])
 
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
+  const [realToCallCount, setRealToCallCount] = useState(0)
 
   const load = async (aid: string | null, days?: number) => {
     if (!aid) { setLoading(false); return }
 
     const url = days ? `/api/agent/dashboard?days=${days}` : '/api/agent/dashboard'
     const res = await fetch(url, { headers: { 'x-agent-id': aid } })
-    const { pending: pen = [], orders: ord = [] } = await res.json()
+    const { pending: pen = [], orders: ord = [], toCallCount } = await res.json()
 
     const freshPending = pen as OrderRow[]
     const freshOrders  = ord as OrderRow[]
     setPending(freshPending)
     setOrders(freshOrders)
+    if (toCallCount !== undefined) setRealToCallCount(Number(toCallCount))
     setLoading(false)
     if (days && days >= 365) setFullDataLoaded(true)
   }
@@ -216,7 +218,7 @@ export default function AgentDashboard() {
     const f = filteredByPeriod
     const isDone = (s: string) => ['confirmed','prepared','shipped_to_agent','shipped','delivered'].includes(s)
     return {
-      toCall:          pending.length,
+      toCall:          realToCallCount || pending.length,
       total:           f.length,
       confirmed:       f.filter(o => o.status === 'confirmed').length,
       prepared:        f.filter(o => o.status === 'prepared').length,
