@@ -53,5 +53,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, user: { role: 'storage', id: sAgent.id, email: sAgent.email, name: sAgent.name } })
   }
 
+  // Team leader
+  const { data: tl } = await supabaseAdmin
+    .from('team_leaders').select('id, email, password, status, name')
+    .eq('email', email).limit(1).maybeSingle()
+  if (tl && tl.password === password) {
+    if (tl.status === 'suspended') return NextResponse.json({ ok: false, error: 'Account suspended' })
+    return NextResponse.json({ ok: true, user: { role: 'teamleader', id: tl.id, email: tl.email, name: tl.name } })
+  }
+
   return NextResponse.json({ ok: false, error: 'Invalid email or password.' })
 }

@@ -4,7 +4,7 @@
  * cross-contaminate sessions.
  */
 
-export type Role = 'admin' | 'seller' | 'agent' | 'delivery' | 'storage'
+export type Role = 'admin' | 'seller' | 'agent' | 'delivery' | 'storage' | 'teamleader'
 
 export type StoredUser = {
   role: Role
@@ -16,11 +16,12 @@ export type StoredUser = {
 }
 
 const KEYS: Record<Role, string> = {
-  admin:    'shipedo_admin',
-  seller:   'shipedo_seller',
-  agent:    'shipedo_agent',
-  delivery: 'shipedo_delivery',
-  storage:  'shipedo_storage',
+  admin:      'shipedo_admin',
+  seller:     'shipedo_seller',
+  agent:      'shipedo_agent',
+  delivery:   'shipedo_delivery',
+  storage:    'shipedo_storage',
+  teamleader: 'shipedo_teamleader',
 }
 
 function read(role: Role): StoredUser | null {
@@ -36,11 +37,12 @@ function read(role: Role): StoredUser | null {
   }
 }
 
-export function getAdmin():    StoredUser | null { return read('admin')    }
-export function getSeller():   StoredUser | null { return read('seller')   }
-export function getAgent():    StoredUser | null { return read('agent')    }
-export function getDelivery(): StoredUser | null { return read('delivery') }
-export function getStorage():  StoredUser | null { return read('storage')  }
+export function getAdmin():      StoredUser | null { return read('admin')      }
+export function getSeller():     StoredUser | null { return read('seller')     }
+export function getAgent():      StoredUser | null { return read('agent')      }
+export function getDelivery():   StoredUser | null { return read('delivery')   }
+export function getStorage():    StoredUser | null { return read('storage')    }
+export function getTeamLeader(): StoredUser | null { return read('teamleader') }
 
 export function setUser(user: StoredUser) {
   if (typeof window === 'undefined') return
@@ -54,5 +56,5 @@ export function clearUser(role: Role) {
 
 /** Legacy fallback: read whichever single user key exists. */
 export function getCurrentUser(): StoredUser | null {
-  return getAdmin() || getSeller() || getAgent() || getDelivery() || getStorage()
+  return getAdmin() || getSeller() || getAgent() || getDelivery() || getStorage() || getTeamLeader()
 }

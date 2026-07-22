@@ -9,9 +9,10 @@ import { fmtUsd, fmtKes, toKes } from '@/lib/currency'
 import { useT, languages, type Lang } from '@/lib/i18n'
 
 const roleConfig = {
-  admin:  { label: 'Admin',      badge: 'bg-purple-100 text-purple-700', avatar: 'from-purple-500 to-purple-700', name: 'Admin', icon: ShieldCheck },
-  seller: { label: 'Seller',     badge: 'bg-orange-100 text-orange-700', avatar: 'from-[#f4991a] to-orange-600', name: 'Seller', icon: Store       },
-  agent:  { label: 'Call Agent', badge: 'bg-blue-100 text-blue-700',     avatar: 'from-blue-500 to-blue-700',    name: 'Agent', icon: Headphones  },
+  admin:      { label: 'Admin',       badge: 'bg-purple-100 text-purple-700', avatar: 'from-purple-500 to-purple-700', name: 'Admin',       icon: ShieldCheck },
+  teamleader: { label: 'Team Leader', badge: 'bg-cyan-100 text-cyan-700',     avatar: 'from-cyan-500 to-cyan-700',    name: 'Team Leader', icon: ShieldCheck },
+  seller:     { label: 'Seller',      badge: 'bg-orange-100 text-orange-700', avatar: 'from-[#f4991a] to-orange-600', name: 'Seller',      icon: Store       },
+  agent:      { label: 'Call Agent',  badge: 'bg-blue-100 text-blue-700',     avatar: 'from-blue-500 to-blue-700',    name: 'Agent',       icon: Headphones  },
 }
 
 const USD_RATE = 130
@@ -29,7 +30,17 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, action, onMenuToggle, role: roleProp }: HeaderProps) {
   const pathname = usePathname()
-  const role = roleProp ?? (pathname.startsWith('/seller') ? 'seller' : pathname.startsWith('/agent') ? 'agent' : 'admin')
+  const [detectedRole, setDetectedRole] = useState('admin')
+  useEffect(() => {
+    try {
+      const tl = localStorage.getItem('shipedo_teamleader')
+      if (tl) {
+        const parsed = JSON.parse(tl)
+        if (parsed.role === 'teamleader') setDetectedRole('teamleader')
+      }
+    } catch {}
+  }, [])
+  const role = roleProp ?? (pathname.startsWith('/seller') ? 'seller' : pathname.startsWith('/agent') ? 'agent' : detectedRole)
   const [dropOpen, setDropOpen] = useState(false)
   const [walletOpen, setWalletOpen] = useState(false)
   const [hideBalance, setHideBalance] = useState(false)
@@ -41,7 +52,7 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
   const [displayName, setDisplayName] = useState(baseUser.name)
   useEffect(() => {
     try {
-      const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : 'shipedo_admin'
+      const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : role === 'teamleader' ? 'shipedo_teamleader' : 'shipedo_admin'
       const stored = localStorage.getItem(key)
       if (stored) {
         const u = JSON.parse(stored)
@@ -337,7 +348,7 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
                     <button
                       onClick={() => {
                         try {
-                          const keys = ['shipedo_seller', 'shipedo_agent', 'shipedo_admin', 'shipedo_delivery', 'shipedo_storage', 'shipedo_user']
+                          const keys = ['shipedo_seller', 'shipedo_agent', 'shipedo_admin', 'shipedo_delivery', 'shipedo_storage', 'shipedo_teamleader', 'shipedo_user']
                           keys.forEach(k => localStorage.removeItem(k))
                         } catch {}
                         window.location.href = '/login'

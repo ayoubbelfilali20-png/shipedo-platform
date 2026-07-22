@@ -43,6 +43,7 @@ type OrderRow = {
   cancel_reason?: string | null
   assigned_agent_id?: string | null
   delivery_tracking?: string | null
+  status_changed_at?: string | null
 }
 
 type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
@@ -92,6 +93,7 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
 }
 
 function getStatusDate(o: any): string {
+  if (o.status_changed_at) return o.status_changed_at
   if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -282,9 +284,9 @@ export default function AdminShippingPage() {
         o.customer_address?.toLowerCase().includes(q)
       if (!matchesSearch) return false
       if (dateFrom || dateTo) {
-        const dates = [o.created_at, o.last_call_at, o.shipped_to_agent_at, o.shipped_at, o.delivered_at, o.returned_at].filter((d): d is string => !!d).map(d => new Date(d))
-        const anyMatch = dates.some(d => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo))
-        if (!anyMatch) return false
+        const statusDate = new Date(getStatusDate(o))
+        if (dateFrom && statusDate < dateFrom) return false
+        if (dateTo && statusDate > dateTo) return false
       }
       if (filterProduct !== 'all') {
         if (!Array.isArray(o.items)) return false
@@ -323,8 +325,9 @@ export default function AdminShippingPage() {
         o.customer_address?.toLowerCase().includes(q)
       if (!matchesSearch) return
       if (dateFrom || dateTo) {
-        const dates = [o.created_at, o.last_call_at, o.shipped_to_agent_at, o.shipped_at, o.delivered_at, o.returned_at].filter((d): d is string => !!d).map(d => new Date(d))
-        if (!dates.some(d => (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo))) return
+        const statusDate = new Date(getStatusDate(o))
+        if (dateFrom && statusDate < dateFrom) return
+        if (dateTo && statusDate > dateTo) return
       }
       if (filterProduct !== 'all') {
         if (!Array.isArray(o.items)) return
@@ -354,40 +357,27 @@ export default function AdminShippingPage() {
     }
 
     setProcessing(orderId)
-    const nowIso = new Date().toISOString()
-    const patch: any = { status: newStatus }
 
-    if (newStatus === 'confirmed' || newStatus === 'prepared') patch.last_call_at = nowIso
-    if (newStatus === 'shipped_to_agent') {
-      const existing = orders.find(o => o.id === orderId)
-      if (!existing?.shipped_to_agent_at) patch.shipped_to_agent_at = new Date().toISOString()
-      if (deliveryTracking !== undefined) patch.delivery_tracking = deliveryTracking || null
-    }
-    if (newStatus === 'shipped') {
-      patch.shipped_at = new Date().toISOString()
-      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
-    }
-    if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (newStatus === 'returned') {
-      patch.returned_at = new Date().toISOString()
       const order = orders.find(o => o.id === orderId)
       if (order) await incrementStockForOrderItems(order.items)
     }
-    if (newStatus === 'confirmed' || newStatus === 'prepared') {
-      patch.shipped_to_agent_at = null
-      patch.shipped_at = null
-      patch.delivered_at = null
-      patch.returned_at = null
-    }
-    if (newStatus === 'pending') {
-      patch.shipped_to_agent_at = null
-      patch.shipped_at = null
-      patch.delivered_at = null
-      patch.returned_at = null
-    }
 
-    await supabase.from('orders').update(patch).eq('id', orderId)
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
+    const existing = orders.find(o => o.id === orderId)
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        newStatus,
+        deliveryTracking,
+        preserveShippedToAgent: newStatus === 'shipped_to_agent' && !!existing?.shipped_to_agent_at,
+      }),
+    })
+    const result = await res.json()
+    if (result.ok && result.patch) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...result.patch } : o))
+    }
     setProcessing(null)
   }
 

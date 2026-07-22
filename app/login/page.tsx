@@ -38,6 +38,7 @@ export default function LoginPage() {
 
       const routes: Record<string, string> = {
         admin: '/dashboard',
+        teamleader: '/dashboard',
         seller: '/seller',
         agent: '/agent',
         delivery: '/delivery',

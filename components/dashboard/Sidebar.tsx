@@ -16,11 +16,12 @@ import { useT, type TKey } from '@/lib/i18n'
 
 /* ─── Role config ─────────────────────────────────────── */
 const roleConfig: Record<string, { label: string; badge: string; avatarBg: string; name: string; icon: React.ElementType }> = {
-  admin:    { label: 'Admin',          badge: 'bg-purple-500/20 text-purple-300', avatarBg: 'from-purple-500 to-purple-700',  name: 'Admin',    icon: ShieldCheck },
-  seller:   { label: 'Seller',         badge: 'bg-[#f4991a]/20 text-orange-300',  avatarBg: 'from-[#f4991a] to-orange-600',  name: 'Seller',   icon: Store       },
-  agent:    { label: 'Call Agent',     badge: 'bg-blue-500/20 text-blue-300',     avatarBg: 'from-blue-500 to-blue-700',     name: 'Agent',    icon: Headphones  },
-  delivery: { label: 'Delivery Agent', badge: 'bg-emerald-500/20 text-emerald-300', avatarBg: 'from-emerald-500 to-emerald-700', name: 'Delivery', icon: TruckIcon },
-  storage:  { label: 'Storage Agent',  badge: 'bg-amber-500/20 text-amber-300',    avatarBg: 'from-amber-500 to-amber-700',    name: 'Storage',  icon: Warehouse   },
+  admin:      { label: 'Admin',          badge: 'bg-purple-500/20 text-purple-300',    avatarBg: 'from-purple-500 to-purple-700',    name: 'Admin',       icon: ShieldCheck },
+  teamleader: { label: 'Team Leader',    badge: 'bg-cyan-500/20 text-cyan-300',        avatarBg: 'from-cyan-500 to-cyan-700',        name: 'Team Leader', icon: Users       },
+  seller:     { label: 'Seller',         badge: 'bg-[#f4991a]/20 text-orange-300',     avatarBg: 'from-[#f4991a] to-orange-600',     name: 'Seller',      icon: Store       },
+  agent:      { label: 'Call Agent',     badge: 'bg-blue-500/20 text-blue-300',        avatarBg: 'from-blue-500 to-blue-700',        name: 'Agent',       icon: Headphones  },
+  delivery:   { label: 'Delivery Agent', badge: 'bg-emerald-500/20 text-emerald-300',  avatarBg: 'from-emerald-500 to-emerald-700',  name: 'Delivery',    icon: TruckIcon   },
+  storage:    { label: 'Storage Agent',  badge: 'bg-amber-500/20 text-amber-300',      avatarBg: 'from-amber-500 to-amber-700',      name: 'Storage',     icon: Warehouse   },
 }
 
 /* ─── Nav types ───────────────────────────────────────── */
@@ -40,19 +41,44 @@ const adminNav: NavSection[] = [
   {
     labelKey: 'nav_management',
     items: [
-      { href: '/dashboard/sellers',     icon: Store,        labelKey: 'nav_sellers'     },
-      { href: '/dashboard/agents',           icon: UserCog,      labelKey: 'nav_agents'           },
+      { href: '/dashboard/sellers',         icon: Store,        labelKey: 'nav_sellers'          },
+      { href: '/dashboard/agents',          icon: UserCog,      labelKey: 'nav_agents'           },
+      { href: '/dashboard/team-leaders',    icon: Users,        labelKey: 'nav_team_leaders'     },
       { href: '/dashboard/delivery-agents', icon: TruckIcon,    labelKey: 'nav_delivery_agents'  },
       { href: '/dashboard/storage-agents',  icon: Warehouse,    labelKey: 'nav_storage_agents'   },
       { href: '/dashboard/products',        icon: ShoppingBag,  labelKey: 'nav_all_products'     },
       { href: '/dashboard/shipping',        icon: TruckIcon,    labelKey: 'nav_shipping'         },
       { href: '/dashboard/delayed',         icon: Clock,        labelKey: 'nav_delayed'          },
       { href: '/dashboard/warranty',        icon: FileText,     labelKey: 'nav_warranty'         },
-      { href: '/dashboard/returns',     icon: RotateCcw,    labelKey: 'nav_returns'     },
-      { href: '/dashboard/expeditions', icon: PlaneTakeoff, labelKey: 'nav_expeditions' },
-      { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'     },
-      { href: '/dashboard/withdrawals', icon: Wallet,       labelKey: 'nav_withdrawals' },
-      { href: '/dashboard/settings',    icon: Settings,     labelKey: 'nav_settings'    },
+      { href: '/dashboard/returns',         icon: RotateCcw,    labelKey: 'nav_returns'          },
+      { href: '/dashboard/expeditions',     icon: PlaneTakeoff, labelKey: 'nav_expeditions'      },
+      { href: '/dashboard/billing',         icon: Send,         labelKey: 'nav_billing'          },
+      { href: '/dashboard/withdrawals',     icon: Wallet,       labelKey: 'nav_withdrawals'      },
+      { href: '/dashboard/settings',        icon: Settings,     labelKey: 'nav_settings'         },
+    ],
+  },
+]
+
+/* ─── Team Leader nav (same as admin minus user management & expeditions) ── */
+const teamleaderNav: NavSection[] = [
+  {
+    labelKey: 'nav_main',
+    items: [
+      { href: '/dashboard',           icon: LayoutDashboard, labelKey: 'nav_dashboard'  },
+      { href: '/dashboard/analytics', icon: BarChart3,       labelKey: 'nav_analytics' },
+    ],
+  },
+  {
+    labelKey: 'nav_management',
+    items: [
+      { href: '/dashboard/products',    icon: ShoppingBag,  labelKey: 'nav_all_products' },
+      { href: '/dashboard/shipping',    icon: TruckIcon,    labelKey: 'nav_shipping'     },
+      { href: '/dashboard/delayed',     icon: Clock,        labelKey: 'nav_delayed'      },
+      { href: '/dashboard/warranty',    icon: FileText,     labelKey: 'nav_warranty'     },
+      { href: '/dashboard/returns',     icon: RotateCcw,    labelKey: 'nav_returns'      },
+      { href: '/dashboard/billing',     icon: Send,         labelKey: 'nav_billing'      },
+      { href: '/dashboard/withdrawals', icon: Wallet,       labelKey: 'nav_withdrawals'  },
+      { href: '/dashboard/settings',    icon: Settings,     labelKey: 'nav_settings'     },
     ],
   },
 ]
@@ -161,6 +187,7 @@ const deliveryNav: NavSection[] = [
 ]
 
 function getNav(role: string): NavSection[] {
+  if (role === 'teamleader') return teamleaderNav
   if (role === 'seller') return sellerNav
   if (role === 'agent')  return agentNav
   if (role === 'delivery') return deliveryNav
@@ -187,7 +214,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
   const [displayName, setDisplayName] = useState(baseUser.name)
   useEffect(() => {
     try {
-      const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : role === 'delivery' ? 'shipedo_delivery' : role === 'storage' ? 'shipedo_storage' : 'shipedo_admin'
+      const key = role === 'seller' ? 'shipedo_seller' : role === 'agent' ? 'shipedo_agent' : role === 'delivery' ? 'shipedo_delivery' : role === 'storage' ? 'shipedo_storage' : role === 'teamleader' ? 'shipedo_teamleader' : 'shipedo_admin'
       const stored = localStorage.getItem(key)
       if (stored) {
         const u = JSON.parse(stored)
@@ -233,7 +260,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
       {/* Logo */}
       <div className="flex items-center justify-center px-4 border-b border-white/10 h-[65px]">
         <div className="relative group">
-          <Link href={role === 'seller' ? '/seller' : role === 'agent' ? '/agent' : role === 'delivery' ? '/delivery' : role === 'storage' ? '/storage' : '/dashboard'} className="flex items-center justify-center">
+          <Link href={role === 'seller' ? '/seller' : role === 'agent' ? '/agent' : role === 'delivery' ? '/delivery' : role === 'storage' ? '/storage' : '/dashboard'} className="flex items-center justify-center" title={role === 'teamleader' ? 'Team Leader Dashboard' : undefined}>
             {collapsed ? (
               <img src="/logo2.png" alt="Shipedo" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
             ) : (

@@ -1,18 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import Sidebar from '@/components/dashboard/Sidebar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const [role, setRole] = useState<'admin' | 'teamleader'>('admin')
+
+  useEffect(() => {
+    try {
+      const tl = localStorage.getItem('shipedo_teamleader')
+      if (tl) {
+        const parsed = JSON.parse(tl)
+        if (parsed.role === 'teamleader') setRole('teamleader')
+      }
+    } catch {}
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <Sidebar role="admin" collapsed={collapsed} onCollapsedChange={setCollapsed} />
+        <Sidebar role={role} collapsed={collapsed} onCollapsedChange={setCollapsed} />
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -20,7 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileSidebarOpen(false)} />
           <div className="relative z-10">
-            <Sidebar role="admin" collapsed={false} onCollapsedChange={() => {}} />
+            <Sidebar role={role} collapsed={false} onCollapsedChange={() => {}} />
             <button
               onClick={() => setMobileSidebarOpen(false)}
               className="absolute top-4 right-4 text-white/60 hover:text-white"

@@ -32,9 +32,10 @@ type OrderRow = {
   returned_at?: string | null
   last_call_at?: string | null
   created_at: string
+  status_changed_at?: string | null
 }
 
-const COLS = 'id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, customer_address, items, total_amount, status, payment_method, printed, print_count, notes, last_call_note, shipped_to_agent_at, shipped_at, delivered_at, returned_at, last_call_at, created_at, last_call_agent_id, assigned_agent_id'
+const COLS = 'id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, customer_address, items, total_amount, status, payment_method, printed, print_count, notes, last_call_note, shipped_to_agent_at, shipped_at, delivered_at, returned_at, last_call_at, created_at, last_call_agent_id, assigned_agent_id, status_changed_at'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
@@ -62,6 +63,7 @@ function getDateRange(preset: DatePreset): { from: Date | null; to: Date | null 
 }
 
 function getStatusDate(o: OrderRow): string {
+  if (o.status_changed_at) return o.status_changed_at
   if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -174,24 +176,27 @@ export default function StorageOrdersPage() {
     }
 
     setProcessing(orderId)
-    const nowIso = new Date().toISOString()
-    const patch: any = { status: newStatus }
-    if (newStatus === 'confirmed' || newStatus === 'prepared') patch.last_call_at = nowIso
-    if (newStatus === 'prepared') { patch.shipped_to_agent_at = null; patch.shipped_at = null; patch.delivered_at = null; patch.returned_at = null }
-    if (newStatus === 'shipped_to_agent') {
-      const existing = orders.find(o => o.id === orderId)
-      if (!existing?.shipped_to_agent_at) patch.shipped_to_agent_at = new Date().toISOString()
-      if (deliveryTracking !== undefined) patch.delivery_tracking = deliveryTracking || null
-    }
-    if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
-    if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
+
     if (newStatus === 'returned') {
-      patch.returned_at = new Date().toISOString()
       const order = orders.find(o => o.id === orderId)
       if (order) await incrementStockForOrderItems(order.items)
     }
-    await supabase.from('orders').update(patch).eq('id', orderId)
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
+
+    const existing = orders.find(o => o.id === orderId)
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        newStatus,
+        deliveryTracking,
+        preserveShippedToAgent: newStatus === 'shipped_to_agent' && !!existing?.shipped_to_agent_at,
+      }),
+    })
+    const result = await res.json()
+    if (result.ok && result.patch) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...result.patch } : o))
+    }
     setProcessing(null)
   }
 
@@ -200,11 +205,15 @@ export default function StorageOrdersPage() {
     if (!order) return
     setProcessing(orderId)
     await incrementStockForOrderItems(order.items)
-    await supabase.from('orders').update({
-      status: 'returned',
-      returned_at: new Date().toISOString(),
-    }).eq('id', orderId)
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'returned', returned_at: new Date().toISOString() } : o))
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, newStatus: 'returned' }),
+    })
+    const result = await res.json()
+    if (result.ok && result.patch) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...result.patch } : o))
+    }
     setProcessing(null)
   }
 

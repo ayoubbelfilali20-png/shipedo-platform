@@ -350,7 +350,6 @@ export default function AgentCallsPage() {
     if (!order || busy) return
     setBusy(true)
 
-    // If editing, save edits first
     if (editing) {
       await supabase.from('orders').update({
         customer_name: editName,
@@ -361,56 +360,69 @@ export default function AgentCallsPage() {
     }
 
     const nowIso = new Date().toISOString()
-    const patch: any = {
+    const cleanItems = editItems.map(({ _id, ...rest }: any) => rest)
+
+    let newStatus = 'pending'
+    if (action === 'confirmed') newStatus = 'confirmed'
+    else if (action === 'cancelled') newStatus = 'cancelled'
+
+    if (action === 'confirmed') {
+      await decrementStockForOrderItems(cleanItems as any[])
+    }
+
+    if (action === 'cancelled') {
+      const reasonFinal = cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason
+      if (!reasonFinal) { setBusy(false); return }
+    }
+
+    if (action === 'rescheduled' && !rescheduleDate) {
+      setBusy(false); return
+    }
+
+    // Use server API for status change — guarantees status_changed_at is set
+    await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id, newStatus }),
+    })
+
+    // Additional fields that the status API doesn't handle
+    const extraPatch: any = {
       last_call_at: nowIso,
       last_call_note: note || null,
       last_call_agent_id: agentId,
       call_attempts: (order.call_attempts || 0) + 1,
     }
 
-    // Only save items/total if agent manually edited them (price negotiation / discount)
-    const cleanItems = editItems.map(({ _id, ...rest }: any) => rest)
     if (itemsChanged) {
-      patch.items = cleanItems
-      patch.total_amount = editItemsTotal
+      extraPatch.items = cleanItems
+      extraPatch.total_amount = editItemsTotal
     }
+
     let logRemindedAt: string | null = null
     if (action === 'confirmed') {
-      patch.status = 'confirmed'
-      patch.reminded_at = null
-      await decrementStockForOrderItems(cleanItems as any[])
+      extraPatch.reminded_at = null
     } else if (action === 'cancelled') {
       const reasonFinal = cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason
-      if (!reasonFinal) { setBusy(false); return }
-      patch.status = 'cancelled'
-      patch.reminded_at = null
-      patch.cancel_reason = reasonFinal
+      extraPatch.reminded_at = null
+      extraPatch.cancel_reason = reasonFinal
     } else if (action === 'rescheduled') {
-      if (!rescheduleDate) { setBusy(false); return }
-      patch.status = 'pending'
-      patch.reminded_at = new Date(rescheduleDate).toISOString()
-      logRemindedAt = patch.reminded_at
+      extraPatch.reminded_at = new Date(rescheduleDate).toISOString()
+      logRemindedAt = extraPatch.reminded_at
     } else if (action === 'not_reached') {
-      patch.status = 'pending'
       const attempts = (order.call_attempts || 0) + 1
-      if (attempts <= 2) {
-        // 1st & 2nd unreached → retry after 1 hour
-        const remindDate = new Date(Date.now() + 1 * 60 * 60 * 1000)
-        patch.reminded_at = remindDate.toISOString()
-        logRemindedAt = patch.reminded_at
-      } else {
-        // 3rd+ unreached → retry after 3 hours
-        const remindDate = new Date(Date.now() + 3 * 60 * 60 * 1000)
-        patch.reminded_at = remindDate.toISOString()
-        logRemindedAt = patch.reminded_at
-      }
+      const hours = attempts <= 2 ? 1 : 3
+      const remindDate = new Date(Date.now() + hours * 60 * 60 * 1000)
+      extraPatch.reminded_at = remindDate.toISOString()
+      logRemindedAt = extraPatch.reminded_at
     }
-    await supabase.from('orders').update(patch).eq('id', order.id)
 
-    let agentName: string | null = null
+    await supabase.from('orders').update(extraPatch).eq('id', order.id)
+
+    let resolvedAgentName: string | null = null
     try {
       const u = localStorage.getItem('shipedo_agent')
-      if (u) agentName = JSON.parse(u).name || null
+      if (u) resolvedAgentName = JSON.parse(u).name || null
     } catch {}
     const cancelReasonFinal = action === 'cancelled'
       ? (cancelReason === 'Other' ? (cancelOther.trim() || 'Other') : cancelReason)
@@ -418,14 +430,13 @@ export default function AgentCallsPage() {
     await supabase.from('call_logs').insert({
       order_id: order.id,
       agent_id: agentId,
-      agent_name: agentName,
+      agent_name: resolvedAgentName,
       action,
       note: note || null,
       reminded_at: logRemindedAt,
       cancel_reason: cancelReasonFinal,
     })
 
-    // Immediately remove from queue so cancelled/confirmed orders disappear instantly
     if (action === 'cancelled' || action === 'confirmed') {
       setOrders(prev => prev.filter(o => o.id !== order.id))
     }

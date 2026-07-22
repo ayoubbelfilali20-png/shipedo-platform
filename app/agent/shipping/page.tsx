@@ -40,6 +40,7 @@ type OrderRow = {
   call_attempts?: number
   reminded_at?: string | null
   cancel_reason?: string | null
+  status_changed_at?: string | null
 }
 
 type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
@@ -88,8 +89,8 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
   }
 }
 
-/** Get the date when the order moved to its current status */
 function getStatusDate(o: any): string {
+  if (o.status_changed_at) return o.status_changed_at
   if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -193,7 +194,7 @@ export default function AgentShippingPage() {
 
     let q = supabase
       .from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason, delivery_tracking')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason, delivery_tracking, status_changed_at')
       .eq('assigned_agent_id', agentId)
       .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
@@ -373,41 +374,27 @@ export default function AgentShippingPage() {
     }
 
     setProcessing(orderId)
-    const nowIso = new Date().toISOString()
-    const patch: any = { status: newStatus }
 
-    if (newStatus === 'confirmed' || newStatus === 'prepared') patch.last_call_at = nowIso
-    if (newStatus === 'shipped_to_agent') {
-      const existing = orders.find(o => o.id === orderId)
-      if (!(existing as any)?.shipped_to_agent_at) patch.shipped_to_agent_at = new Date().toISOString()
-      if (deliveryTracking !== undefined) patch.delivery_tracking = deliveryTracking || null
-    }
-    if (newStatus === 'shipped') {
-      patch.shipped_at = new Date().toISOString()
-      if (deliveryTracking) patch.delivery_tracking = deliveryTracking
-    }
-    if (newStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (newStatus === 'returned') {
-      patch.returned_at = new Date().toISOString()
       const order = orders.find(o => o.id === orderId)
       if (order) await incrementStockForOrderItems(order.items)
     }
-    // Reset timestamps when going back
-    if (newStatus === 'confirmed' || newStatus === 'prepared') {
-      patch.shipped_to_agent_at = null
-      patch.shipped_at = null
-      patch.delivered_at = null
-      patch.returned_at = null
-    }
-    if (newStatus === 'pending') {
-      patch.shipped_to_agent_at = null
-      patch.shipped_at = null
-      patch.delivered_at = null
-      patch.returned_at = null
-    }
 
-    await supabase.from('orders').update(patch).eq('id', orderId)
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
+    const existing = orders.find(o => o.id === orderId)
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        newStatus,
+        deliveryTracking,
+        preserveShippedToAgent: newStatus === 'shipped_to_agent' && !!(existing as any)?.shipped_to_agent_at,
+      }),
+    })
+    const result = await res.json()
+    if (result.ok && result.patch) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...result.patch } : o))
+    }
     setProcessing(null)
   }
 
