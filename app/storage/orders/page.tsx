@@ -99,23 +99,25 @@ export default function StorageOrdersPage() {
   const [trackingModal, setTrackingModal] = useState<string | null>(null)
   const [deliveryTrackingInput, setDeliveryTrackingInput] = useState('')
 
+  const loadOrders = async () => {
+    const res = await fetch('/api/storage/orders', { cache: 'no-store' })
+    const data = await res.json()
+    setOrders((data.orders || []) as OrderRow[])
+    const map: Record<string, string> = {}
+    ;(data.agents || []).forEach((a: any) => { map[a.id] = a.name })
+    setAgentMap(map)
+    setLoading(false)
+  }
+
+  useEffect(() => { loadOrders() }, [])
+
+  // Auto-refresh every 30s so all users see the same data
   useEffect(() => {
-    Promise.all([
-      supabase.from('orders').select(COLS)
-        .in('status', allStatuses)
-        .order('last_call_at', { ascending: false, nullsFirst: false })
-        .limit(1000),
-      supabase.from('agents').select('id, name'),
-    ]).then(([ordersRes, agentsRes]) => {
-      setOrders((ordersRes.data || []) as OrderRow[])
-      const map: Record<string, string> = {}
-      ;(agentsRes.data || []).forEach((a: any) => { map[a.id] = a.name })
-      setAgentMap(map)
-      setLoading(false)
-    })
+    const interval = setInterval(loadOrders, 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  // Realtime updates
+  // Realtime updates — only update existing orders
   useEffect(() => {
     const channel = supabase.channel('storage-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
@@ -123,13 +125,17 @@ export default function StorageOrdersPage() {
           const row = payload.new as OrderRow
           setOrders(prev => {
             const exists = prev.some(o => o.id === row.id)
-            if (exists) return prev.map(o => o.id === row.id ? row : o)
-            if (allStatuses.includes(row.status)) return [row, ...prev]
+            if (exists) return prev.map(o => o.id === row.id ? { ...o, ...row } : o)
             return prev
           })
         } else if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
-          if (allStatuses.includes(row.status)) setOrders(prev => [row, ...prev])
+          if (allStatuses.includes(row.status)) {
+            setOrders(prev => {
+              if (prev.some(o => o.id === row.id)) return prev
+              return [row, ...prev]
+            })
+          }
         }
       }).subscribe()
     return () => { supabase.removeChannel(channel) }

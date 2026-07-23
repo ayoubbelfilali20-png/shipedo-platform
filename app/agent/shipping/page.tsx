@@ -191,21 +191,11 @@ export default function AgentShippingPage() {
 
   const loadOrders = useCallback(async (loadAll = false) => {
     if (!agentId) return
-
-    let q = supabase
-      .from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason, delivery_tracking, status_changed_at')
-      .eq('assigned_agent_id', agentId)
-      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
-      .order('created_at', { ascending: false })
-
-    if (!loadAll) {
-      q = q.limit(3000)
-    } else {
-      q = q.limit(10000)
-    }
-
-    const { data } = await q
+    const res = await fetch(`/api/agent/shipping${loadAll ? '?all=1' : ''}`, {
+      cache: 'no-store',
+      headers: { 'x-agent-id': agentId },
+    })
+    const { orders: data } = await res.json()
     const rows = (data || []) as OrderRow[]
     rows.forEach(o => {
       if ((!o.total_amount || o.total_amount === 0) && Array.isArray(o.items)) {
@@ -227,7 +217,16 @@ export default function AgentShippingPage() {
     }
   }, [datePreset])
 
-  // Real-time subscription — auto-update when seller or anyone edits orders
+  // Auto-refresh every 30s so all users see the same data
+  useEffect(() => {
+    if (!agentId) return
+    const interval = setInterval(() => {
+      loadOrders(fullDataLoaded)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [agentId, loadOrders, fullDataLoaded])
+
+  // Real-time subscription — only update existing orders
   useEffect(() => {
     const channel = supabase
       .channel('agent-shipping-orders')
@@ -235,16 +234,18 @@ export default function AgentShippingPage() {
         if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
           if (['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'].includes(row.status)) {
-            setOrders(prev => [row, ...prev])
+            setOrders(prev => {
+              if (prev.some(o => o.id === row.id)) return prev
+              return [row, ...prev]
+            })
           }
         } else if (payload.eventType === 'UPDATE') {
           const row = payload.new as OrderRow
           setOrders(prev => {
             const validStatus = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'].includes(row.status)
             const exists = prev.some(o => o.id === row.id)
-            if (exists && validStatus) return prev.map(o => o.id === row.id ? row : o)
+            if (exists && validStatus) return prev.map(o => o.id === row.id ? { ...o, ...row } : o)
             if (exists && !validStatus) return prev.filter(o => o.id !== row.id)
-            if (!exists && validStatus) return [row, ...prev]
             return prev
           })
         } else if (payload.eventType === 'DELETE') {

@@ -213,20 +213,31 @@ export default function AdminShippingPage() {
     }
   }, [datePreset])
 
-  // Real-time subscription
+  // Auto-refresh every 30s so all laptops stay in sync
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadOrders(fullDataLoaded)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [loadOrders, fullDataLoaded])
+
+  // Real-time subscription — only update existing orders, don't add missing ones
   useEffect(() => {
     const channel = supabase
       .channel('admin-shipping-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
-          setOrders(prev => [row, ...prev])
+          setOrders(prev => {
+            if (prev.some(o => o.id === row.id)) return prev
+            return [row, ...prev]
+          })
         } else if (payload.eventType === 'UPDATE') {
           const row = payload.new as OrderRow
           setOrders(prev => {
             const exists = prev.some(o => o.id === row.id)
-            if (exists) return prev.map(o => o.id === row.id ? row : o)
-            return [row, ...prev]
+            if (exists) return prev.map(o => o.id === row.id ? { ...o, ...row } : o)
+            return prev
           })
         } else if (payload.eventType === 'DELETE') {
           setOrders(prev => prev.filter(o => o.id !== (payload.old as any).id))
