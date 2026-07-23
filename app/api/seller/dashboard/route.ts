@@ -44,5 +44,7 @@ export async function GET(req: NextRequest) {
     orders,
     payouts: payoutsRes.data || [],
     products: productsRes.data || [],
+  }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
   })
 }

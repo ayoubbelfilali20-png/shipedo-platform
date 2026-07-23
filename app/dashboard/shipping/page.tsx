@@ -190,7 +190,7 @@ export default function AdminShippingPage() {
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
   const loadOrders = useCallback(async (loadAll = false) => {
-    const res = await fetch(`/api/admin/shipping${loadAll ? '?all=1' : ''}`)
+    const res = await fetch(`/api/admin/shipping${loadAll ? '?all=1' : ''}`, { cache: 'no-store' })
     const { orders: data } = await res.json()
     const rows = (data || []) as OrderRow[]
     rows.forEach(o => {
