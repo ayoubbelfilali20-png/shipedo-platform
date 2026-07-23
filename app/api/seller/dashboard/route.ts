@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 async function fetchAllSellerOrders(sellerId: string, cutoffIso: string) {
-  const cols = 'id, seller_id, status, total_amount, original_total, items, created_at, shipped_at, delivered_at, returned_at, last_call_at, shipped_to_agent_at'
+  const cols = 'id, seller_id, status, total_amount, original_total, items, created_at, shipped_at, delivered_at, returned_at, last_call_at, shipped_to_agent_at, status_changed_at'
   const pages = [0, 1, 2, 3, 4]
 
   const results = await Promise.all(
@@ -10,7 +10,7 @@ async function fetchAllSellerOrders(sellerId: string, cutoffIso: string) {
       supabaseAdmin.from('orders')
         .select(cols)
         .eq('seller_id', sellerId)
-        .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso}`)
+        .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso},status_changed_at.gte.${cutoffIso}`)
         .order('created_at', { ascending: false })
         .range(p * 1000, (p + 1) * 1000 - 1)
     )

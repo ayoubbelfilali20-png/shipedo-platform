@@ -76,6 +76,7 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
 }
 
 function getStatusDate(o: any): string {
+  if (o.status_changed_at) return o.status_changed_at
   if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -111,7 +112,7 @@ export default function SellerShippingPage() {
     }
 
     let q = supabase.from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at, status_changed_at')
       .eq('seller_id', sid)
       .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })

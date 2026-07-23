@@ -51,6 +51,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; b
 const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
 
 function getStatusDate(o: any): string {
+  if (o.status_changed_at) return o.status_changed_at
   if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -168,7 +169,7 @@ export default function AgentHistoryPage() {
 
     let q = supabase
       .from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, notes, call_attempts, reminded_at, last_call_at, last_call_note, last_call_agent_id, created_at, shipped_at, shipped_to_agent_at, delivered_at, returned_at, seller_id')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, notes, call_attempts, reminded_at, last_call_at, last_call_note, last_call_agent_id, created_at, shipped_at, shipped_to_agent_at, delivered_at, returned_at, seller_id, status_changed_at')
       .eq('assigned_agent_id', aid)
       .order('last_call_at', { ascending: false, nullsFirst: false })
 

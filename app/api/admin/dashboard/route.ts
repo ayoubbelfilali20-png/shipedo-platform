@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
-const ORDER_COLS = 'id, seller_id, assigned_agent_id, status, total_amount, original_total, call_attempts, last_call_agent_id, reminded_at, created_at, tracking_number, customer_name, delivered_at, shipped_at, returned_at, shipped_to_agent_at, last_call_at'
+const ORDER_COLS = 'id, seller_id, assigned_agent_id, status, total_amount, original_total, call_attempts, last_call_agent_id, reminded_at, created_at, tracking_number, customer_name, delivered_at, shipped_at, returned_at, shipped_to_agent_at, last_call_at, status_changed_at'
 
 export async function GET(req: NextRequest) {
   const all = (req as any).nextUrl?.searchParams?.get('all') === '1'
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const [{ data: orders }, { data: sellers }, { data: agents }] = await Promise.all([
     supabaseAdmin.from('orders').select(ORDER_COLS)
-      .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso}`)
+      .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso},status_changed_at.gte.${cutoffIso}`)
       .order('created_at', { ascending: false }).limit(1000),
     supabaseAdmin.from('sellers').select('id, name, company, email, city, status'),
     supabaseAdmin.from('agents').select('id, name, email, status'),

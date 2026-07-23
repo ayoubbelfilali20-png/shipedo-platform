@@ -79,6 +79,7 @@ const statusLabels: Record<string, string> = {
 }
 
 function getStatusDate(o: any): string {
+  if (o.status_changed_at) return o.status_changed_at
   if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -288,12 +289,15 @@ export default function AgentDashboard() {
     const nextStatus = statusFlow[o.status]?.next
     if (!nextStatus) return
     setBusyId(o.id)
-    const patch: any = { status: nextStatus, last_call_at: new Date().toISOString() }
-    if (nextStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
-    if (nextStatus === 'shipped') patch.shipped_at = new Date().toISOString()
-    if (nextStatus === 'delivered') patch.delivered_at = new Date().toISOString()
-    await supabase.from('orders').update(patch).eq('id', o.id)
-    setOrders(prev => prev.map(x => x.id === o.id ? { ...x, ...patch } : x))
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: o.id, newStatus: nextStatus }),
+    })
+    const result = await res.json()
+    if (result.ok && result.patch) {
+      setOrders(prev => prev.map(x => x.id === o.id ? { ...x, ...result.patch } : x))
+    }
     setBusyId(null)
   }
 
@@ -307,17 +311,29 @@ export default function AgentDashboard() {
   const cancelOrder = async (o: OrderRow) => {
     if (!confirm(`Cancel order ${o.tracking_number}?`)) return
     setBusyId(o.id)
-    await supabase.from('orders').update({ status: 'cancelled' }).eq('id', o.id)
-    setOrders(prev => prev.map(x => x.id === o.id ? { ...x, status: 'cancelled' } : x))
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: o.id, newStatus: 'cancelled' }),
+    })
+    const result = await res.json()
+    if (result.ok && result.patch) {
+      setOrders(prev => prev.map(x => x.id === o.id ? { ...x, ...result.patch } : x))
+    }
     setBusyId(null)
   }
 
   const reopenForCall = async (o: OrderRow) => {
     setBusyId(o.id)
-    await supabase
-      .from('orders')
-      .update({ status: 'pending', reminded_at: null })
-      .eq('id', o.id)
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: o.id, newStatus: 'pending' }),
+    })
+    const result = await res.json()
+    if (result.ok) {
+      await supabase.from('orders').update({ reminded_at: null }).eq('id', o.id)
+    }
     setBusyId(null)
     router.push('/agent/calls')
   }

@@ -144,7 +144,7 @@ export default function AdminOrderDetailPage() {
             {order.status === 'confirmed' && (
               <button
                 onClick={async () => {
-                  await supabase.from('orders').update({ status: 'prepared' }).eq('id', order.id)
+                  await fetch('/api/orders/status', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderId: order.id, newStatus: 'prepared' }) })
                   printOrderLabel({
                     tracking: order.tracking_number,
                     customerName: order.customer_name,

@@ -82,7 +82,8 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
   )
 }
 
-function getStatusDate(o: OrderRow): string {
+function getStatusDate(o: any): string {
+  if (o.status_changed_at) return o.status_changed_at
   if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
