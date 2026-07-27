@@ -217,28 +217,25 @@ export default function AgentHistoryPage() {
 
   const changeStatus = async (orderId: string, newStatus: string) => {
     setBusy(orderId)
-    const patch: any = { status: newStatus }
 
-    if (newStatus === 'shipped_to_agent') patch.shipped_to_agent_at = new Date().toISOString()
-    if (newStatus === 'shipped') patch.shipped_at = new Date().toISOString()
     if (newStatus === 'delivered') {
-      patch.delivered_at = new Date().toISOString()
       const order = orders.find(o => o.id === orderId)
       if (order) await decrementTotalQuantityForOrderItems(order.items as any[])
     }
     if (newStatus === 'returned') {
-      patch.returned_at = new Date().toISOString()
       const order = orders.find(o => o.id === orderId)
       if (order) await incrementStockForOrderItems(order.items)
     }
-    if (['confirmed', 'prepared', 'pending', 'cancelled'].includes(newStatus)) {
-      patch.shipped_at = null
-      patch.delivered_at = null
-      patch.returned_at = null
-    }
 
-    await supabase.from('orders').update(patch).eq('id', orderId)
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...patch } : o))
+    const res = await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, newStatus }),
+    })
+    const result = await res.json()
+    if (result.ok && result.patch) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...result.patch } : o))
+    }
     setBusy(null)
   }
 

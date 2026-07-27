@@ -87,11 +87,12 @@ export default function ReturnsPage() {
     setError('')
     setSuccess('')
 
-    // 1. Mark order as returned
-    await supabase.from('orders').update({
-      status: 'returned',
-      returned_at: new Date().toISOString(),
-    }).eq('id', order.id)
+    // 1. Mark order as returned via server API
+    await fetch('/api/orders/status', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id, newStatus: 'returned' }),
+    })
 
     // 2. Restore stock
     await incrementStockForOrderItems(order.items)
@@ -122,10 +123,11 @@ export default function ReturnsPage() {
 
     for (const order of orders) {
       if (order.status === 'returned') continue
-      await supabase.from('orders').update({
-        status: 'returned',
-        returned_at: new Date().toISOString(),
-      }).eq('id', order.id)
+      await fetch('/api/orders/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, newStatus: 'returned' }),
+      })
       await incrementStockForOrderItems(order.items)
       count++
     }

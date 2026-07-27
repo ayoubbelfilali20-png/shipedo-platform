@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
             const newStatus = textUpper === 'YES' ? 'confirmed' : 'cancelled'
             const patch: any = {
               status: newStatus,
+              status_changed_at: new Date().toISOString(),
               last_call_note: `Customer replied "${text}" via WhatsApp`,
               last_call_at: new Date().toISOString(),
             }

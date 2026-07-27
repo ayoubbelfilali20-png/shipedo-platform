@@ -45,6 +45,10 @@ export async function PATCH(req: NextRequest) {
     patch.returned_at = nowIso
   }
 
+  if (newStatus === 'cancelled') {
+    patch.last_call_at = nowIso
+  }
+
   if (newStatus === 'pending') {
     patch.shipped_to_agent_at = null
     patch.shipped_at = null

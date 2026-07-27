@@ -84,13 +84,19 @@ export default function AdminOrderDetailPage() {
   const save = async () => {
     if (!order) return
     setSaving(true)
+    if (status !== order.status) {
+      await fetch('/api/orders/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: order.id, newStatus: status }),
+      })
+    }
     await supabase.from('orders').update({
       customer_name: name,
       customer_phone: phone,
       customer_city: city,
       customer_address: address,
       notes,
-      status,
     }).eq('id', order.id)
     setSaving(false)
     setEditing(false)
