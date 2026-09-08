@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
 async function fetchAllSellerOrders(sellerId: string, cutoffIso: string) {
   const cols = 'id, seller_id, status, total_amount, original_total, items, created_at, shipped_at, delivered_at, returned_at, last_call_at, shipped_to_agent_at, status_changed_at'
-  const pages = [0, 1, 2, 3, 4]
+  const pages = [0, 1, 2]
 
   const results = await Promise.all(
     pages.map(p =>

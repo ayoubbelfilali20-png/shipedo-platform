@@ -217,7 +217,7 @@ export default function AdminShippingPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       loadOrders(fullDataLoaded)
-    }, 30000)
+    }, 120000)
     return () => clearInterval(interval)
   }, [loadOrders, fullDataLoaded])
 

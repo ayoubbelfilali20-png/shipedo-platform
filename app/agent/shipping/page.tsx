@@ -222,7 +222,7 @@ export default function AgentShippingPage() {
     if (!agentId) return
     const interval = setInterval(() => {
       loadOrders(fullDataLoaded)
-    }, 30000)
+    }, 120000)
     return () => clearInterval(interval)
   }, [agentId, loadOrders, fullDataLoaded])
 

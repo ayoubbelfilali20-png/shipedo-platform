@@ -6,7 +6,7 @@ const COLS_FULL = 'id, tracking_number, customer_name, customer_phone, customer_
 
 const COLS_SAFE = 'id, tracking_number, customer_name, customer_phone, customer_city, items, total_amount, original_total, status, payment_status, notes, call_attempts, reminded_at, last_call_at, last_call_agent_id, created_at, shipped_at, delivered_at, returned_at, shipped_to_agent_at'
 
-const pages = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+const pages = [0, 1, 2]
 const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 
 async function fetchPaged(buildQuery: (cols: string, page: number) => any, cols: string) {

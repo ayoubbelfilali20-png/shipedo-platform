@@ -5,7 +5,7 @@ const ORDER_COLS_FULL = 'id, seller_id, assigned_agent_id, status, total_amount,
 
 const ORDER_COLS_SAFE = 'id, seller_id, assigned_agent_id, status, total_amount, original_total, call_attempts, last_call_agent_id, reminded_at, created_at, tracking_number, customer_name, delivered_at, shipped_at, returned_at, shipped_to_agent_at, last_call_at'
 
-const pages = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+const pages = [0, 1, 2]
 const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 
 async function fetchOrders(cols: string, orFilter?: string) {

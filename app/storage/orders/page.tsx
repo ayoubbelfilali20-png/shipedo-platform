@@ -113,7 +113,7 @@ export default function StorageOrdersPage() {
 
   // Auto-refresh every 30s so all users see the same data
   useEffect(() => {
-    const interval = setInterval(loadOrders, 30000)
+    const interval = setInterval(loadOrders, 120000)
     return () => clearInterval(interval)
   }, [])
 
