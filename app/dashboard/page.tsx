@@ -101,7 +101,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/admin/dashboard')
+    fetch('/api/admin/dashboard?all=1')
       .then(r => r.json())
       .then(data => {
         setOrders((data.orders || []) as OrderRow[])

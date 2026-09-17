@@ -6,7 +6,7 @@ const COLS_FULL = 'id, tracking_number, customer_name, customer_phone, customer_
 const COLS_SAFE = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, printed, print_count, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, last_call_at, created_at, seller_id, call_attempts, reminded_at, cancel_reason, assigned_agent_id, delivery_tracking'
 
 const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
-const pages = [0, 1, 2]
+const pages = [0, 1, 2, 3, 4]
 
 async function fetchAll(cols: string, orFilter?: string) {
   const results = await Promise.all(
