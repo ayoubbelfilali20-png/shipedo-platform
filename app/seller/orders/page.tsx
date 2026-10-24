@@ -102,19 +102,16 @@ export default function SellerOrdersPage() {
 
   useEffect(() => {
     let sellerId: string | null = null
-    let country: string | undefined
     try {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') { sellerId = u.id; country = u.country }
+        if (u.role === 'seller') sellerId = u.id
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
 
-    const hdrs: Record<string, string> = { 'x-seller-id': sellerId }
-    if (country) hdrs['x-country'] = country
-    fetch('/api/seller/orders', { headers: hdrs })
+    fetch('/api/seller/orders', { headers: { 'x-seller-id': sellerId } })
       .then(r => r.json())
       .then(data => {
         const rows = normalizeRows(Array.isArray(data) ? data : [])
