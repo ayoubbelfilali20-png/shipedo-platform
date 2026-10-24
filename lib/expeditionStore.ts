@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import { Expedition, ExpeditionStatus, ExpeditionOrigin } from './types'
 
-function rowToExpedition(r: any): Expedition {
+function rowToExpedition(r: any): Expedition & { country?: string } {
   return {
     id: r.id,
     reference: r.reference,
@@ -22,17 +22,19 @@ function rowToExpedition(r: any): Expedition {
     createdBy: r.created_by || '',
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    country: r.country || 'KE',
   }
 }
 
-export async function fetchExpeditions(opts?: { sellerId?: string }): Promise<Expedition[]> {
+export async function fetchExpeditions(opts?: { sellerId?: string; country?: string }): Promise<(Expedition & { country?: string })[]> {
   let q = supabase.from('expeditions').select('*').order('created_at', { ascending: false })
   if (opts?.sellerId) q = q.eq('created_by', opts.sellerId)
+  if (opts?.country) q = q.eq('country', opts.country)
   const { data } = await q
   return (data || []).map(rowToExpedition)
 }
 
-export async function addExpedition(exp: Expedition): Promise<Expedition | null> {
+export async function addExpedition(exp: Expedition & { country?: string }): Promise<Expedition | null> {
   const { data } = await supabase
     .from('expeditions')
     .insert({
@@ -51,6 +53,7 @@ export async function addExpedition(exp: Expedition): Promise<Expedition | null>
       carrier: exp.carrier || null,
       notes: exp.notes || null,
       created_by: exp.createdBy || null,
+      country: exp.country || 'KE',
     })
     .select('*')
     .single()

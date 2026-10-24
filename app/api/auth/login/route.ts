@@ -23,7 +23,11 @@ export async function POST(req: NextRequest) {
     .eq('email', email).limit(1).maybeSingle()
   if (seller && seller.password === password) {
     if (seller.status === 'suspended') return NextResponse.json({ ok: false, error: 'Account suspended' })
-    return NextResponse.json({ ok: true, user: { role: 'seller', id: seller.id, email: seller.email, name: seller.company || seller.name, fullName: seller.name, country: seller.country || 'KE' } })
+    const { data: sc } = await supabaseAdmin
+      .from('seller_countries').select('country')
+      .eq('seller_id', seller.id).eq('status', 'active')
+    const countries = sc && sc.length > 0 ? sc.map((r: any) => r.country) : [seller.country || 'KE']
+    return NextResponse.json({ ok: true, user: { role: 'seller', id: seller.id, email: seller.email, name: seller.company || seller.name, fullName: seller.name, country: countries[0], countries } })
   }
 
   // Call agent

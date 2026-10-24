@@ -64,6 +64,9 @@ export default function SellersPage() {
   })
   const [showPass, setShowPass] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showAddExisting, setShowAddExisting] = useState(false)
+  const [existingSellers, setExistingSellers] = useState<{ id: string; name: string; company: string; email: string }[]>([])
+  const [addingExisting, setAddingExisting] = useState<string | null>(null)
 
   useEffect(() => {
     loadSellers()
@@ -71,8 +74,20 @@ export default function SellersPage() {
 
   const loadSellers = async () => {
     setLoading(true)
+    let sellerIds: string[] | null = null
+    if (country !== 'ALL') {
+      const { data: sc } = await supabase.from('seller_countries').select('seller_id').eq('country', country).eq('status', 'active')
+      if (sc && sc.length > 0) {
+        sellerIds = sc.map((r: any) => r.seller_id)
+      } else {
+        sellerIds = []
+      }
+    }
     let q = supabase.from('sellers').select('id, name, company, email, phone, password, city, status, notes, created_at, confirmation_fee_usd, upsell_fee_usd, cross_sell_fee_usd, shipping_fee_usd, country').order('created_at', { ascending: false }).limit(200)
-    if (country !== 'ALL') q = q.eq('country', country)
+    if (sellerIds !== null) {
+      if (sellerIds.length === 0) { setSellers([]); setLoading(false); return }
+      q = q.in('id', sellerIds)
+    }
     const { data, error } = await q
     if (error) console.error('LOAD ERROR:', error.message, error.code)
     if (data) {
@@ -94,6 +109,24 @@ export default function SellersPage() {
       })))
     }
     setLoading(false)
+  }
+
+  const loadExistingSellers = async () => {
+    if (country === 'ALL') return
+    const currentIds = sellers.map(s => s.id)
+    const { data } = await supabase.from('sellers').select('id, name, company, email').eq('status', 'active').order('name')
+    const available = (data || []).filter((s: any) => !currentIds.includes(s.id))
+    setExistingSellers(available as any[])
+    setShowAddExisting(true)
+  }
+
+  const addExistingToCountry = async (sellerId: string) => {
+    if (country === 'ALL') return
+    setAddingExisting(sellerId)
+    await supabase.from('seller_countries').upsert({ seller_id: sellerId, country, status: 'active' }, { onConflict: 'seller_id,country' })
+    setAddingExisting(null)
+    setShowAddExisting(false)
+    loadSellers()
   }
 
   const filtered = sellers.filter(s => {
@@ -134,6 +167,8 @@ export default function SellersPage() {
     }
 
     if (data && !error) {
+      const sellerCountry = country === 'ALL' ? 'KE' : country
+      await supabase.from('seller_countries').upsert({ seller_id: data.id, country: sellerCountry, status: 'active' }, { onConflict: 'seller_id,country' })
       const newSeller: Seller = {
         id: data.id,
         storeName: data.company || data.name,
@@ -232,13 +267,24 @@ export default function SellersPage() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex-shrink-0"
-          >
-            <Plus size={13} />
-            Add Seller
-          </button>
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+            {country !== 'ALL' && (
+              <button
+                onClick={loadExistingSellers}
+                className="flex items-center gap-1.5 px-4 py-2 bg-white border border-[#f4991a] text-[#f4991a] text-xs font-bold rounded-xl hover:bg-orange-50 transition-all"
+              >
+                <Plus size={13} />
+                Add Existing Seller
+              </button>
+            )}
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+            >
+              <Plus size={13} />
+              Add Seller
+            </button>
+          </div>
         </div>
 
         {/* Credentials success banner */}
@@ -539,6 +585,41 @@ export default function SellersPage() {
               <button onClick={() => setDrawerOpen(false)} className="px-5 py-3 border border-gray-200 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 transition-all">
                 Cancel
               </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Add Existing Seller Modal */}
+      {showAddExisting && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={() => setShowAddExisting(false)} />
+          <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-50 shadow-2xl overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+              <h3 className="text-base font-bold text-[#1a1c3a]">Add Existing Seller to {country}</h3>
+              <button onClick={() => setShowAddExisting(false)} className="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center"><X size={15} className="text-gray-500" /></button>
+            </div>
+            <div className="p-6 space-y-2">
+              {existingSellers.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-8">All sellers are already in this country</p>
+              ) : existingSellers.map(s => (
+                <div key={s.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-100 to-blue-100 flex items-center justify-center text-xs font-bold text-[#1a1c3a] flex-shrink-0">
+                    {(s.company || s.name || '?')[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[#1a1c3a] truncate">{s.company || s.name}</p>
+                    <p className="text-[10px] text-gray-400">{s.email}</p>
+                  </div>
+                  <button
+                    onClick={() => addExistingToCountry(s.id)}
+                    disabled={addingExisting === s.id}
+                    className="px-3 py-1.5 bg-[#f4991a] hover:bg-orange-500 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-all"
+                  >
+                    {addingExisting === s.id ? '...' : 'Add'}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </>

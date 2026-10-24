@@ -95,7 +95,7 @@ export default function ReturnsPage() {
     })
 
     // 2. Restore stock
-    await incrementStockForOrderItems(order.items)
+    await incrementStockForOrderItems(order.items, (order as any).country || 'KE')
 
     // 3. Update local state
     const updated = { ...order, status: 'returned', returned_at: new Date().toISOString() }
@@ -128,7 +128,7 @@ export default function ReturnsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: order.id, newStatus: 'returned' }),
       })
-      await incrementStockForOrderItems(order.items)
+      await incrementStockForOrderItems(order.items, (order as any).country || 'KE')
       count++
     }
 

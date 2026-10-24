@@ -377,7 +377,7 @@ export default function AdminShippingPage() {
 
     if (newStatus === 'returned') {
       const order = orders.find(o => o.id === orderId)
-      if (order) await incrementStockForOrderItems(order.items)
+      if (order) await incrementStockForOrderItems(order.items, order.country || 'KE')
     }
 
     const existing = orders.find(o => o.id === orderId)

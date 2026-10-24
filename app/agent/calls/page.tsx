@@ -31,6 +31,7 @@ type OrderRow = {
   cancel_reason?: string | null
   created_at: string
   seller_id?: string | null
+  country?: string
 }
 
 function cleanPhone(p: string) {
@@ -367,7 +368,7 @@ export default function AgentCallsPage() {
     else if (action === 'cancelled') newStatus = 'cancelled'
 
     if (action === 'confirmed') {
-      await decrementStockForOrderItems(cleanItems as any[])
+      await decrementStockForOrderItems(cleanItems as any[], order?.country || 'KE')
     }
 
     if (action === 'cancelled') {

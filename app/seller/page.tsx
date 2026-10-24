@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils'
 import { OrderStatus } from '@/lib/types'
 import { useT, type TKey } from '@/lib/i18n'
+import { getCountry } from '@/lib/countries'
 
 type Period = 'today' | 'yesterday' | 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'this_year' | 'all'
 
@@ -115,11 +116,16 @@ export default function SellerDashboard() {
   const [period, setPeriod]     = useState<Period>('this_month')
   const [mobilePeriod, setMobilePeriod] = useState<'today' | 'week' | 'month' | 'all'>('month')
   const [sellerId, setSellerId] = useState<string | null>(null)
+  const [sellerCountry, setSellerCountry] = useState('KE')
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
 
-  const loadDashboard = async (sid: string, days?: number) => {
+  const cur = getCountry(sellerCountry).currencySymbol
+
+  const loadDashboard = async (sid: string, days?: number, country?: string) => {
     const url = days ? `/api/seller/dashboard?days=${days}` : '/api/seller/dashboard'
-    const res = await fetch(url, { headers: { 'x-seller-id': sid } })
+    const hdrs: Record<string, string> = { 'x-seller-id': sid }
+    if (country) hdrs['x-country'] = country
+    const res = await fetch(url, { headers: hdrs })
     const { orders: freshOrders = [], payouts: freshPayouts = [], products: freshProducts = [] } = await res.json()
     setOrders(freshOrders)
     setPayouts(freshPayouts)
@@ -138,12 +144,13 @@ export default function SellerDashboard() {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') { sid = u.id; setUserName(u.fullName || u.name || 'Seller') }
+        if (u.role === 'seller') { sid = u.id; setUserName(u.fullName || u.name || 'Seller'); if (u.country) setSellerCountry(u.country) }
       }
     } catch {}
     if (!sid) { setLoading(false); return }
     setSellerId(sid)
 
+    const storedCountry = (() => { try { const u = JSON.parse(localStorage.getItem('shipedo_seller') || ''); return u.country } catch { return undefined } })()
     const CACHE_KEY = 'shipedo_seller_dash_v1_' + sid
     try {
       const cached = localStorage.getItem(CACHE_KEY)
@@ -156,7 +163,7 @@ export default function SellerDashboard() {
       }
     } catch {}
 
-    loadDashboard(sid)
+    loadDashboard(sid, undefined, storedCountry)
   }, [])
 
   useEffect(() => {
@@ -167,7 +174,7 @@ export default function SellerDashboard() {
     const days = needsDays[period]
     if (days) {
       setLoading(true)
-      loadDashboard(sellerId, days)
+      loadDashboard(sellerId, days, sellerCountry)
     }
   }, [period])
 
@@ -304,7 +311,7 @@ export default function SellerDashboard() {
               { label: t('kpi_delivered_orders'), value: desktopStats.delivered.toLocaleString(),   sub: `${desktopStats.deliveryRate}% ${t('kpi_delivery_rate')}`,        icon: Truck,       color: 'text-emerald-600', bg: 'bg-emerald-50' },
               { label: t('kpi_returned_orders'),  value: desktopStats.returned.toLocaleString(),    sub: `${desktopStats.returnRate}% ${t('kpi_return_rate')}`,            icon: RotateCcw,   color: 'text-red-500',     bg: 'bg-red-50'     },
               { label: t('kpi_pending_orders'),   value: desktopStats.pending.toLocaleString(),     sub: t('kpi_awaiting'),                                                icon: Clock,       color: 'text-amber-600',   bg: 'bg-amber-50'   },
-              { label: t('kpi_total_revenue'),    value: desktopStats.revenue > 0 ? `KES ${desktopStats.revenue.toLocaleString()}` : '—', sub: t('kpi_from_delivered'),     icon: CreditCard,  color: 'text-teal-600',    bg: 'bg-teal-50'    },
+              { label: t('kpi_total_revenue'),    value: desktopStats.revenue > 0 ? `${cur} ${desktopStats.revenue.toLocaleString()}` : '—', sub: t('kpi_from_delivered'),     icon: CreditCard,  color: 'text-teal-600',    bg: 'bg-teal-50'    },
               { label: 'Total Products',          value: products.length.toLocaleString(),          sub: `${products.length} in catalog`,                                  icon: ShoppingBag, color: 'text-purple-600',  bg: 'bg-purple-50'  },
             ].map(s => (
               <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -338,7 +345,7 @@ export default function SellerDashboard() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}K` : `${v}`} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '12px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, t('dash_revenue')]} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '12px' }} formatter={(v: number) => [`${cur} ${v.toLocaleString()}`, t('dash_revenue')]} />
                   <Area type="monotone" dataKey="revenue" stroke="#f4991a" strokeWidth={2.5} fill="url(#rg)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -491,7 +498,7 @@ export default function SellerDashboard() {
                           <span className="text-xs text-gray-600">{order.customer_city || '—'}</span>
                         </td>
                         <td className="px-4 py-3.5">
-                          <span className="text-xs font-semibold text-[#1a1c3a]">{(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</span>
+                          <span className="text-xs font-semibold text-[#1a1c3a]">{(order.total_amount || 0) > 0 ? `${cur} ${order.total_amount.toLocaleString()}` : '—'}</span>
                         </td>
                         <td className="px-4 py-3.5">
                           <StatusBadge status={(order.status || 'pending') as OrderStatus} />
@@ -539,7 +546,7 @@ export default function SellerDashboard() {
 
           <div className="relative">
             <p className="text-white/50 text-[11px] uppercase tracking-wider font-semibold">{t('dash_revenue')} · {t(mobilePeriodKeyMap[mobilePeriod])}</p>
-            <p className="text-white text-3xl font-bold mt-1">KES {mRevenue.toLocaleString()}</p>
+            <p className="text-white text-3xl font-bold mt-1">{cur} {mRevenue.toLocaleString()}</p>
             <div className="flex items-center gap-1.5 mt-1.5">
               <div className="flex items-center gap-1 bg-emerald-500/15 border border-emerald-400/20 rounded-full px-2 py-0.5">
                 <TrendingUp size={10} className="text-emerald-400" />
@@ -595,7 +602,7 @@ export default function SellerDashboard() {
             { label: t('dash_status_delivered'), value: mDelivered,      icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', ring: 'ring-emerald-100' },
             { label: t('dash_pending'),          value: mPending,        icon: Clock,       color: 'text-amber-600',   bg: 'bg-amber-50',   ring: 'ring-amber-100'   },
             { label: t('dash_status_returned'),  value: mReturned,       icon: RotateCcw,   color: 'text-red-500',     bg: 'bg-red-50',     ring: 'ring-red-100'     },
-            { label: t('kpi_total_revenue'),     value: mRevenue > 0 ? `KES ${(mRevenue/1000).toFixed(0)}K` : '—', icon: CreditCard, color: 'text-teal-600', bg: 'bg-teal-50', ring: 'ring-teal-100' },
+            { label: t('kpi_total_revenue'),     value: mRevenue > 0 ? `${cur} ${(mRevenue/1000).toFixed(0)}K` : '—', icon: CreditCard, color: 'text-teal-600', bg: 'bg-teal-50', ring: 'ring-teal-100' },
             { label: 'Total Products',           value: products.length, icon: ShoppingBag, color: 'text-purple-600',  bg: 'bg-purple-50',  ring: 'ring-purple-100'  },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl p-4 ring-1 ring-gray-100 shadow-sm">
@@ -671,7 +678,7 @@ export default function SellerDashboard() {
                       <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate">{order.tracking_number}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-[#0f1129]">{(order.total_amount||0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}</p>
+                      <p className="text-sm font-bold text-[#0f1129]">{(order.total_amount||0) > 0 ? `${cur} ${order.total_amount.toLocaleString()}` : '—'}</p>
                       <span className={`inline-flex items-center gap-1 mt-1 ${cfg.bg} ${cfg.text} text-[9px] font-bold px-2 py-0.5 rounded-full`}>
                         <span className={`w-1 h-1 rounded-full ${cfg.dot}`} />
                         {order.status}

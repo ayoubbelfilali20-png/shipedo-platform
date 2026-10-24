@@ -220,11 +220,11 @@ export default function AgentHistoryPage() {
 
     if (newStatus === 'delivered') {
       const order = orders.find(o => o.id === orderId)
-      if (order) await decrementTotalQuantityForOrderItems(order.items as any[])
+      if (order) await decrementTotalQuantityForOrderItems(order.items as any[], (order as any).country || 'KE')
     }
     if (newStatus === 'returned') {
       const order = orders.find(o => o.id === orderId)
-      if (order) await incrementStockForOrderItems(order.items)
+      if (order) await incrementStockForOrderItems(order.items, (order as any).country || 'KE')
     }
 
     const res = await fetch('/api/orders/status', {

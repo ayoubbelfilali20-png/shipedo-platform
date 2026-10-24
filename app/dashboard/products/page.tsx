@@ -6,6 +6,7 @@ import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
 import { ProductStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
+import { useCountry } from '@/lib/CountryContext'
 import {
   Search, Plus, Package, ShoppingBag, TrendingUp,
   AlertTriangle, XCircle, Eye, X, Filter, Pencil, Check,
@@ -43,6 +44,7 @@ function StatusBadge({ status }: { status: ProductStatus }) {
 
 export default function ProductsPage() {
   const router = useRouter()
+  const { country } = useCountry()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<ProductStatus | 'all'>('all')
   const [products, setProducts] = useState<any[]>([])
@@ -57,15 +59,27 @@ export default function ProductsPage() {
     Promise.all([
       supabase.from('products').select('id, name, sku, selling_price, buying_price, stock, total_quantity, defective_quantity, status, image_url, seller_id, origin, category, created_at').order('created_at', { ascending: false }).limit(500),
       supabase.from('sellers').select('id, name, company'),
-    ]).then(([prodRes, sellerRes]) => {
+    ]).then(async ([prodRes, sellerRes]) => {
       const sMap: Record<string, string> = {}
       ;(sellerRes.data || []).forEach((s: any) => { sMap[s.id] = s.company || s.name })
       setSellerMap(sMap)
       const prods = (prodRes.data || []).map((p: any) => ({ ...p, sellerName: sMap[p.seller_id] || '—' }))
+      const stockCountry = country !== 'ALL' ? country : 'KE'
+      if (prods.length > 0) {
+        const ids = prods.map((p: any) => p.id)
+        const { data: stockRows } = await supabase.from('product_stock').select('product_id, stock, total_quantity, defective_quantity').in('product_id', ids).eq('country', stockCountry)
+        if (stockRows) {
+          const stockMap = new Map(stockRows.map((r: any) => [r.product_id, r]))
+          prods.forEach((p: any) => {
+            const s = stockMap.get(p.id)
+            if (s) { p.stock = s.stock; p.total_quantity = s.total_quantity; p.defective_quantity = s.defective_quantity }
+          })
+        }
+      }
       setProducts(prods)
       setLoading(false)
     })
-  }, [])
+  }, [country])
 
   const startEditQty = (p: any) => {
     setEditProduct(p)
@@ -79,12 +93,17 @@ export default function ProductsPage() {
   const saveQty = async () => {
     if (!editProduct) return
     setSavingQty(true)
+    const stockCountry = country !== 'ALL' ? country : 'KE'
     const patch = {
       stock: Number(editQty.stock) || 0,
       total_quantity: Number(editQty.total_quantity) || 0,
       defective_quantity: Number(editQty.defective_quantity) || 0,
     }
-    const { error } = await supabase.from('products').update(patch).eq('id', editProduct.id)
+    const { error } = await supabase.from('product_stock').upsert({
+      product_id: editProduct.id,
+      country: stockCountry,
+      ...patch,
+    }, { onConflict: 'product_id,country' })
     if (!error) {
       setProducts(prev => prev.map(p => p.id === editProduct.id ? { ...p, ...patch } : p))
     }

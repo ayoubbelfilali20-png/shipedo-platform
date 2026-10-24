@@ -185,7 +185,7 @@ export default function StorageOrdersPage() {
 
     if (newStatus === 'returned') {
       const order = orders.find(o => o.id === orderId)
-      if (order) await incrementStockForOrderItems(order.items)
+      if (order) await incrementStockForOrderItems(order.items, (order as any).country || 'KE')
     }
 
     const existing = orders.find(o => o.id === orderId)
@@ -210,7 +210,7 @@ export default function StorageOrdersPage() {
     const order = orders.find(o => o.id === orderId)
     if (!order) return
     setProcessing(orderId)
-    await incrementStockForOrderItems(order.items)
+    await incrementStockForOrderItems(order.items, (order as any).country || 'KE')
     const res = await fetch('/api/orders/status', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

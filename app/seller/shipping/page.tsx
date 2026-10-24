@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
+import { getCountry } from '@/lib/countries'
 
 type ShipStatus = 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned'
 
@@ -100,7 +101,9 @@ export default function SellerShippingPage() {
   const perPage = 10
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
   const [sellerId, setSellerId] = useState<string | null>(null)
+  const [sellerCountry, setSellerCountry] = useState('KE')
 
+  const cur = getCountry(sellerCountry).currencySymbol
   const CACHE_KEY_SHIP = 'shipedo_seller_shipping_v1'
 
   const loadOrders = async (sid: string, loadAll = false) => {
@@ -111,11 +114,13 @@ export default function SellerShippingPage() {
       } catch {}
     }
 
+    const ctry = (() => { try { return JSON.parse(localStorage.getItem('shipedo_seller') || '').country } catch { return undefined } })()
     let q = supabase.from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at, status_changed_at')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, country, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at, status_changed_at')
       .eq('seller_id', sid)
       .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
+    if (ctry) q = q.eq('country', ctry)
 
     if (!loadAll) {
       const cutoff = new Date()
@@ -139,7 +144,7 @@ export default function SellerShippingPage() {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') sid = u.id
+        if (u.role === 'seller') { sid = u.id; if (u.country) setSellerCountry(u.country) }
       }
     } catch {}
     if (!sid) { setLoading(false); return }
@@ -334,9 +339,9 @@ export default function SellerShippingPage() {
                     <span className="font-semibold text-[#f4991a]">{items.length}</span> item{items.length !== 1 ? 's' : ''}
                   </div>
                   <div className="text-xs font-bold text-[#1a1c3a]">
-                    {(row.total_amount || 0) > 0 ? `KES ${row.total_amount.toLocaleString()}` : '—'}
+                    {(row.total_amount || 0) > 0 ? `${cur} ${row.total_amount.toLocaleString()}` : '—'}
                     {row.original_total && row.original_total !== row.total_amount && row.original_total > 0 && (
-                      <span className="text-[9px] text-gray-400 line-through ml-1">KES {row.original_total.toLocaleString()}</span>
+                      <span className="text-[9px] text-gray-400 line-through ml-1">{cur} {row.original_total.toLocaleString()}</span>
                     )}
                   </div>
                   <div>
@@ -395,6 +400,7 @@ export default function SellerShippingPage() {
 function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
   const cfg = statusConfig[(row.status as ShipStatus)] || statusConfig.confirmed
   const items = Array.isArray(row.items) ? row.items : []
+  const cur = getCountry((row as any).country || 'KE').currencySymbol
 
   return (
     <>
@@ -517,7 +523,7 @@ function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
                     <p className="text-[10px] text-gray-400 font-mono">{p.sku || '—'}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold text-[#f4991a]">KES {(Number(p.unit_price) || Number(p.price) || 0).toLocaleString()}</p>
+                    <p className="text-xs font-bold text-[#f4991a]">{cur} {(Number(p.unit_price) || Number(p.price) || 0).toLocaleString()}</p>
                     <p className="text-[10px] text-gray-400">×{p.quantity || 1}</p>
                   </div>
                 </div>
@@ -527,9 +533,9 @@ function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
             <div className="mt-3 flex items-center justify-between bg-[#1a1c3a] rounded-xl px-4 py-3">
               <span className="text-white/50 text-xs font-semibold">TOTAL</span>
               <span className="text-[#f4991a] font-bold">
-                KES {(row.total_amount || 0).toLocaleString()}
+                {cur} {(row.total_amount || 0).toLocaleString()}
                 {row.original_total && row.original_total !== row.total_amount && row.original_total > 0 && (
-                  <span className="text-[10px] text-white/40 line-through ml-1">KES {row.original_total.toLocaleString()}</span>
+                  <span className="text-[10px] text-white/40 line-through ml-1">{cur} {row.original_total.toLocaleString()}</span>
                 )}
               </span>
             </div>

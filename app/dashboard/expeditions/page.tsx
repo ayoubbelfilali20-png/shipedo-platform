@@ -14,6 +14,8 @@ import {
   MapPin, Truck, Box, DollarSign, Calendar, FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useCountry } from '@/lib/CountryContext'
+import { getCountry } from '@/lib/countries'
 
 const statusConfig: Record<ExpeditionStatus, { label: string; color: string; bg: string; border: string; dot: string; icon: React.ElementType }> = {
   pending:      { label: 'Pending',      color: 'text-orange-700',  bg: 'bg-orange-50',  border: 'border-orange-300',  dot: 'bg-[#f4991a]',   icon: Clock },
@@ -188,6 +190,7 @@ function DetailModal({ exp, onClose }: { exp: Expedition; onClose: () => void })
 }
 
 export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | 'seller' } = {}) {
+  const { country: adminCountry } = useCountry()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<ExpeditionStatus | 'all'>('all')
   const [selected, setSelected] = useState<Expedition | null>(null)
@@ -199,21 +202,24 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
 
   useEffect(() => {
     let sid: string | null = null
+    let sellerCtry: string | undefined
     try {
       const u = localStorage.getItem('shipedo_seller') || localStorage.getItem('shipedo_admin')
       if (u) {
         const parsed = JSON.parse(u)
-        if (parsed.role === 'seller') sid = parsed.id
+        if (parsed.role === 'seller') { sid = parsed.id; sellerCtry = parsed.country }
       }
     } catch {}
     setSellerId(sid)
     const effectiveSeller = role === 'seller' ? sid || undefined : undefined
-    fetchExpeditions(effectiveSeller ? { sellerId: effectiveSeller } : undefined).then(setStored)
-  }, [role])
+    const ctry = role === 'seller' ? sellerCtry : (adminCountry !== 'ALL' ? adminCountry : undefined)
+    fetchExpeditions({ sellerId: effectiveSeller, country: ctry }).then(setStored)
+  }, [role, adminCountry])
 
   const reload = async () => {
     const effectiveSeller = role === 'seller' ? sellerId || undefined : undefined
-    setStored(await fetchExpeditions(effectiveSeller ? { sellerId: effectiveSeller } : undefined))
+    const ctry = role === 'seller' ? (() => { try { return JSON.parse(localStorage.getItem('shipedo_seller') || '').country } catch { return undefined } })() : (adminCountry !== 'ALL' ? adminCountry : undefined)
+    setStored(await fetchExpeditions({ sellerId: effectiveSeller, country: ctry }))
   }
 
   const openAccept = (exp: Expedition) => {
@@ -233,6 +239,7 @@ export default function ExpeditionsPage({ role = 'admin' }: { role?: 'admin' | '
         sku: p.sku,
         received: r.received || 0,
         defective: r.defective || 0,
+        country: (acceptModal as any).country || 'KE',
       })
     }
     await updateExpeditionStatus(acceptModal.id, 'received')

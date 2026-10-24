@@ -47,16 +47,30 @@ export default function SellerProductsPage() {
 
   useEffect(() => {
     let sellerId: string | null = null
+    let country = 'KE'
     try {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') sellerId = u.id
+        if (u.role === 'seller') { sellerId = u.id; if (u.country) country = u.country }
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
-    supabase.from('products').select('id, name, sku, selling_price, stock, total_quantity, defective_quantity, status, image_url, created_at').eq('seller_id', sellerId).order('created_at', { ascending: false }).limit(200).then(({ data }) => {
-      setProducts(data || [])
+    supabase.from('products').select('id, name, sku, selling_price, stock, total_quantity, defective_quantity, status, image_url, created_at').eq('seller_id', sellerId).order('created_at', { ascending: false }).limit(200).then(async ({ data }) => {
+      const prods = data || []
+      if (prods.length > 0) {
+        const ids = prods.map(p => p.id)
+        const { data: stockRows } = await supabase.from('product_stock').select('product_id, stock, total_quantity, defective_quantity').in('product_id', ids).eq('country', country)
+        if (stockRows) {
+          const stockMap = new Map(stockRows.map(r => [r.product_id, r]))
+          prods.forEach(p => {
+            const s = stockMap.get(p.id)
+            if (s) { p.stock = s.stock; p.total_quantity = s.total_quantity; p.defective_quantity = s.defective_quantity }
+            else { p.stock = 0; p.total_quantity = 0; p.defective_quantity = 0 }
+          })
+        }
+      }
+      setProducts(prods)
       setLoading(false)
     })
   }, [])

@@ -34,6 +34,7 @@ type OrderRow = {
   shipped_to_agent_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
+  country?: string
   last_call_at?: string | null
   created_at: string
   seller_id?: string | null
@@ -378,7 +379,7 @@ export default function AgentShippingPage() {
 
     if (newStatus === 'returned') {
       const order = orders.find(o => o.id === orderId)
-      if (order) await incrementStockForOrderItems(order.items)
+      if (order) await incrementStockForOrderItems(order.items, order.country || 'KE')
     }
 
     const existing = orders.find(o => o.id === orderId)
