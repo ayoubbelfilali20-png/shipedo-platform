@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Header from '@/components/dashboard/Header'
+import { useCountry } from '@/lib/CountryContext'
 import { supabase } from '@/lib/supabase'
 import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
@@ -147,6 +148,7 @@ function orderToLabel(o: OrderRow): PrintLabelProps {
 }
 
 export default function AdminShippingPage() {
+  const { country } = useCountry()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -190,7 +192,9 @@ export default function AdminShippingPage() {
   const [printQueue, setPrintQueue] = useState<Set<string>>(new Set())
 
   const loadOrders = useCallback(async (loadAll = true) => {
-    const res = await fetch(`/api/admin/shipping?all=1`, { cache: 'no-store' })
+    const headers: Record<string, string> = {}
+    if (country !== 'ALL') headers['x-country'] = country
+    const res = await fetch(`/api/admin/shipping?all=1`, { cache: 'no-store', headers })
     const { orders: data } = await res.json()
     const rows = (data || []) as OrderRow[]
     rows.forEach(o => {
@@ -202,9 +206,9 @@ export default function AdminShippingPage() {
     setOrders(rows)
     setLoading(false)
     if (loadAll) setFullDataLoaded(true)
-  }, [])
+  }, [country])
 
-  useEffect(() => { loadOrders() }, [loadOrders])
+  useEffect(() => { setLoading(true); loadOrders() }, [loadOrders])
 
   useEffect(() => {
     if (!fullDataLoaded && (datePreset === 'all' || datePreset === 'last_month')) {

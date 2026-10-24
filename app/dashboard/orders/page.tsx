@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import StatusBadge from '@/components/dashboard/StatusBadge'
 import { supabase } from '@/lib/supabase'
+import { useCountry } from '@/lib/CountryContext'
 import { OrderStatus } from '@/lib/types'
 import {
   Search, Download, Eye, Package, MapPin, FileText, X, Printer,
@@ -64,6 +65,7 @@ const PAGE_SIZE = 100
 
 export default function OrdersPage() {
   const router = useRouter()
+  const { country } = useCountry()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -103,7 +105,9 @@ export default function OrdersPage() {
       setLoading(true)
       const params = new URLSearchParams({ page: String(page), status: statusFilter })
       if (search.trim()) params.set('search', search.trim())
-      const res = await fetch(`/api/admin/orders?${params}`)
+      const headers: Record<string, string> = {}
+      if (country !== 'ALL') headers['x-country'] = country
+      const res = await fetch(`/api/admin/orders?${params}`, { headers })
       const { orders: rawOrders, total: cnt } = await res.json()
       const rows = (rawOrders || []) as OrderRow[]
 
@@ -130,7 +134,7 @@ export default function OrdersPage() {
       setLoading(false)
     }
     load()
-  }, [page, statusFilter, search])
+  }, [page, statusFilter, search, country])
 
   // Debounce search input
   useEffect(() => {

@@ -132,6 +132,7 @@ export default function ImportOrdersPage() {
 
   const [sellerId, setSellerId] = useState<string | null>(null)
   const [sellerName, setSellerName] = useState<string | null>(null)
+  const [sellerCountry, setSellerCountry] = useState('KE')
   const [dragOver, setDragOver] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedOrder[]>([])
@@ -145,7 +146,7 @@ export default function ImportOrdersPage() {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') { setSellerId(u.id); setSellerName(u.name) }
+        if (u.role === 'seller') { setSellerId(u.id); setSellerName(u.name); if (u.country) setSellerCountry(u.country) }
       }
     } catch {}
   }, [])
@@ -368,7 +369,7 @@ export default function ImportOrdersPage() {
         customer_phone: order.customer_phone,
         customer_city: order.customer_city,
         customer_address: order.customer_address,
-        country: 'Kenya',
+        country: sellerCountry,
         source: 'Import',
         items,
         total_amount: order.total,

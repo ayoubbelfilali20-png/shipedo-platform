@@ -9,7 +9,10 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const cities = ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri']
+const citiesByCountry: Record<string, string[]> = {
+  KE: ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri'],
+  TZ: ['Dar es Salaam','Dodoma','Mwanza','Arusha','Zanzibar City','Mbeya','Morogoro','Tanga'],
+}
 
 type Seller = { id: string; name: string; company: string; email: string }
 type Product = { id: string; name: string; sku: string; selling_price: number; stock: number; image_url?: string | null }
@@ -32,6 +35,16 @@ function generateOrderId() {
 
 export default function AgentNewOrderPage() {
   const router = useRouter()
+
+  const [agentCountry, setAgentCountry] = useState('KE')
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('shipedo_agent')
+      if (stored) { const u = JSON.parse(stored); if (u.country) setAgentCountry(u.country) }
+    } catch {}
+  }, [])
+
+  const cities = citiesByCountry[agentCountry] || citiesByCountry.KE
 
   // Seller selection
   const [sellers, setSellers] = useState<Seller[]>([])
@@ -154,7 +167,7 @@ export default function AgentNewOrderPage() {
       customer_phone: phone,
       customer_city: city,
       customer_address: address,
-      country: 'Kenya',
+      country: agentCountry,
       notes: notes || null,
       items,
       total_amount: total,
@@ -212,7 +225,7 @@ export default function AgentNewOrderPage() {
             </div>
             <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-left">
               <p className="text-xs font-semibold text-[#f4991a]">{fullName}</p>
-              <p className="text-xs text-gray-500">{city || 'Kenya'} &middot; {rows.length} product(s) &middot; KES {total.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">{city || agentCountry} &middot; {rows.length} product(s) &middot; KES {total.toLocaleString()}</p>
               <p className="text-xs text-gray-400 mt-0.5">Status: {status}</p>
             </div>
             <div className="flex gap-3">

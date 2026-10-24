@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
+import { useCountry } from '@/lib/CountryContext'
 import { Seller, SellerStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -46,6 +47,7 @@ const statusFilters: { value: SellerStatus | 'all'; label: string }[] = [
 
 export default function SellersPage() {
   const router = useRouter()
+  const { country } = useCountry()
   const [sellers, setSellers] = useState<Seller[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -65,11 +67,13 @@ export default function SellersPage() {
 
   useEffect(() => {
     loadSellers()
-  }, [])
+  }, [country])
 
   const loadSellers = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('sellers').select('id, name, company, email, phone, password, city, status, notes, created_at, confirmation_fee_usd, upsell_fee_usd, cross_sell_fee_usd, shipping_fee_usd').order('created_at', { ascending: false }).limit(200)
+    let q = supabase.from('sellers').select('id, name, company, email, phone, password, city, status, notes, created_at, confirmation_fee_usd, upsell_fee_usd, cross_sell_fee_usd, shipping_fee_usd, country').order('created_at', { ascending: false }).limit(200)
+    if (country !== 'ALL') q = q.eq('country', country)
+    const { data, error } = await q
     if (error) console.error('LOAD ERROR:', error.message, error.code)
     if (data) {
       setSellers(data.map(row => ({
@@ -120,6 +124,7 @@ export default function SellersPage() {
       notes: form.notes || null,
       upsell_fee_usd: form.upsell_fee_usd,
       cross_sell_fee_usd: form.cross_sell_fee_usd,
+      country: country === 'ALL' ? 'KE' : country,
     }).select().single()
 
     if (error) {

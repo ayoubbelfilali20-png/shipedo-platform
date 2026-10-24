@@ -11,8 +11,8 @@ export async function assignUnassignedOrders() {
 
   try {
     const [{ data: agents }, { data: unassigned }] = await Promise.all([
-      supabaseAdmin.from('agents').select('id').eq('status', 'active').order('created_at', { ascending: true }),
-      supabaseAdmin.from('orders').select('id, customer_phone')
+      supabaseAdmin.from('agents').select('id, country').eq('status', 'active').order('created_at', { ascending: true }),
+      supabaseAdmin.from('orders').select('id, customer_phone, country')
         .eq('status', 'pending')
         .is('assigned_agent_id', null)
         .order('created_at', { ascending: false })
@@ -20,6 +20,13 @@ export async function assignUnassignedOrders() {
     ])
 
     if (!agents || agents.length === 0 || !unassigned || unassigned.length === 0) return
+
+    const agentsByCountry = new Map<string, string[]>()
+    for (const a of agents) {
+      const c = a.country || 'KE'
+      if (!agentsByCountry.has(c)) agentsByCountry.set(c, [])
+      agentsByCountry.get(c)!.push(a.id)
+    }
 
     const agentIds = agents.map(a => a.id)
     const agentIdSet = new Set(agentIds)
@@ -53,17 +60,20 @@ export async function assignUnassignedOrders() {
 
     const batches = new Map<string, string[]>()
     agentIds.forEach(id => batches.set(id, []))
-    let roundRobinIdx = 0
+    const roundRobinByCountry = new Map<string, number>()
 
     for (const order of unassigned) {
       const ph = (order.customer_phone || '').replace(/[^\d]/g, '').slice(-9)
+      const orderCountry = (order as any).country || 'KE'
       let target: string
 
       if (ph && phoneToAgent.has(ph)) {
         target = phoneToAgent.get(ph)!
       } else {
-        target = agentIds[roundRobinIdx % agentIds.length]
-        roundRobinIdx++
+        const countryAgents = agentsByCountry.get(orderCountry) || agentIds
+        const idx = roundRobinByCountry.get(orderCountry) || 0
+        target = countryAgents[idx % countryAgents.length]
+        roundRobinByCountry.set(orderCountry, idx + 1)
         if (ph) phoneToAgent.set(ph, target)
       }
 

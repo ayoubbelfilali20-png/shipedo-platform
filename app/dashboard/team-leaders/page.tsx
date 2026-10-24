@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Header from '@/components/dashboard/Header'
+import { useCountry } from '@/lib/CountryContext'
 import { cn } from '@/lib/utils'
 import { UserPlus, Search, Users, X, Eye, EyeOff, CheckCircle } from 'lucide-react'
 
@@ -24,6 +25,7 @@ function generatePassword() {
 }
 
 export default function TeamLeadersPage() {
+  const { country } = useCountry()
   const [leaders, setLeaders] = useState<TeamLeader[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -39,10 +41,12 @@ export default function TeamLeadersPage() {
   const [created, setCreated] = useState<TeamLeader | null>(null)
 
   useEffect(() => {
-    fetch('/api/admin/team-leaders').then(r => r.json())
+    const headers: Record<string, string> = {}
+    if (country !== 'ALL') headers['x-country'] = country
+    fetch('/api/admin/team-leaders', { headers }).then(r => r.json())
       .then(result => { setLeaders((result.leaders || []) as TeamLeader[]); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }, [country])
 
   const filtered = leaders.filter(a => {
     const q = search.toLowerCase()
@@ -62,6 +66,7 @@ export default function TeamLeadersPage() {
           phone: phone.trim() || null,
           password,
           notes: notes.trim() || null,
+          country: country === 'ALL' ? 'KE' : country,
         }),
       })
       const result = await res.json()

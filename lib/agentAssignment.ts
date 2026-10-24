@@ -1,10 +1,9 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
-export async function pickAgentForOrder(client: SupabaseClient, customerPhone?: string): Promise<string | null> {
-  const { data: agents } = await client
-    .from('agents')
-    .select('id')
-    .eq('status', 'active')
+export async function pickAgentForOrder(client: SupabaseClient, customerPhone?: string, country?: string): Promise<string | null> {
+  let q = client.from('agents').select('id').eq('status', 'active')
+  if (country) q = q.eq('country', country)
+  const { data: agents } = await q
 
   if (!agents || agents.length === 0) return null
 

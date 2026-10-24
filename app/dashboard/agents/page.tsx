@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
+import { useCountry } from '@/lib/CountryContext'
 import { Agent, AgentStatus } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -54,6 +55,7 @@ function genPassword() {
 
 export default function AgentsPage() {
   const router = useRouter()
+  const { country } = useCountry()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -68,11 +70,13 @@ export default function AgentsPage() {
 
   useEffect(() => {
     loadAgents()
-  }, [])
+  }, [country])
 
   const loadAgents = async () => {
     setLoading(true)
-    const { data } = await supabase.from('agents').select('id, name, email, phone, password, status, notes, created_at').order('created_at', { ascending: false }).limit(200)
+    let q = supabase.from('agents').select('id, name, email, phone, password, status, notes, created_at, country').order('created_at', { ascending: false }).limit(200)
+    if (country !== 'ALL') q = q.eq('country', country)
+    const { data } = await q
     if (data) {
       setAgents(data.map(row => ({
         id: row.id,
@@ -116,6 +120,7 @@ export default function AgentsPage() {
       password: form.password,
       status: 'active',
       notes: form.notes || null,
+      country: country === 'ALL' ? 'KE' : country,
     }).select().single()
 
     if (error) {

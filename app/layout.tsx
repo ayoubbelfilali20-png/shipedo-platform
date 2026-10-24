@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { I18nProvider } from '@/lib/i18n'
+import { CountryProvider } from '@/lib/CountryContext'
 
 export const metadata: Metadata = {
   title: 'Shipedo — Logistics Platform for Africa',
@@ -23,7 +24,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased">
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider><CountryProvider>{children}</CountryProvider></I18nProvider>
       </body>
     </html>
   )

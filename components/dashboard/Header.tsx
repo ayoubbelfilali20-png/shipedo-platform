@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { fmtUsd, fmtKes, toKes } from '@/lib/currency'
 import { useT, languages, type Lang } from '@/lib/i18n'
+import CountrySwitcher from '@/components/CountrySwitcher'
 
 const roleConfig = {
   admin:      { label: 'Admin',       badge: 'bg-purple-100 text-purple-700', avatar: 'from-purple-500 to-purple-700', name: 'Admin',       icon: ShieldCheck },
@@ -144,15 +145,10 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
               )}
             </div>
 
-            {/* Country selector — Kenya */}
-            <button className="hidden md:flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all">
-              <span className="text-base leading-none">🇰🇪</span>
-              <div className="flex flex-col items-start leading-none">
-                <span className="text-[11px] font-bold text-[#1a1c3a]">Kenya</span>
-                <span className="text-[9px] font-semibold text-gray-400 mt-0.5">KES</span>
-              </div>
-              <ChevronDown size={12} className="text-gray-400" />
-            </button>
+            {/* Country selector */}
+            <div className="hidden md:block">
+              <CountrySwitcher />
+            </div>
 
             {/* Balance with eye toggle */}
             <div className="relative" ref={walletRef}>
@@ -300,6 +296,9 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Country switcher */}
+          <CountrySwitcher />
+
           {/* Bell */}
           <button className="relative w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all">
             <Bell size={16} />

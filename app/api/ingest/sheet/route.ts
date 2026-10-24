@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   const { data: seller, error: sErr } = await supabaseAdmin
     .from('sellers')
-    .select('id, name')
+    .select('id, name, country')
     .eq('sheet_ingest_token', token)
     .maybeSingle()
 
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     unit_price: qty > 0 ? total / qty : total,
   }]
 
-  const assignedAgentId = await pickAgentForOrder(supabaseAdmin, phone)
+  const assignedAgentId = await pickAgentForOrder(supabaseAdmin, phone, seller.country || 'KE')
 
   const { data, error } = await supabaseAdmin
     .from('orders')
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       customer_phone:    phone,
       customer_city:     String(body.city || ''),
       customer_address:  '',
-      country:           'Kenya',
+      country:           seller.country || 'KE',
       source:            'Sheet',
       items,
       total_amount:      total,

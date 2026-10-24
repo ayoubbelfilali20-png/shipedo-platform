@@ -19,47 +19,47 @@ export async function POST(req: NextRequest) {
 
   // Seller
   const { data: seller } = await supabaseAdmin
-    .from('sellers').select('id, email, password, status, name, company')
+    .from('sellers').select('id, email, password, status, name, company, country')
     .eq('email', email).limit(1).maybeSingle()
   if (seller && seller.password === password) {
     if (seller.status === 'suspended') return NextResponse.json({ ok: false, error: 'Account suspended' })
-    return NextResponse.json({ ok: true, user: { role: 'seller', id: seller.id, email: seller.email, name: seller.company || seller.name, fullName: seller.name } })
+    return NextResponse.json({ ok: true, user: { role: 'seller', id: seller.id, email: seller.email, name: seller.company || seller.name, fullName: seller.name, country: seller.country || 'KE' } })
   }
 
   // Call agent
   const { data: agent } = await supabaseAdmin
-    .from('agents').select('id, email, password, status, name')
+    .from('agents').select('id, email, password, status, name, country')
     .eq('email', email).limit(1).maybeSingle()
   if (agent && agent.password === password) {
     if (agent.status === 'suspended') return NextResponse.json({ ok: false, error: 'Account suspended' })
-    return NextResponse.json({ ok: true, user: { role: 'agent', id: agent.id, email: agent.email, name: agent.name } })
+    return NextResponse.json({ ok: true, user: { role: 'agent', id: agent.id, email: agent.email, name: agent.name, country: agent.country || 'KE' } })
   }
 
   // Delivery agent
   const { data: dAgent } = await supabaseAdmin
-    .from('delivery_agents').select('id, email, password, status, name')
+    .from('delivery_agents').select('id, email, password, status, name, country')
     .eq('email', email).limit(1).maybeSingle()
   if (dAgent && dAgent.password === password) {
     if (dAgent.status === 'suspended') return NextResponse.json({ ok: false, error: 'Account suspended' })
-    return NextResponse.json({ ok: true, user: { role: 'delivery', id: dAgent.id, email: dAgent.email, name: dAgent.name } })
+    return NextResponse.json({ ok: true, user: { role: 'delivery', id: dAgent.id, email: dAgent.email, name: dAgent.name, country: dAgent.country || 'KE' } })
   }
 
   // Storage agent
   const { data: sAgent } = await supabaseAdmin
-    .from('storage_agents').select('id, email, password, status, name')
+    .from('storage_agents').select('id, email, password, status, name, country')
     .eq('email', email).limit(1).maybeSingle()
   if (sAgent && sAgent.password === password) {
     if (sAgent.status === 'suspended') return NextResponse.json({ ok: false, error: 'Account suspended' })
-    return NextResponse.json({ ok: true, user: { role: 'storage', id: sAgent.id, email: sAgent.email, name: sAgent.name } })
+    return NextResponse.json({ ok: true, user: { role: 'storage', id: sAgent.id, email: sAgent.email, name: sAgent.name, country: sAgent.country || 'KE' } })
   }
 
   // Team leader
   const { data: tl } = await supabaseAdmin
-    .from('team_leaders').select('id, email, password, status, name')
+    .from('team_leaders').select('id, email, password, status, name, country')
     .eq('email', email).limit(1).maybeSingle()
   if (tl && tl.password === password) {
     if (tl.status === 'suspended') return NextResponse.json({ ok: false, error: 'Account suspended' })
-    return NextResponse.json({ ok: true, user: { role: 'teamleader', id: tl.id, email: tl.email, name: tl.name } })
+    return NextResponse.json({ ok: true, user: { role: 'teamleader', id: tl.id, email: tl.email, name: tl.name, country: tl.country || 'KE' } })
   }
 
   return NextResponse.json({ ok: false, error: 'Invalid email or password.' })

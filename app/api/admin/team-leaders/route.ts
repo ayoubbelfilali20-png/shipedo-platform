@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { getCountryFromRequest } from '@/lib/countryFilter'
 
-export async function GET() {
-  const { data } = await supabaseAdmin
-    .from('team_leaders')
-    .select('*')
-    .order('created_at', { ascending: false })
+export async function GET(req: NextRequest) {
+  const country = getCountryFromRequest(req)
+  let q = supabaseAdmin.from('team_leaders').select('*').order('created_at', { ascending: false })
+  if (country) q = q.eq('country', country)
+  const { data } = await q
   return NextResponse.json({ leaders: data || [] })
 }
 
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
       phone: body.phone || null,
       password: body.password,
       notes: body.notes || null,
+      country: body.country || 'KE',
     })
     .select()
     .single()

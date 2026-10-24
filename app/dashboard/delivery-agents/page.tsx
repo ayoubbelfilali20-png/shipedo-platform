@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Header from '@/components/dashboard/Header'
 import { supabase } from '@/lib/supabase'
+import { useCountry } from '@/lib/CountryContext'
 import { cn } from '@/lib/utils'
 import { UserPlus, Search, Truck, X, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react'
 
@@ -25,6 +26,7 @@ function generatePassword() {
 }
 
 export default function DeliveryAgentsPage() {
+  const { country } = useCountry()
   const [agents, setAgents] = useState<DeliveryAgent[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -41,10 +43,12 @@ export default function DeliveryAgentsPage() {
   const [created, setCreated] = useState<DeliveryAgent | null>(null)
 
   useEffect(() => {
-    fetch('/api/admin/delivery-agents').then(r => r.json())
+    const headers: Record<string, string> = {}
+    if (country !== 'ALL') headers['x-country'] = country
+    fetch('/api/admin/delivery-agents', { headers }).then(r => r.json())
       .then(result => { setAgents((result.agents || []) as DeliveryAgent[]); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }, [country])
 
   const filtered = agents.filter(a => {
     const q = search.toLowerCase()
@@ -64,6 +68,7 @@ export default function DeliveryAgentsPage() {
           phone: phone.trim() || null,
           password,
           notes: notes.trim() || null,
+          country: country === 'ALL' ? 'KE' : country,
         }),
       })
       const result = await res.json()

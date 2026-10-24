@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
+import { useCountry } from '@/lib/CountryContext'
 import StatusBadge from '@/components/dashboard/StatusBadge'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -95,13 +96,17 @@ function getStatusDate(o: any): string {
 
 export default function AdminDashboard() {
   const router = useRouter()
+  const { country } = useCountry()
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [sellers, setSellers] = useState<SellerRow[]>([])
   const [agents, setAgents] = useState<AgentRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/admin/dashboard?all=1')
+    setLoading(true)
+    const headers: Record<string, string> = {}
+    if (country !== 'ALL') headers['x-country'] = country
+    fetch('/api/admin/dashboard?all=1', { headers })
       .then(r => r.json())
       .then(data => {
         setOrders((data.orders || []) as OrderRow[])
@@ -109,7 +114,7 @@ export default function AdminDashboard() {
         setAgents((data.agents || []) as AgentRow[])
         setLoading(false)
       })
-  }, [])
+  }, [country])
 
   const stats = useMemo(() => {
     const total = orders.length

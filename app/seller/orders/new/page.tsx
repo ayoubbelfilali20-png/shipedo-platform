@@ -15,9 +15,9 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { pickAgentForOrder } from '@/lib/agentAssignment'
 
-/* Only Kenya is open for now */
 const countries = [
   { code: 'KE', name: 'Kenya', flag: '🇰🇪', cities: ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri'] },
+  { code: 'TZ', name: 'Tanzania', flag: '🇹🇿', cities: ['Dar es Salaam','Dodoma','Mwanza','Arusha','Zanzibar City','Mbeya','Morogoro','Tanga'] },
 ]
 
 const countryOriginMap: Record<string, string[]> = {
@@ -346,7 +346,7 @@ export default function SellerNewOrderPage() {
       product_id: r.productId, name: r.name, sku: r.sku,
       quantity: parseInt(r.quantity) || 0, unit_price: parseFloat(r.unitPrice) || 0,
     }))
-    const assignedAgentId = await pickAgentForOrder(supabase as any, phone)
+    const assignedAgentId = await pickAgentForOrder(supabase as any, phone, country || 'KE')
 
     const { error } = await supabase.from('orders').insert({
       tracking_number: newId,
@@ -357,7 +357,7 @@ export default function SellerNewOrderPage() {
       customer_phone: phone,
       customer_city: city,
       customer_address: address,
-      country: selectedCountry?.name ?? country,
+      country: country || 'KE',
       source: orderSource || null,
       items,
       total_amount: total,
