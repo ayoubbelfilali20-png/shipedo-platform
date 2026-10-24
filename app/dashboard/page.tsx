@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/dashboard/Header'
 import { useCountry } from '@/lib/CountryContext'
+import { getCountry, type CountryCode } from '@/lib/countries'
 import StatusBadge from '@/components/dashboard/StatusBadge'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -97,6 +98,7 @@ function getStatusDate(o: any): string {
 export default function AdminDashboard() {
   const router = useRouter()
   const { country } = useCountry()
+  const cur = country !== 'ALL' ? getCountry(country).currencySymbol : 'KES'
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [sellers, setSellers] = useState<SellerRow[]>([])
   const [agents, setAgents] = useState<AgentRow[]>([])
@@ -196,7 +198,7 @@ export default function AdminDashboard() {
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total Revenue',   value: `KES ${(stats.revenue/1000).toFixed(0)}K`, sub: 'From delivered orders',     icon: Wallet,    iconColor: 'text-emerald-600', iconBg: 'bg-emerald-50',  href: '/dashboard/analytics' },
+            { label: 'Total Revenue',   value: `${cur} ${(stats.revenue/1000).toFixed(0)}K`, sub: 'From delivered orders',     icon: Wallet,    iconColor: 'text-emerald-600', iconBg: 'bg-emerald-50',  href: '/dashboard/analytics' },
             { label: 'Platform Orders', value: stats.total,                                sub: `${stats.pending} pending`,  icon: Package,   iconColor: 'text-purple-600',  iconBg: 'bg-purple-50',   href: '/dashboard/orders'    },
             { label: 'Delivery Rate',   value: `${stats.deliveryRate}%`,                   sub: `${stats.returnRate}% returns`,icon: TrendingUp,iconColor: 'text-blue-600',    iconBg: 'bg-blue-50',     href: '/dashboard/analytics' },
             { label: 'Active Sellers',  value: activeSellers,                              sub: `${sellers.length} total`,   icon: Store,     iconColor: 'text-orange-600',  iconBg: 'bg-orange-50',   href: '/dashboard/sellers'   },
@@ -235,7 +237,7 @@ export default function AdminDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => `${v/1000}K`} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '12px' }} formatter={(v: number) => [`KES ${v.toLocaleString()}`, 'Revenue']} />
+                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e5e7eb', fontSize: '12px' }} formatter={(v: number) => [`${cur} ${v.toLocaleString()}`, 'Revenue']} />
                 <Area type="monotone" dataKey="revenue" stroke="#f4991a" strokeWidth={2.5} fill="url(#revGrad)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -322,7 +324,7 @@ export default function AdminDashboard() {
                       <p className="text-[10px] text-gray-400">{s.delivered} delivered</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-xs font-bold text-[#1a1c3a]">{s.revenue > 0 ? `KES ${s.revenue.toLocaleString()}` : '—'}</span>
+                      <span className="text-xs font-bold text-[#1a1c3a]">{s.revenue > 0 ? `${cur} ${s.revenue.toLocaleString()}` : '—'}</span>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
@@ -487,9 +489,9 @@ export default function AdminDashboard() {
                     </div>
                     <div className="text-right flex-shrink-0 mr-2">
                       <p className="text-xs font-bold text-[#1a1c3a]">
-                        {(order.total_amount || 0) > 0 ? `KES ${order.total_amount.toLocaleString()}` : '—'}
+                        {(order.total_amount || 0) > 0 ? `${cur} ${order.total_amount.toLocaleString()}` : '—'}
                         {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
-                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                          <span className="text-[9px] text-gray-400 line-through ml-1">{cur} {order.original_total.toLocaleString()}</span>
                         )}
                       </p>
                       <p className="text-[10px] text-gray-400">{new Date(order.created_at).toLocaleDateString()}</p>

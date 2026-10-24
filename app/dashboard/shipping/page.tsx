@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import Header from '@/components/dashboard/Header'
 import { useCountry } from '@/lib/CountryContext'
+import { getCountry } from '@/lib/countries'
 import { supabase } from '@/lib/supabase'
 import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
@@ -45,6 +46,7 @@ type OrderRow = {
   assigned_agent_id?: string | null
   delivery_tracking?: string | null
   status_changed_at?: string | null
+  country?: string
 }
 
 type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
@@ -682,9 +684,9 @@ export default function AdminShippingPage() {
                     )}
                     {(order.total_amount || 0) > 0 && (
                       <span className="text-xs font-bold text-[#f4991a]">
-                        KES {order.total_amount.toLocaleString()}
+                        {getCountry(order.country || 'KE').currencySymbol} {order.total_amount.toLocaleString()}
                         {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
-                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                          <span className="text-[9px] text-gray-400 line-through ml-1">{getCountry(order.country || 'KE').currencySymbol} {order.original_total.toLocaleString()}</span>
                         )}
                       </span>
                     )}

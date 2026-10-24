@@ -6,6 +6,7 @@ import Header from '@/components/dashboard/Header'
 import StatusBadge from '@/components/dashboard/StatusBadge'
 import { supabase } from '@/lib/supabase'
 import { useCountry } from '@/lib/CountryContext'
+import { getCountry } from '@/lib/countries'
 import { OrderStatus } from '@/lib/types'
 import {
   Search, Download, Eye, Package, MapPin, FileText, X, Printer,
@@ -66,6 +67,7 @@ const PAGE_SIZE = 100
 export default function OrdersPage() {
   const router = useRouter()
   const { country } = useCountry()
+  const cur = country !== 'ALL' ? getCountry(country).currencySymbol : 'KES'
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
@@ -314,9 +316,9 @@ export default function OrdersPage() {
                         </td>
                         <td className="px-4 py-4">
                           <span className="text-xs font-bold text-[#1a1c3a]">
-                            KES {(order.total_amount || 0).toLocaleString()}
+                            {cur} {(order.total_amount || 0).toLocaleString()}
                             {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
-                              <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                              <span className="text-[9px] text-gray-400 line-through ml-1">{cur} {order.original_total.toLocaleString()}</span>
                             )}
                           </span>
                         </td>
