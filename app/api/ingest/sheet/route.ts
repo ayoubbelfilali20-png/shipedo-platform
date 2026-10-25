@@ -104,7 +104,12 @@ export async function POST(req: NextRequest) {
     unit_price: qty > 0 ? total / qty : total,
   }]
 
-  const assignedAgentId = await pickAgentForOrder(supabaseAdmin, phone, seller.country || 'KE')
+  // Detect country from sheet data or fall back to seller's country
+  const rawCountry = String(body.country || '').trim().toLowerCase()
+  const countryMap: Record<string, string> = { kenya: 'KE', ke: 'KE', tanzania: 'TZ', tz: 'TZ' }
+  const orderCountry = countryMap[rawCountry] || (rawCountry.length === 2 ? rawCountry.toUpperCase() : null) || seller.country || 'KE'
+
+  const assignedAgentId = await pickAgentForOrder(supabaseAdmin, phone, orderCountry)
 
   const { data, error } = await supabaseAdmin
     .from('orders')
@@ -117,7 +122,7 @@ export async function POST(req: NextRequest) {
       customer_phone:    phone,
       customer_city:     String(body.city || ''),
       customer_address:  '',
-      country:           seller.country || 'KE',
+      country:           orderCountry,
       source:            'Sheet',
       items,
       total_amount:      total,
