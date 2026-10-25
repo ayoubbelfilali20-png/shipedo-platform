@@ -11,6 +11,7 @@ import {
   ArrowLeft, Package, Save, Plus, Trash2, ChevronDown, User, Truck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getCountry } from '@/lib/countries'
 
 const COUNTRIES = [
   'Afghanistan','Albania','Algeria','Argentina','Australia','Austria','Bahrain','Bangladesh','Belgium','Brazil',
@@ -57,6 +58,7 @@ export default function SellerNewExpeditionPage() {
   const [selected, setSelected] = useState<ProductRow[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sellerCountry, setSellerCountry] = useState('KE')
 
   // load seller products
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function SellerNewExpeditionPage() {
       if (u) {
         const parsed = JSON.parse(u)
         if (parsed.role === 'seller') sellerId = parsed.id
+        if (parsed.country) setSellerCountry(parsed.country)
       }
     } catch {}
     if (!sellerId) return
@@ -115,12 +118,14 @@ export default function SellerNewExpeditionPage() {
     } catch {}
 
     const ref = generateRef()
-    const exp: Expedition = {
+    const ctryConfig = getCountry(sellerCountry)
+    const exp: Expedition & { country?: string } = {
       id: `exp-${Date.now()}`,
       reference: ref,
       origin: (from as any),
       originCity: from,
-      destination: 'Kenya',
+      destination: ctryConfig.name,
+      country: sellerCountry,
       status: 'pending',
       products: selected.map(r => ({
         name: r.name,
@@ -179,7 +184,7 @@ export default function SellerNewExpeditionPage() {
 
           <div className="mt-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2 text-xs text-emerald-700">
             <Truck size={14} />
-            <span><strong>To:</strong> Kenya 🇰🇪 (only destination available)</span>
+            <span><strong>To:</strong> {getCountry(sellerCountry).name} {getCountry(sellerCountry).flag}</span>
           </div>
         </div>
 

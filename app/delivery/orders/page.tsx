@@ -7,6 +7,7 @@ import {
   X, Calendar, MessageSquare, Save,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getCountry } from '@/lib/countries'
 
 type OrderRow = {
   id: string
@@ -25,7 +26,7 @@ type OrderRow = {
   created_at: string
 }
 
-const COLS = 'id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, customer_address, items, total_amount, status, payment_method, notes, shipped_to_agent_at, created_at'
+const COLS = 'id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, customer_address, items, total_amount, status, payment_method, notes, shipped_to_agent_at, created_at, country'
 
 function cleanPhone(p: string) {
   let num = (p || '').replace(/[^\d+]/g, '')
@@ -43,11 +44,14 @@ export default function DeliveryOrdersPage() {
   const [dateFilter, setDateFilter] = useState('')
 
   useEffect(() => {
-    supabase.from('orders').select(COLS)
+    let ctry: string | undefined
+    try { const u = JSON.parse(localStorage.getItem('shipedo_delivery') || '{}'); ctry = u.country } catch {}
+    let q = supabase.from('orders').select(COLS)
       .eq('status', 'shipped_to_agent')
       .order('shipped_to_agent_at', { ascending: false, nullsFirst: false })
       .limit(1000)
-      .then(({ data }) => { setOrders((data || []) as OrderRow[]); setLoading(false) })
+    if (ctry) q = q.eq('country', ctry)
+    q.then(({ data }) => { setOrders((data || []) as OrderRow[]); setLoading(false) })
   }, [])
 
   const filtered = useMemo(() => {
@@ -134,7 +138,7 @@ export default function DeliveryOrdersPage() {
                 )}
                 <span className="text-[10px] text-gray-400">{order.payment_method}</span>
                 {(order.total_amount || 0) > 0 && (
-                  <span className="text-xs font-bold text-[#f4991a]">KES {order.total_amount.toLocaleString()}</span>
+                  <span className="text-xs font-bold text-[#f4991a]">{getCountry((order as any).country || 'KE').currencySymbol} {order.total_amount.toLocaleString()}</span>
                 )}
               </div>
               <a href={`tel:${cleanPhone(order.customer_phone)}`}

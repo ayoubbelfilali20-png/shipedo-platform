@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
-async function fetchAllSellerOrders(sellerId: string, cutoffIso: string) {
+async function fetchAllSellerOrders(sellerId: string, cutoffIso: string, country?: string) {
   const cols = 'id, seller_id, status, total_amount, original_total, items, country, created_at, shipped_at, delivered_at, returned_at, last_call_at, shipped_to_agent_at, status_changed_at'
   const pages = [0, 1, 2]
 
   const results = await Promise.all(
-    pages.map(p =>
-      supabaseAdmin.from('orders')
+    pages.map(p => {
+      let q = supabaseAdmin.from('orders')
         .select(cols)
         .eq('seller_id', sellerId)
         .or(`created_at.gte.${cutoffIso},last_call_at.gte.${cutoffIso},shipped_at.gte.${cutoffIso},shipped_to_agent_at.gte.${cutoffIso},delivered_at.gte.${cutoffIso},returned_at.gte.${cutoffIso},status_changed_at.gte.${cutoffIso}`)
         .order('created_at', { ascending: false })
         .range(p * 1000, (p + 1) * 1000 - 1)
-    )
+      if (country) q = q.eq('country', country)
+      return q
+    })
   )
 
   return results.flatMap(r => r.data || [])
@@ -23,12 +25,13 @@ export async function GET(req: NextRequest) {
   const sellerId = req.headers.get('x-seller-id')
   if (!sellerId) return NextResponse.json({ ok: false }, { status: 401 })
 
+  const country = req.headers.get('x-country') || undefined
   const days = Number(req.nextUrl.searchParams.get('days')) || 30
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days)
 
   const [orders, payoutsRes, productsRes] = await Promise.all([
-    fetchAllSellerOrders(sellerId, cutoff.toISOString()),
+    fetchAllSellerOrders(sellerId, cutoff.toISOString(), country),
     supabaseAdmin.from('seller_payouts')
       .select('*')
       .eq('seller_id', sellerId)

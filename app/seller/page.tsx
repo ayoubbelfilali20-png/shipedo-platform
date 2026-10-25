@@ -121,9 +121,11 @@ export default function SellerDashboard() {
 
   const cur = getCountry(sellerCountry).currencySymbol
 
-  const loadDashboard = async (sid: string, days?: number) => {
+  const loadDashboard = async (sid: string, days?: number, ctry?: string) => {
     const url = days ? `/api/seller/dashboard?days=${days}` : '/api/seller/dashboard'
-    const res = await fetch(url, { headers: { 'x-seller-id': sid } })
+    const hdrs: Record<string, string> = { 'x-seller-id': sid }
+    if (ctry) hdrs['x-country'] = ctry
+    const res = await fetch(url, { headers: hdrs })
     const { orders: freshOrders = [], payouts: freshPayouts = [], products: freshProducts = [] } = await res.json()
     setOrders(freshOrders)
     setPayouts(freshPayouts)
@@ -160,7 +162,8 @@ export default function SellerDashboard() {
       }
     } catch {}
 
-    loadDashboard(sid)
+    const ctry = (() => { try { return JSON.parse(localStorage.getItem('shipedo_seller') || '{}').country } catch { return undefined } })()
+    loadDashboard(sid, undefined, ctry)
   }, [])
 
   useEffect(() => {
@@ -171,7 +174,7 @@ export default function SellerDashboard() {
     const days = needsDays[period]
     if (days) {
       setLoading(true)
-      loadDashboard(sellerId, days)
+      loadDashboard(sellerId, days, sellerCountry)
     }
   }, [period])
 

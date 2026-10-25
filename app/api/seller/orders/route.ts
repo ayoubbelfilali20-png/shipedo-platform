@@ -10,17 +10,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'missing seller id' }, { status: 401 })
   }
 
+  const country = req.headers.get('x-country') || undefined
   const pages = [0, 1, 2, 3, 4]
 
   const results = await Promise.all(
-    pages.map(p =>
-      supabaseAdmin.from('orders')
+    pages.map(p => {
+      let q = supabaseAdmin.from('orders')
         .select(COLS)
         .eq('seller_id', sellerId)
         .in('status', STATUSES)
         .order('created_at', { ascending: false })
         .range(p * 1000, (p + 1) * 1000 - 1)
-    )
+      if (country) q = q.eq('country', country)
+      return q
+    })
   )
 
   const err = results.find(r => r.error)

@@ -100,7 +100,9 @@ export default function StorageOrdersPage() {
   const [deliveryTrackingInput, setDeliveryTrackingInput] = useState('')
 
   const loadOrders = async () => {
-    const res = await fetch('/api/storage/orders', { cache: 'no-store' })
+    const hdrs: Record<string, string> = {}
+    try { const u = JSON.parse(localStorage.getItem('shipedo_storage') || '{}'); if (u.country) hdrs['x-country'] = u.country } catch {}
+    const res = await fetch('/api/storage/orders', { cache: 'no-store', headers: hdrs })
     const data = await res.json()
     setOrders((data.orders || []) as OrderRow[])
     const map: Record<string, string> = {}

@@ -114,11 +114,13 @@ export default function SellerShippingPage() {
       } catch {}
     }
 
+    const ctry = (() => { try { return JSON.parse(localStorage.getItem('shipedo_seller') || '{}').country } catch { return undefined } })()
     let q = supabase.from('orders')
       .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, country, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at, status_changed_at')
       .eq('seller_id', sid)
       .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
+    if (ctry) q = q.eq('country', ctry)
 
     if (!loadAll) {
       const cutoff = new Date()
