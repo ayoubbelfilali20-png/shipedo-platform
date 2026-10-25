@@ -13,6 +13,7 @@ import {
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { useT, type TKey } from '@/lib/i18n'
+import { getCountry } from '@/lib/countries'
 
 const statusFilters: { value: ProductStatus | 'all'; labelKey: TKey }[] = [
   { value: 'all',          labelKey: 'prod_filter_all'      },
@@ -44,6 +45,7 @@ export default function SellerProductsPage() {
   const [saving, setSaving]               = useState(false)
   const [deleteId, setDeleteId]           = useState<string | null>(null)
   const [deleting, setDeleting]           = useState(false)
+  const [sellerCountry, setSellerCountry] = useState('KE')
 
   useEffect(() => {
     let sellerId: string | null = null
@@ -52,7 +54,7 @@ export default function SellerProductsPage() {
       const stored = localStorage.getItem('shipedo_seller')
       if (stored) {
         const u = JSON.parse(stored)
-        if (u.role === 'seller') { sellerId = u.id; if (u.country) country = u.country }
+        if (u.role === 'seller') { sellerId = u.id; if (u.country) { country = u.country; setSellerCountry(u.country) } }
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
@@ -367,7 +369,7 @@ export default function SellerProductsPage() {
                         {/* Price */}
                         <td className="px-4 py-4">
                           <span className="text-sm font-bold text-rose-500">{sellingPrc.toLocaleString()}</span>
-                          <span className="text-[10px] text-gray-400 font-semibold ml-1">KES</span>
+                          <span className="text-[10px] text-gray-400 font-semibold ml-1">{getCountry(sellerCountry).currencySymbol}</span>
                         </td>
 
                         {/* Discount Price */}
@@ -375,7 +377,7 @@ export default function SellerProductsPage() {
                           {discount !== null && discount > 0 ? (
                             <>
                               <span className="text-sm font-bold text-gray-700">{Number(discount).toLocaleString()}</span>
-                              <span className="text-[10px] text-gray-400 font-semibold ml-1">KES</span>
+                              <span className="text-[10px] text-gray-400 font-semibold ml-1">{getCountry(sellerCountry).currencySymbol}</span>
                             </>
                           ) : (
                             <span className="text-gray-300">—</span>
@@ -505,7 +507,7 @@ export default function SellerProductsPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Price (KES)</label>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Price ({getCountry(sellerCountry).currencySymbol})</label>
                   <input type="number" value={editForm.selling_price} onChange={e => setEditForm({ ...editForm, selling_price: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-400" />
                 </div>
                 <div>

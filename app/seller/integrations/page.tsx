@@ -357,6 +357,7 @@ function syncNewRows_() {
       totalCharge:   row[col("order's total")]     || row[col('total charge')]    || 0,
       totalQuantity: row[col("product's quantity")] || row[col('total quantity')] || 1,
       productUrl:    row[col('product url')] || '',
+      country:       row[col("order's market")]    || row[col('market')] || row[col('country')] || '',
     };
     try {
       const res = UrlFetchApp.fetch(ENDPOINT, {

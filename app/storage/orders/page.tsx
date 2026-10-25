@@ -8,6 +8,7 @@ import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone, MapPin,
   X, ChevronDown, Calendar, Printer, CheckSquare, Square,
 } from 'lucide-react'
+import { getCountry } from '@/lib/countries'
 import { cn } from '@/lib/utils'
 
 type OrderRow = {
@@ -325,7 +326,7 @@ export default function StorageOrdersPage() {
                     </span>
                   )}
                   {(order.total_amount || 0) > 0 && (
-                    <span className="text-xs font-bold text-[#f4991a]">KES {order.total_amount.toLocaleString()}</span>
+                    <span className="text-xs font-bold text-[#f4991a]">{getCountry((order as any).country || 'KE').currencySymbol} {order.total_amount.toLocaleString()}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">

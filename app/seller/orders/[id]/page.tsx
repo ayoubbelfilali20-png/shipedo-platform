@@ -9,6 +9,7 @@ import {
   ArrowLeft, Phone, MapPin, Package, Save, Lock, Eye, Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getCountry } from '@/lib/countries'
 
 type OrderRow = {
   id: string
@@ -213,7 +214,7 @@ export default function SellerOrderDetailPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-[#1a1c3a]">×{it.quantity || 1}</p>
-                  <p className="text-xs text-gray-400">KES {((Number(it.unit_price) || 0) * (Number(it.quantity) || 1)).toLocaleString()}</p>
+                  <p className="text-xs text-gray-400">{getCountry(order.country || 'KE').currencySymbol} {((Number(it.unit_price) || 0) * (Number(it.quantity) || 1)).toLocaleString()}</p>
                 </div>
               </div>
             ))}
@@ -221,9 +222,9 @@ export default function SellerOrderDetailPage() {
           <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm font-bold text-gray-600">Total</span>
             <span className="text-lg font-bold text-[#f4991a]">
-              KES {(order.total_amount || 0).toLocaleString()}
+              {getCountry(order.country || 'KE').currencySymbol} {(order.total_amount || 0).toLocaleString()}
               {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
-                <span className="text-xs text-gray-400 line-through ml-2">KES {order.original_total.toLocaleString()}</span>
+                <span className="text-xs text-gray-400 line-through ml-2">{getCountry(order.country || 'KE').currencySymbol} {order.original_total.toLocaleString()}</span>
               )}
             </span>
           </div>

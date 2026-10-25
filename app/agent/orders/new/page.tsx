@@ -8,6 +8,7 @@ import {
   Package, Search, X, User, ShoppingCart, Store, Copy, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getCountry } from '@/lib/countries'
 
 const citiesByCountry: Record<string, string[]> = {
   KE: ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri'],
@@ -225,7 +226,7 @@ export default function AgentNewOrderPage() {
             </div>
             <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-left">
               <p className="text-xs font-semibold text-[#f4991a]">{fullName}</p>
-              <p className="text-xs text-gray-500">{city || agentCountry} &middot; {rows.length} product(s) &middot; KES {total.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">{city || agentCountry} &middot; {rows.length} product(s) &middot; {getCountry(agentCountry).currencySymbol} {total.toLocaleString()}</p>
               <p className="text-xs text-gray-400 mt-0.5">Status: {status}</p>
             </div>
             <div className="flex gap-3">
@@ -404,7 +405,7 @@ export default function AgentNewOrderPage() {
                     <button onClick={() => updateQty(r.id, 1)} className="w-6 h-6 rounded bg-[#f4991a] text-white flex items-center justify-center text-xs font-bold">+</button>
                   </div>
                   <div className="flex items-center gap-1 min-w-[100px]">
-                    <span className="text-[10px] text-gray-400">KES</span>
+                    <span className="text-[10px] text-gray-400">{getCountry(agentCountry).currencySymbol}</span>
                     <input
                       type="number"
                       value={r.unitPrice || ''}
@@ -419,7 +420,7 @@ export default function AgentNewOrderPage() {
                 </div>
               ))}
               <div className="flex justify-end pt-2 border-t border-gray-100">
-                <span className="text-sm font-bold text-[#1a1c3a]">Total: <span className="text-[#f4991a]">KES {total.toLocaleString()}</span></span>
+                <span className="text-sm font-bold text-[#1a1c3a]">Total: <span className="text-[#f4991a]">{getCountry(agentCountry).currencySymbol} {total.toLocaleString()}</span></span>
               </div>
             </div>
           )}
@@ -488,7 +489,7 @@ export default function AgentNewOrderPage() {
                       <p className="text-xs font-bold text-[#1a1c3a] truncate">{p.name}</p>
                       <p className="text-[10px] text-gray-400 font-mono">{p.sku} &middot; Stock: {p.stock}</p>
                     </div>
-                    <span className="text-xs font-bold text-[#f4991a]">KES {(p.selling_price || 0).toLocaleString()}</span>
+                    <span className="text-xs font-bold text-[#f4991a]">{getCountry(agentCountry).currencySymbol} {(p.selling_price || 0).toLocaleString()}</span>
                     {alreadyAdded && <span className="text-[9px] text-emerald-600 font-bold">Added</span>}
                   </button>
                 )

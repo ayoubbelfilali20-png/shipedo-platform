@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
+import { getCountry } from '@/lib/countries'
 
 /* ── helpers ── */
 function generateOrderId() {
@@ -609,7 +610,7 @@ export default function ImportOrdersPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-[#f4991a]">
-                          KES {order.total.toLocaleString()}
+                          {getCountry(sellerCountry).currencySymbol} {order.total.toLocaleString()}
                         </span>
                         <button
                           onClick={() => removeOrder(idx)}
@@ -626,7 +627,7 @@ export default function ImportOrdersPage() {
                         <div key={j} className="flex items-center justify-between text-xs py-1.5 px-3 bg-gray-50 rounded-lg">
                           <span className="text-gray-700 font-medium">{it.name}</span>
                           <span className="text-gray-500">
-                            {it.quantity} x KES {it.unit_price.toLocaleString()}
+                            {it.quantity} x {getCountry(sellerCountry).currencySymbol} {it.unit_price.toLocaleString()}
                           </span>
                         </div>
                       ))}

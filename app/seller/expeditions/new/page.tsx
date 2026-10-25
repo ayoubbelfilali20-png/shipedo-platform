@@ -258,7 +258,7 @@ export default function SellerNewExpeditionPage() {
                   <tr className="text-left text-[11px] font-bold text-gray-400 uppercase border-b border-gray-100">
                     <th className="py-2 px-3">ID</th>
                     <th className="py-2 px-3">Product Name</th>
-                    <th className="py-2 px-3">Price (KES)</th>
+                    <th className="py-2 px-3">Price ({getCountry(sellerCountry).currencySymbol})</th>
                     <th className="py-2 px-3">Quantity</th>
                     <th className="py-2 px-3 text-right">Total</th>
                     <th className="py-2 px-3"></th>
@@ -305,7 +305,7 @@ export default function SellerNewExpeditionPage() {
                       {totalUnits} unit(s) across {selected.length} product(s)
                     </td>
                     <td colSpan={3} className="py-3 px-3 text-right text-sm font-bold text-[#1a1c3a]">
-                      Total: <span className="text-emerald-600">KES {totalCost.toLocaleString()}</span>
+                      Total: <span className="text-emerald-600">{getCountry(sellerCountry).currencySymbol} {totalCost.toLocaleString()}</span>
                     </td>
                   </tr>
                 </tfoot>

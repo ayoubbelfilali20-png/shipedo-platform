@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Package, CheckCircle, Truck, RotateCcw, Clock, Printer } from 'lucide-react'
+import { getCountry } from '@/lib/countries'
 import Link from 'next/link'
 
 type OrderRow = {
@@ -22,7 +23,7 @@ export default function StorageDashboard() {
 
   useEffect(() => {
     supabase.from('orders')
-      .select('id, tracking_number, customer_name, customer_city, status, total_amount, created_at, last_call_at')
+      .select('id, tracking_number, customer_name, customer_city, status, total_amount, created_at, last_call_at, country')
       .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('last_call_at', { ascending: false, nullsFirst: false })
       .limit(1000)
@@ -77,7 +78,7 @@ export default function StorageDashboard() {
                 <p className="text-[10px] text-gray-400 font-mono">{o.tracking_number} · {o.customer_city}</p>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-xs font-bold text-[#f4991a]">KES {(o.total_amount || 0).toLocaleString()}</p>
+                <p className="text-xs font-bold text-[#f4991a]">{getCountry((o as any).country || 'KE').currencySymbol} {(o.total_amount || 0).toLocaleString()}</p>
                 <p className="text-[10px] text-gray-400">{o.last_call_at ? new Date(o.last_call_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : ''}</p>
               </div>
             </div>

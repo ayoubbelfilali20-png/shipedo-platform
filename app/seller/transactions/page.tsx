@@ -13,6 +13,11 @@ import {
   TrendingDown, RefreshCw, Info, X,
   Package, CreditCard, Banknote, History, DollarSign
 } from 'lucide-react'
+import { getCountry } from '@/lib/countries'
+
+function getSellerCur() {
+  try { const u = JSON.parse(localStorage.getItem('shipedo_seller') || '{}'); return getCountry(u.country || 'KE').currencySymbol } catch { return 'KES' }
+}
 
 const typeConfig: Record<TransactionType, { label: string; icon: React.ElementType; color: string; bg: string }> = {
   cod_collected: { label: 'COD Collected',  icon: CreditCard,    color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -31,7 +36,7 @@ const statusConfig = {
   cancelled:  { label: 'Cancelled', dot: 'bg-gray-400',    text: 'text-gray-500',    bg: 'bg-gray-50'     },
 }
 
-const USD_RATE = 130 // 1 USD = 130 KES
+const USD_RATE = 130
 
 function TxnRow({ txn, onClick }: { txn: Transaction; onClick: () => void }) {
   const tc = typeConfig[txn.type]
@@ -61,7 +66,7 @@ function TxnRow({ txn, onClick }: { txn: Transaction; onClick: () => void }) {
       </td>
       <td className="px-4 py-4 text-right">
         <div className={cn('text-base font-bold', isCredit ? 'text-emerald-600' : 'text-[#1a1c3a]')}>
-          {isCredit ? '+' : '−'} KES {txn.amount.toLocaleString()}
+          {isCredit ? '+' : '−'} {getSellerCur()} {txn.amount.toLocaleString()}
         </div>
         <div className="text-xs text-gray-400">{isCredit ? 'Credit' : 'Debit'}</div>
       </td>
@@ -89,7 +94,7 @@ function TxnDetail({ txn, onClose }: { txn: Transaction; onClose: () => void }) 
               <tc.icon size={26} className={tc.color} />
             </div>
             <div className={cn('text-3xl font-bold', isCredit ? 'text-emerald-600' : 'text-[#1a1c3a]')}>
-              {isCredit ? '+' : '−'} KES {txn.amount.toLocaleString()}
+              {isCredit ? '+' : '−'} {getSellerCur()} {txn.amount.toLocaleString()}
             </div>
             <div className="text-sm text-gray-500 mt-1">{tc.label}</div>
             <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full mt-3', sc.text, sc.bg)}>
@@ -168,8 +173,8 @@ function WithdrawTab({ wallet }: { wallet: typeof mockSellerWallet }) {
       <div className="bg-gradient-to-r from-[#1a1c3a] to-[#252750] rounded-2xl p-5">
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <div className="text-white/40 text-[10px] uppercase tracking-wide mb-1">Available (KES)</div>
-            <div className="text-white font-bold text-lg">KES {wallet.availableBalance.toLocaleString()}</div>
+            <div className="text-white/40 text-[10px] uppercase tracking-wide mb-1">Available ({getSellerCur()})</div>
+            <div className="text-white font-bold text-lg">{getSellerCur()} {wallet.availableBalance.toLocaleString()}</div>
           </div>
           <div>
             <div className="text-white/40 text-[10px] uppercase tracking-wide mb-1">Available (USD)</div>
@@ -178,9 +183,9 @@ function WithdrawTab({ wallet }: { wallet: typeof mockSellerWallet }) {
         </div>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'On Hold', value: `KES ${wallet.onHoldBalance.toLocaleString()}`, color: 'text-yellow-400' },
-            { label: 'Pending', value: `KES ${wallet.pendingBalance.toLocaleString()}`, color: 'text-blue-400' },
-            { label: 'Rate', value: `1 USD = ${USD_RATE} KES`, color: 'text-white/60' },
+            { label: 'On Hold', value: `${getSellerCur()} ${wallet.onHoldBalance.toLocaleString()}`, color: 'text-yellow-400' },
+            { label: 'Pending', value: `${getSellerCur()} ${wallet.pendingBalance.toLocaleString()}`, color: 'text-blue-400' },
+            { label: 'Rate', value: `1 USD = ${USD_RATE} ${getSellerCur()}`, color: 'text-white/60' },
           ].map(b => (
             <div key={b.label} className="bg-white/5 border border-white/10 rounded-xl p-2.5">
               <div className="text-white/40 text-[10px] mb-1">{b.label}</div>
@@ -194,7 +199,7 @@ function WithdrawTab({ wallet }: { wallet: typeof mockSellerWallet }) {
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3">
         <DollarSign size={15} className="text-blue-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700">
-          Withdrawals are processed in <strong>USD via PayPal</strong>. Exchange rate: <strong>1 USD = {USD_RATE} KES</strong>. Rate is updated daily.
+          Withdrawals are processed in <strong>USD via PayPal</strong>. Exchange rate: <strong>1 USD = {USD_RATE} {getSellerCur()}</strong>. Rate is updated daily.
         </p>
       </div>
 
@@ -217,7 +222,7 @@ function WithdrawTab({ wallet }: { wallet: typeof mockSellerWallet }) {
         </div>
         {usdNum > 0 && (
           <p className="text-xs text-gray-400 mt-1.5">
-            ≈ KES {kesEquiv.toLocaleString()} at current rate
+            ≈ {getSellerCur()} {kesEquiv.toLocaleString()} at current rate
           </p>
         )}
         <div className="flex gap-2 mt-2">
@@ -309,7 +314,7 @@ function HoldTab() {
             <Lock size={16} className="text-[#f4991a]" />
             <span className="text-xs font-semibold text-orange-700">On Hold</span>
           </div>
-          <div className="text-2xl font-bold text-[#1a1c3a]">KES {mockSellerWallet.onHoldBalance.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-[#1a1c3a]">{getSellerCur()} {mockSellerWallet.onHoldBalance.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">{holdTxns.length} order(s) pending</div>
         </div>
         <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-5">
@@ -317,7 +322,7 @@ function HoldTab() {
             <Clock size={16} className="text-yellow-600" />
             <span className="text-xs font-semibold text-yellow-700">Pending Payout</span>
           </div>
-          <div className="text-2xl font-bold text-[#1a1c3a]">KES {mockSellerWallet.pendingBalance.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-[#1a1c3a]">{getSellerCur()} {mockSellerWallet.pendingBalance.toLocaleString()}</div>
           <div className="text-xs text-gray-400 mt-1">Next cycle: Jan 20</div>
         </div>
       </div>
@@ -345,7 +350,7 @@ function HoldTab() {
                   <div className="text-xs text-gray-400 mt-0.5 font-mono">{txn.trackingNumber}</div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <div className="text-sm font-bold text-[#f4991a]">KES {txn.amount.toLocaleString()}</div>
+                  <div className="text-sm font-bold text-[#f4991a]">{getSellerCur()} {txn.amount.toLocaleString()}</div>
                   <div className="text-xs text-gray-400">{formatDate(txn.createdAt)}</div>
                 </div>
               </div>
@@ -367,7 +372,7 @@ function HoldTab() {
                 <div className="text-sm font-semibold text-[#1a1c3a]">{txn.description}</div>
                 <div className="text-xs text-gray-400">{formatDate(txn.createdAt)}</div>
               </div>
-              <div className="text-sm font-bold text-emerald-600">+ KES {txn.amount.toLocaleString()}</div>
+              <div className="text-sm font-bold text-emerald-600">+ {getSellerCur()} {txn.amount.toLocaleString()}</div>
             </div>
           ))}
         </div>
@@ -417,7 +422,7 @@ export default function SellerTransactionsPage() {
                   </button>
                 </div>
                 <div className="text-4xl font-bold tracking-tight">
-                  {balanceVisible ? <>KES <span className="text-[#f4991a]">{wallet.totalBalance.toLocaleString()}</span></> : <span className="tracking-widest text-white/40 text-3xl">••••••</span>}
+                  {balanceVisible ? <>{getSellerCur()} <span className="text-[#f4991a]">{wallet.totalBalance.toLocaleString()}</span></> : <span className="tracking-widest text-white/40 text-3xl">••••••</span>}
                 </div>
                 <div className="text-white/40 text-xs mt-1 flex items-center gap-1.5">
                   <DollarSign size={11} />
@@ -445,7 +450,7 @@ export default function SellerTransactionsPage() {
                     <span className="text-white/50 text-xs">{b.label}</span>
                   </div>
                   <div className="text-white font-bold text-sm">
-                    {balanceVisible ? `KES ${b.value.toLocaleString()}` : '••••'}
+                    {balanceVisible ? `${getSellerCur()} ${b.value.toLocaleString()}` : '••••'}
                   </div>
                   <div className={`text-xs mt-0.5 ${b.color}`}>
                     {balanceVisible ? `$${b.usd.toFixed(2)}` : '•••'}
@@ -534,7 +539,7 @@ export default function SellerTransactionsPage() {
                   ].map(s => (
                     <div key={s.label} className="bg-gray-50 rounded-xl p-3">
                       <div className="text-xs text-gray-400 mb-1">{s.label}</div>
-                      <div className={cn('font-bold text-sm', s.color)}>KES {s.value.toLocaleString()}</div>
+                      <div className={cn('font-bold text-sm', s.color)}>{getSellerCur()} {s.value.toLocaleString()}</div>
                     </div>
                   ))}
                 </div>

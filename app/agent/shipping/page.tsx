@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
+import { getCountry } from '@/lib/countries'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
 
 type OrderRow = {
@@ -178,6 +179,7 @@ export default function AgentShippingPage() {
   // Agent info for logging
   const [agentId, setAgentId] = useState<string>('')
   const [agentName, setAgentName] = useState<string>('')
+  const [agentCountry, setAgentCountry] = useState('KE')
 
   useEffect(() => {
     try {
@@ -186,6 +188,7 @@ export default function AgentShippingPage() {
         const parsed = JSON.parse(u)
         setAgentId(parsed.id || '')
         setAgentName(parsed.name || '')
+        if (parsed.country) setAgentCountry(parsed.country)
       }
     } catch {}
   }, [])
@@ -681,9 +684,9 @@ export default function AgentShippingPage() {
                     <span className="text-[10px] text-gray-400">{order.payment_method}</span>
                     {(order.total_amount || 0) > 0 && (
                       <span className="text-xs font-bold text-[#f4991a]">
-                        KES {order.total_amount.toLocaleString()}
+                        {getCountry(agentCountry).currencySymbol} {order.total_amount.toLocaleString()}
                         {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
-                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                          <span className="text-[9px] text-gray-400 line-through ml-1">{getCountry(agentCountry).currencySymbol} {order.original_total.toLocaleString()}</span>
                         )}
                       </span>
                     )}

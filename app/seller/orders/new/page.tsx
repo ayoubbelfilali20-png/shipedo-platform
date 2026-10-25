@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { pickAgentForOrder } from '@/lib/agentAssignment'
+import { getCountry } from '@/lib/countries'
 
 const countries = [
   { code: 'KE', name: 'Kenya', flag: '🇰🇪', cities: ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri'] },
@@ -201,7 +202,7 @@ function ProductModal({ open, onClose, countryCode, alreadySelected, onConfirm, 
 
                 {/* Price */}
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold text-[#f4991a]">KES {(p.selling_price || 0).toLocaleString()}</p>
+                  <p className="text-sm font-bold text-[#f4991a]">{getCountry(countryCode || 'KE').currencySymbol} {(p.selling_price || 0).toLocaleString()}</p>
                   <p className="text-[10px] text-gray-400 mt-0.5">Stock: {p.stock}</p>
                 </div>
               </button>
@@ -407,7 +408,7 @@ export default function SellerNewOrderPage() {
             <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-left space-y-0.5">
               <p className="text-xs font-semibold text-[#f4991a]">{fullName}</p>
               <p className="text-xs text-gray-500">{selectedCountry?.flag} {city || selectedCountry?.name}</p>
-              <p className="text-xs text-gray-500">{rows.length} {t('products').toLowerCase()} · KES {total.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">{rows.length} {t('products').toLowerCase()} · {getCountry(country || 'KE').currencySymbol} {total.toLocaleString()}</p>
             </div>
             <div className="flex gap-3">
               <button
@@ -680,7 +681,7 @@ export default function SellerNewOrderPage() {
                       {/* Total */}
                       <td className="px-6 py-4">
                         <span className="text-sm font-bold text-rose-500">{lineTotal.toLocaleString()}</span>
-                        <span className="text-[10px] text-gray-400 font-semibold ml-1">KES</span>
+                        <span className="text-[10px] text-gray-400 font-semibold ml-1">{getCountry(country || 'KE').currencySymbol}</span>
                       </td>
 
                       {/* Actions */}
@@ -706,7 +707,7 @@ export default function SellerNewOrderPage() {
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">{t('no_total_price')}:</span>
                 <span className="text-xl font-bold text-[#f4991a]">{total.toLocaleString()}</span>
-                <span className="text-xs font-bold text-gray-400">KES</span>
+                <span className="text-xs font-bold text-gray-400">{getCountry(country || 'KE').currencySymbol}</span>
               </div>
             </div>
           )}

@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { useT, type TKey } from '@/lib/i18n'
 import OrderItemsDetails from '@/components/OrderItemsDetails'
 import { detectDuplicates } from '@/lib/detectDuplicates'
+import { getCountry } from '@/lib/countries'
 
 type OrderRow = {
   id: string
@@ -99,6 +100,7 @@ export default function SellerOrdersPage() {
   const [expandedDetails, setExpanded] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<OrderRow | null>(null)
   const [deleting, setDeleting]         = useState(false)
+  const [sellerCountry, setSellerCountry] = useState('KE')
 
   useEffect(() => {
     let sellerId: string | null = null
@@ -108,6 +110,7 @@ export default function SellerOrdersPage() {
       if (stored) {
         const u = JSON.parse(stored)
         if (u.role === 'seller') { sellerId = u.id; country = u.country }
+        if (country) setSellerCountry(country)
       }
     } catch {}
     if (!sellerId) { setLoading(false); return }
@@ -381,9 +384,9 @@ export default function SellerOrdersPage() {
                           {(order.total_amount || 0) > 0 ? (
                             <>
                               <span className="text-sm font-bold text-gray-700">{order.total_amount.toLocaleString()}</span>
-                              <span className="text-[10px] text-gray-400 font-semibold ml-1">KES</span>
+                              <span className="text-[10px] text-gray-400 font-semibold ml-1">{getCountry(order.country || sellerCountry).currencySymbol}</span>
                               {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
-                                <span className="text-[9px] text-gray-400 line-through ml-1">KES {order.original_total.toLocaleString()}</span>
+                                <span className="text-[9px] text-gray-400 line-through ml-1">{getCountry(order.country || sellerCountry).currencySymbol} {order.original_total.toLocaleString()}</span>
                               )}
                             </>
                           ) : (

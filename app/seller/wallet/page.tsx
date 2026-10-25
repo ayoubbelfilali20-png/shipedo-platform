@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Header from '@/components/dashboard/Header'
 import Money from '@/components/Money'
 import { fmtUsd, fmtKes, toKes } from '@/lib/currency'
+import { getCountry } from '@/lib/countries'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import {
@@ -31,6 +32,7 @@ interface WithdrawReq {
 
 export default function SellerWalletPage() {
   const [sellerId, setSellerId] = useState<string | null>(null)
+  const [sellerCountry, setSellerCountry] = useState('KE')
   const [balance, setBalance] = useState(0)
   const [txs, setTxs] = useState<Tx[]>([])
   const [requests, setRequests] = useState<WithdrawReq[]>([])
@@ -64,6 +66,7 @@ export default function SellerWalletPage() {
         const parsed = JSON.parse(u)
         if (parsed.role === 'seller') {
           setSellerId(parsed.id)
+          if (parsed.country) setSellerCountry(parsed.country)
           load(parsed.id)
           return
         }
@@ -132,7 +135,7 @@ export default function SellerWalletPage() {
             </div>
             <div>
               <div className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Exchange rate</div>
-              <div className="text-lg font-bold mt-1">1 USD = 130 KES</div>
+              <div className="text-lg font-bold mt-1">1 USD = 130 {getCountry(sellerCountry).currencySymbol}</div>
             </div>
           </div>
         </div>

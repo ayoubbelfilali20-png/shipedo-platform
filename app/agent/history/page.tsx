@@ -10,6 +10,7 @@ import {
   ChevronDown, Pencil, Save, MessageCircle, Calendar, PhoneOff,
   PhoneCall, Clock, FileText, Plus, Trash2,
 } from 'lucide-react'
+import { getCountry } from '@/lib/countries'
 
 type OrderRow = {
   id: string
@@ -129,6 +130,8 @@ export default function AgentHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [agentId, setAgentId] = useState<string | null>(null)
   const [agentName, setAgentName] = useState<string>('')
+  const [agentCountry, setAgentCountry] = useState('KE')
+  const cur = getCountry(agentCountry).currencySymbol
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<string>('all')
   const [busy, setBusy] = useState<string | null>(null)
@@ -207,6 +210,7 @@ export default function AgentHistoryPage() {
         if (parsed.role === 'agent') {
           setAgentId(parsed.id)
           setAgentName(parsed.name || '')
+          if (parsed.country) setAgentCountry(parsed.country)
           load(parsed.id)
           return
         }
@@ -512,9 +516,9 @@ export default function AgentHistoryPage() {
                     )}
                     {(o.total_amount || 0) > 0 && (
                       <span className="text-xs font-bold text-[#f4991a]">
-                        KES {o.total_amount.toLocaleString()}
+                        {cur} {o.total_amount.toLocaleString()}
                         {o.original_total && o.original_total !== o.total_amount && o.original_total > 0 && (
-                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {o.original_total.toLocaleString()}</span>
+                          <span className="text-[9px] text-gray-400 line-through ml-1">{cur} {o.original_total.toLocaleString()}</span>
                         )}
                       </span>
                     )}
@@ -601,7 +605,7 @@ export default function AgentHistoryPage() {
                     <div className="flex items-center gap-2 text-xs text-gray-500 flex-wrap min-w-0">
                       <Package size={12} className="text-gray-300 flex-shrink-0" />
                       {(Array.isArray(o.items) ? o.items : []).map((it: any, i: number) => (
-                        <span key={i} className="font-medium">{it.name || 'Item'} x{it.quantity || 1}{(it.unit_price || 0) > 0 ? ` (KES ${it.unit_price.toLocaleString()})` : ''}{i < (o.items || []).length - 1 ? ' · ' : ''}</span>
+                        <span key={i} className="font-medium">{it.name || 'Item'} x{it.quantity || 1}{(it.unit_price || 0) > 0 ? ` (${cur} ${it.unit_price.toLocaleString()})` : ''}{i < (o.items || []).length - 1 ? ' · ' : ''}</span>
                       ))}
                       <button onClick={() => { setExpandedId(o.id); startEditItems(o) }}
                         className="text-[#f4991a] hover:text-orange-600">
@@ -747,7 +751,7 @@ export default function AgentHistoryPage() {
                                 <button onClick={() => updateItemQty(idx, (it.quantity || 1) + 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">+</button>
                               </div>
                               <div className="flex items-center gap-1">
-                                <span className="text-[9px] text-gray-400">KES</span>
+                                <span className="text-[9px] text-gray-400">{cur}</span>
                                 <input type="number" value={it.unit_price || ''} onChange={e => updateItemPrice(idx, parseFloat(e.target.value) || 0)}
                                   className="w-16 px-1.5 py-1 border border-gray-200 rounded text-xs font-bold text-[#f4991a] text-right focus:outline-none focus:ring-1 focus:ring-[#f4991a]/30 focus:border-[#f4991a]" min={0} />
                               </div>
@@ -762,7 +766,7 @@ export default function AgentHistoryPage() {
                           <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
                             <div className="text-xs font-bold">
                               <span className="text-gray-600">Total: </span>
-                              <span className="text-[#f4991a]">KES {editItemsTotal.toLocaleString()}</span>
+                              <span className="text-[#f4991a]">{cur} {editItemsTotal.toLocaleString()}</span>
                             </div>
                             {itemsChanged && (
                               <button onClick={saveItems} disabled={savingItems}
@@ -784,22 +788,22 @@ export default function AgentHistoryPage() {
                                 <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name || 'Item'}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   {it.sku && <span className="text-[9px] text-gray-400 font-mono">{it.sku}</span>}
-                                  {(it.unit_price || 0) > 0 && <span className="text-[9px] text-gray-400">Unit: KES {it.unit_price.toLocaleString()}</span>}
+                                  {(it.unit_price || 0) > 0 && <span className="text-[9px] text-gray-400">Unit: {cur} {it.unit_price.toLocaleString()}</span>}
                                 </div>
                               </div>
                               <div className="flex items-center gap-3 flex-shrink-0">
                                 <span className="text-xs text-gray-500 font-medium">x{it.quantity || 1}</span>
                                 {((it.unit_price || 0) * (it.quantity || 1)) > 0 && (
-                                  <span className="text-xs font-bold text-[#f4991a]">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                                  <span className="text-xs font-bold text-[#f4991a]">{cur} {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
                                 )}
                               </div>
                             </div>
                           ))}
                           {(o.total_amount || 0) > 0 && (
                             <div className="pt-1 flex justify-end text-xs font-bold gap-2">
-                              <span className="text-[#f4991a]">Total: KES {o.total_amount.toLocaleString()}</span>
+                              <span className="text-[#f4991a]">Total: {cur} {o.total_amount.toLocaleString()}</span>
                               {o.original_total && o.original_total !== o.total_amount && o.original_total > 0 && (
-                                <span className="text-[9px] text-gray-400 line-through">KES {o.original_total.toLocaleString()}</span>
+                                <span className="text-[9px] text-gray-400 line-through">{cur} {o.original_total.toLocaleString()}</span>
                               )}
                             </div>
                           )}
@@ -843,7 +847,7 @@ export default function AgentHistoryPage() {
                                 <p className="text-xs font-bold text-[#1a1c3a] truncate">{p.name}</p>
                                 <p className="text-[10px] text-gray-400 font-mono">{p.sku} · Stock: {p.stock}</p>
                               </div>
-                              <span className="text-xs font-bold text-[#f4991a]">KES {(p.selling_price || 0).toLocaleString()}</span>
+                              <span className="text-xs font-bold text-[#f4991a]">{cur} {(p.selling_price || 0).toLocaleString()}</span>
                               {alreadyAdded && <span className="text-[9px] text-emerald-600 font-bold">Added</span>}
                             </button>
                           )

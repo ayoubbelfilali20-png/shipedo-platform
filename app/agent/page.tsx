@@ -13,6 +13,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Cell
 } from 'recharts'
+import { getCountry } from '@/lib/countries'
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 
@@ -142,6 +143,7 @@ export default function AgentDashboard() {
   const router = useRouter()
   const [agentId, setAgentId]   = useState<string | null>(null)
   const [agentName, setAgentName] = useState<string>('Agent')
+  const [agentCountry, setAgentCountry] = useState('KE')
   const [orders, setOrders]     = useState<OrderRow[]>([])
   const [pending, setPending]   = useState<OrderRow[]>([])
   const [loading, setLoading]   = useState(true)
@@ -184,6 +186,7 @@ export default function AgentDashboard() {
         if (parsed.role === 'agent') {
           aid = parsed.id
           setAgentName(parsed.name || 'Agent')
+          if (parsed.country) setAgentCountry(parsed.country)
         }
       }
     } catch {}
@@ -455,7 +458,7 @@ export default function AgentDashboard() {
           </div>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-1">Revenue (delivered)</p>
-            <p className="text-[#f4991a] font-bold text-3xl">KES {stats.revenue.toLocaleString()}</p>
+            <p className="text-[#f4991a] font-bold text-3xl">{getCountry(agentCountry).currencySymbol} {stats.revenue.toLocaleString()}</p>
             <p className="text-gray-400 text-xs mt-1">From {stats.delivered} delivered orders</p>
           </div>
         </div>
@@ -615,9 +618,9 @@ export default function AgentDashboard() {
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-xs text-gray-600">{o.customer_city}</td>
                       <td className="px-4 py-3 text-xs font-bold text-[#1a1c3a]">
-                        {(o.total_amount || 0) > 0 ? `KES ${o.total_amount.toLocaleString()}` : '—'}
+                        {(o.total_amount || 0) > 0 ? `${getCountry(agentCountry).currencySymbol} ${o.total_amount.toLocaleString()}` : '—'}
                         {o.original_total && o.original_total !== o.total_amount && o.original_total > 0 && (
-                          <span className="text-[9px] text-gray-400 line-through ml-1">KES {o.original_total.toLocaleString()}</span>
+                          <span className="text-[9px] text-gray-400 line-through ml-1">{getCountry(agentCountry).currencySymbol} {o.original_total.toLocaleString()}</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

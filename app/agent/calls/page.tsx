@@ -11,6 +11,7 @@ import {
   Printer, Pencil, Save, X, CheckSquare, Square, Plus, Trash2, Search,
 } from 'lucide-react'
 import { printOrderLabel, printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
+import { getCountry } from '@/lib/countries'
 
 type OrderRow = {
   id: string
@@ -70,6 +71,7 @@ export default function AgentCallsPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
   const [agentId, setAgentId] = useState<string | null>(null)
+  const [agentCountry, setAgentCountry] = useState('KE')
   const [agentName, setAgentName] = useState('')
   const [note, setNote] = useState('')
   const [rescheduleDate, setRescheduleDate] = useState('')
@@ -166,6 +168,7 @@ export default function AgentCallsPage() {
         if (parsed.role === 'agent') {
           setAgentId(parsed.id)
           setAgentName(parsed.name || '')
+          if (parsed.country) setAgentCountry(parsed.country)
           loadQueue(parsed.id)
           return
         }
@@ -190,6 +193,7 @@ export default function AgentCallsPage() {
   }, [agentId, nextRemindAt])
 
   const order = orders[0] ?? null
+  const cur = getCountry((order as any)?.country || agentCountry).currencySymbol
   const pendingCount = orders.length
   const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 
@@ -851,13 +855,13 @@ export default function AgentCallsPage() {
                             <p className="text-xs font-bold text-[#1a1c3a] truncate">{it.name || 'Item'}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               {it.sku && <span className="text-[9px] text-gray-400 font-mono">{it.sku}</span>}
-                              {(it.unit_price || 0) > 0 && <span className="text-[9px] text-gray-400">Unit: KES {it.unit_price.toLocaleString()}</span>}
+                              {(it.unit_price || 0) > 0 && <span className="text-[9px] text-gray-400">Unit: {cur} {it.unit_price.toLocaleString()}</span>}
                             </div>
                           </div>
                           <div className="flex items-center gap-3 flex-shrink-0">
                             <span className="text-xs text-gray-500 font-medium">x{it.quantity || 1}</span>
                             {((it.unit_price || 0) * (it.quantity || 1)) > 0 && (
-                              <span className="text-xs font-bold text-[#f4991a]">KES {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
+                              <span className="text-xs font-bold text-[#f4991a]">{cur} {((it.unit_price || 0) * (it.quantity || 1)).toLocaleString()}</span>
                             )}
                           </div>
                         </div>
@@ -884,7 +888,7 @@ export default function AgentCallsPage() {
                             <button onClick={() => updateItemQty(idx, (it.quantity || 1) + 1)} className="w-5 h-5 rounded bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold hover:bg-gray-200">+</button>
                           </div>
                           <div className="flex items-center gap-1">
-                            <span className="text-[9px] text-gray-400">KES</span>
+                            <span className="text-[9px] text-gray-400">{cur}</span>
                             <input type="number" value={it.unit_price || ''} onChange={e => updateItemPrice(idx, parseFloat(e.target.value) || 0)}
                               className="w-16 px-1.5 py-1 border border-gray-200 rounded text-xs font-bold text-[#f4991a] text-right focus:outline-none focus:ring-1 focus:ring-[#f4991a]/30 focus:border-[#f4991a]" min={0} />
                           </div>
@@ -903,9 +907,9 @@ export default function AgentCallsPage() {
                     {(editingItems ? editItemsTotal : (order.total_amount || 0)) > 0 ? (
                       <div className="text-xs font-bold flex items-center gap-2">
                         <span className="text-gray-600">Total: </span>
-                        <span className="text-[#f4991a]">KES {editingItems ? editItemsTotal.toLocaleString() : (order.total_amount || 0).toLocaleString()}</span>
+                        <span className="text-[#f4991a]">{cur} {editingItems ? editItemsTotal.toLocaleString() : (order.total_amount || 0).toLocaleString()}</span>
                         {order.original_total && order.original_total !== order.total_amount && order.original_total > 0 && (
-                          <span className="text-[10px] text-gray-400 line-through">KES {order.original_total.toLocaleString()}</span>
+                          <span className="text-[10px] text-gray-400 line-through">{cur} {order.original_total.toLocaleString()}</span>
                         )}
                       </div>
                     ) : <div />}
@@ -964,7 +968,7 @@ export default function AgentCallsPage() {
                                 <p className="text-xs font-bold text-[#1a1c3a] truncate">{p.name}</p>
                                 <p className="text-[10px] text-gray-400 font-mono">{p.sku} · Stock: {p.stock}</p>
                               </div>
-                              <span className="text-xs font-bold text-[#f4991a]">KES {(p.selling_price || 0).toLocaleString()}</span>
+                              <span className="text-xs font-bold text-[#f4991a]">{cur} {(p.selling_price || 0).toLocaleString()}</span>
                               {alreadyAdded && <span className="text-[9px] text-emerald-600 font-bold">Added</span>}
                             </button>
                           )

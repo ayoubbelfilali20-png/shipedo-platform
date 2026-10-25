@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Package, Phone, MapPin, Calendar, MessageSquare } from 'lucide-react'
+import { getCountry } from '@/lib/countries'
 import Link from 'next/link'
 
 type OrderRow = {
@@ -29,7 +30,7 @@ export default function DeliveryDashboard() {
 
   useEffect(() => {
     supabase.from('orders')
-      .select('id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, total_amount, notes, shipped_to_agent_at')
+      .select('id, tracking_number, delivery_tracking, customer_name, customer_phone, customer_city, total_amount, notes, shipped_to_agent_at, country')
       .eq('status', 'shipped_to_agent')
       .order('shipped_to_agent_at', { ascending: false, nullsFirst: false })
       .limit(500)
@@ -87,7 +88,7 @@ export default function DeliveryDashboard() {
                 )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs font-bold text-[#f4991a]">KES {(o.total_amount || 0).toLocaleString()}</span>
+                <span className="text-xs font-bold text-[#f4991a]">{getCountry((o as any).country || 'KE').currencySymbol} {(o.total_amount || 0).toLocaleString()}</span>
                 <a href={`tel:${cleanPhone(o.customer_phone)}`}
                   className="w-8 h-8 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500">
                   <Phone size={14} />
