@@ -336,7 +336,7 @@ function syncNewRows_() {
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return;
   const headers = values[0].map(h => String(h).trim().toLowerCase());
-  const col = k => headers.findIndex(h => h === k);
+  const col = k => headers.findIndex(h => h.replace(/[\\u2018\\u2019\\u0060]/g, "'") === k);
   let statusCol = headers.findIndex(h => h === 'synced');
   if (statusCol === -1) {
     statusCol = headers.length;
@@ -348,6 +348,9 @@ function syncNewRows_() {
     const fullName = row[col("customer's fullname")] || row[col('full name')] || '';
     const phone    = row[col("customer's phone")]    || row[col('phone')]     || '';
     if (!fullName || !phone) continue;
+    // Build extra: send ALL columns so the API can auto-detect country
+    const extra = {};
+    headers.forEach((h, i) => { if (row[i] && h !== 'synced') extra[h] = String(row[i]); });
     const payload = {
       orderId:       row[col("order's number")]    || row[col('order id')],
       sku:           row[col("product's sku")]     || row[col('sku')],
@@ -358,6 +361,7 @@ function syncNewRows_() {
       totalQuantity: row[col("product's quantity")] || row[col('total quantity')] || 1,
       productUrl:    row[col('product url')] || '',
       country:       row[col("order's market")]    || row[col('market')] || row[col('country')] || '',
+      extra,
     };
     try {
       const res = UrlFetchApp.fetch(ENDPOINT, {

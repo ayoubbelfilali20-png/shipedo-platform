@@ -104,10 +104,41 @@ export async function POST(req: NextRequest) {
     unit_price: qty > 0 ? total / qty : total,
   }]
 
-  // Detect country from sheet data or fall back to seller's country
-  const rawCountry = String(body.country || '').trim().toLowerCase()
-  const countryMap: Record<string, string> = { kenya: 'KE', ke: 'KE', tanzania: 'TZ', tz: 'TZ' }
-  const orderCountry = countryMap[rawCountry] || (rawCountry.length === 2 ? rawCountry.toUpperCase() : null) || seller.country || 'KE'
+  // Detect country: check explicit field, then scan all values, then phone prefix
+  const countryMap: Record<string, string> = {
+    kenya: 'KE', ke: 'KE', tanzania: 'TZ', tz: 'TZ',
+    'tanzanie': 'TZ', 'tanz': 'TZ',
+  }
+
+  function detectCountry(): string {
+    // 1. Explicit country field
+    const raw = String(body.country || '').trim().toLowerCase()
+    if (countryMap[raw]) return countryMap[raw]
+    if (raw.length === 2 && /^[a-z]{2}$/i.test(raw)) return raw.toUpperCase()
+
+    // 2. Scan ALL body values for country names (includes extra columns from sheet)
+    for (const val of Object.values(body)) {
+      if (val && typeof val === 'object') {
+        for (const v of Object.values(val as Record<string, unknown>)) {
+          const s = String(v || '').trim().toLowerCase()
+          if (countryMap[s]) return countryMap[s]
+        }
+      } else {
+        const s = String(val || '').trim().toLowerCase()
+        if (countryMap[s]) return countryMap[s]
+      }
+    }
+
+    // 3. Phone prefix detection: +255 or 255xxx = Tanzania, +254 or 254xxx = Kenya
+    const digits = phone.replace(/[^\d]/g, '')
+    if (digits.startsWith('255') || digits.startsWith('0255')) return 'TZ'
+    if (digits.startsWith('254') || digits.startsWith('0254')) return 'KE'
+
+    // 4. Fallback to seller's country
+    return seller?.country || 'KE'
+  }
+
+  const orderCountry = detectCountry()
 
   const assignedAgentId = await pickAgentForOrder(supabaseAdmin, phone, orderCountry)
 
