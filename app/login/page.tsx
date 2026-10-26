@@ -3,9 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Truck, Eye, EyeOff, ArrowRight, Mail, Lock, Shield, Globe } from 'lucide-react'
+import { Truck, Eye, EyeOff, ArrowRight, Mail, Lock, Shield } from 'lucide-react'
 import { setUser } from '@/lib/auth'
-import { COUNTRIES, type CountryCode } from '@/lib/countries'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -14,7 +13,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [countryPick, setCountryPick] = useState<{ user: any; countries: string[] } | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,13 +34,6 @@ export default function LoginPage() {
       }
 
       const user = result.user
-
-      if (user.role === 'seller' && user.countries && user.countries.length > 1) {
-        setCountryPick({ user, countries: user.countries })
-        setLoading(false)
-        return
-      }
-
       setUser(user)
 
       const routes: Record<string, string> = {
@@ -58,53 +49,6 @@ export default function LoginPage() {
       setLoading(false)
       setError(`Error: ${err.message || err}`)
     }
-  }
-
-  const selectCountry = (code: string) => {
-    if (!countryPick) return
-    const user = { ...countryPick.user, country: code }
-    delete user.countries
-    setUser(user)
-    window.location.href = '/seller'
-  }
-
-  if (countryPick) {
-    return (
-      <div className="min-h-screen bg-[#0f1129] relative overflow-hidden flex items-center justify-center p-5">
-        <div className="absolute top-[-10%] right-[-10%] w-[420px] h-[420px] bg-[#f4991a] rounded-full blur-[120px] opacity-25 pointer-events-none" />
-        <div className="absolute bottom-[-15%] left-[-10%] w-[380px] h-[380px] bg-blue-500 rounded-full blur-[120px] opacity-20 pointer-events-none" />
-        <div className="relative w-full max-w-[400px]">
-          <div className="flex flex-col items-center mb-7">
-            <div className="w-14 h-14 bg-gradient-to-br from-[#f4991a] to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30 mb-3">
-              <Globe size={26} className="text-white" />
-            </div>
-            <h1 className="text-white font-bold text-2xl tracking-tight">Select Country</h1>
-            <p className="text-white/40 text-xs mt-1">Choose which country to work in</p>
-          </div>
-          <div className="space-y-3">
-            {countryPick.countries.map((code: string) => {
-              const c = COUNTRIES[code as CountryCode]
-              if (!c) return null
-              return (
-                <button
-                  key={code}
-                  onClick={() => selectCountry(code)}
-                  className="w-full bg-white rounded-2xl p-5 flex items-center gap-4 hover:shadow-lg hover:scale-[1.02] transition-all active:scale-[0.98]"
-                >
-                  <span className="text-3xl">{c.flag}</span>
-                  <div className="text-left">
-                    <div className="text-base font-bold text-[#0f1129]">{c.name}</div>
-                    <div className="text-xs text-gray-400">{c.currency}</div>
-                  </div>
-                  <ArrowRight size={16} className="ml-auto text-gray-300" />
-                </button>
-              )
-            })}
-          </div>
-          <p className="text-center text-white/30 text-[10px] mt-6">You can switch countries by logging in again</p>
-        </div>
-      </div>
-    )
   }
 
   return (

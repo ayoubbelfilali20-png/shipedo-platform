@@ -8,6 +8,29 @@ import { supabase } from '@/lib/supabase'
 import { fmtUsd, fmtKes, toKes } from '@/lib/currency'
 import { useT, languages, type Lang } from '@/lib/i18n'
 import CountrySwitcher from '@/components/CountrySwitcher'
+import SellerCountrySwitcher from '@/components/SellerCountrySwitcher'
+import { COUNTRIES } from '@/lib/countries'
+
+function StaffFlag({ role }: { role: string }) {
+  const [flag, setFlag] = useState('')
+  const [name, setName] = useState('')
+  useEffect(() => {
+    try {
+      const key = role === 'agent' ? 'shipedo_agent' : role === 'delivery' ? 'shipedo_delivery' : 'shipedo_storage'
+      const u = JSON.parse(localStorage.getItem(key) || '{}')
+      const code = u.country || 'KE'
+      const c = COUNTRIES[code as keyof typeof COUNTRIES]
+      if (c) { setFlag(c.flag); setName(c.name) }
+    } catch {}
+  }, [role])
+  if (!flag) return null
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm">
+      <span className="text-lg leading-none">{flag}</span>
+      <span className="text-[11px] font-bold text-[#1a1c3a]">{name}</span>
+    </div>
+  )
+}
 
 const roleConfig = {
   admin:      { label: 'Admin',       badge: 'bg-purple-100 text-purple-700', avatar: 'from-purple-500 to-purple-700', name: 'Admin',       icon: ShieldCheck },
@@ -145,9 +168,9 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
               )}
             </div>
 
-            {/* Country selector */}
+            {/* Country selector — seller can switch */}
             <div className="hidden md:block">
-              <CountrySwitcher />
+              <SellerCountrySwitcher />
             </div>
 
             {/* Balance with eye toggle */}
@@ -296,8 +319,12 @@ export default function Header({ title, subtitle, action, onMenuToggle, role: ro
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Country switcher */}
-          <CountrySwitcher />
+          {/* Country switcher: admin/teamleader can switch; staff see static flag */}
+          {(role === 'admin' || role === 'teamleader') ? (
+            <CountrySwitcher />
+          ) : (
+            <StaffFlag role={role} />
+          )}
 
           {/* Bell */}
           <button className="relative w-9 h-9 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all">
