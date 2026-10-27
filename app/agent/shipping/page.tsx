@@ -8,8 +8,9 @@ import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, ChevronUp, Printer, CheckSquare, Square,
   Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
-  RefreshCw, FileText, Calendar, UserCheck, MapPin,
+  RefreshCw, FileText, Calendar, UserCheck, MapPin, Download,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { getCountry } from '@/lib/countries'
@@ -448,6 +449,42 @@ export default function AgentShippingPage() {
   const togglePrintQueue = (id: string) => {
     setPrintQueue(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
+  const exportExcel = () => {
+    const rows = filtered.map(o => {
+      const items = Array.isArray(o.items) ? o.items : []
+      const productNames = items.map((it: any) => {
+        const q = Number(it.quantity) || 1
+        return q > 1 ? `${it.name || 'Item'} x${q}` : (it.name || 'Item')
+      }).join(', ')
+      const cur = getCountry(o.country || agentCountry).currencySymbol
+      return {
+        'Tracking #': o.tracking_number,
+        'Delivery Tracking': (o as any).delivery_tracking || '',
+        'Customer Name': o.customer_name,
+        'Phone': o.customer_phone,
+        'City': o.customer_city,
+        'Address': o.customer_address || '',
+        'Products': productNames,
+        'Amount': `${cur} ${(o.total_amount || 0).toLocaleString()}`,
+        'Payment': o.payment_method,
+        'Status': (statusConfig[o.status]?.label || o.status),
+        'Order Date': o.created_at ? new Date(o.created_at).toLocaleDateString('en-GB') : '',
+        'Shipped Date': o.shipped_at ? new Date(o.shipped_at).toLocaleDateString('en-GB') : '',
+      }
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const colWidths = [
+      { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 16 },
+      { wch: 16 }, { wch: 28 }, { wch: 30 }, { wch: 14 },
+      { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
+    ]
+    ws['!cols'] = colWidths
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Orders')
+    const today = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `Shipedo_Orders_${today}.xlsx`)
+  }
+
   const queuedOrders = orders.filter(o => printQueue.has(o.id))
   const doPrint = async (ids: string[]) => {
     const toPrint = orders.filter(o => ids.includes(o.id))
@@ -473,12 +510,21 @@ export default function AgentShippingPage() {
           <h1 className="font-bold text-[#1a1c3a] text-lg flex items-center gap-2"><Truck size={18} /> Shipping</h1>
           <p className="text-xs text-gray-400 mt-0.5">{orders.length} delivery orders &middot; Follow up & manage</p>
         </div>
-        <button
-          onClick={() => { setLoading(true); loadOrders() }}
-          className="flex items-center gap-1.5 text-xs font-semibold text-[#f4991a] hover:text-orange-600"
-        >
-          <RefreshCw size={12} /> Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={exportExcel}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-all"
+          >
+            <Download size={12} /> Export Excel
+          </button>
+          <button
+            onClick={() => { setLoading(true); loadOrders() }}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#f4991a] hover:text-orange-600"
+          >
+            <RefreshCw size={12} /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="p-6 space-y-4">
