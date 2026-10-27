@@ -476,21 +476,12 @@ export default function AgentShippingPage() {
           <h1 className="font-bold text-[#1a1c3a] text-lg flex items-center gap-2"><Truck size={18} /> Shipping</h1>
           <p className="text-xs text-gray-400 mt-0.5">{orders.length} delivery orders &middot; Follow up & manage</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={exportExcel}
-            disabled={filtered.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-all"
-          >
-            <Download size={12} /> Export Excel
-          </button>
-          <button
-            onClick={() => { setLoading(true); loadOrders() }}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#f4991a] hover:text-orange-600"
-          >
-            <RefreshCw size={12} /> Refresh
-          </button>
-        </div>
+        <button
+          onClick={() => { setLoading(true); loadOrders() }}
+          className="flex items-center gap-1.5 text-xs font-semibold text-[#f4991a] hover:text-orange-600"
+        >
+          <RefreshCw size={12} /> Refresh
+        </button>
       </div>
 
       <div className="p-6 space-y-4">
@@ -591,6 +582,14 @@ export default function AgentShippingPage() {
               <X size={12} /> Clear
             </button>
           )}
+
+          <button
+            onClick={exportExcel}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all"
+          >
+            <Download size={13} /> Export Excel
+          </button>
 
           {printQueue.size > 0 && (
             <button
