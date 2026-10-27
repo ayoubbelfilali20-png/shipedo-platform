@@ -12,6 +12,7 @@ import {
   Search, Download, Eye, Package, MapPin, FileText, X, Printer,
   CheckSquare, Square, ChevronRight,
 } from 'lucide-react'
+import { exportOrdersExcel } from '@/lib/exportExcel'
 import { printOrderLabel, printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import Link from 'next/link'
 import { detectDuplicates } from '@/lib/detectDuplicates'
@@ -190,9 +191,13 @@ export default function OrdersPage() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 flex-shrink-0">
-            <button className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-500 hover:bg-gray-50 transition-all shadow-sm">
+            <button
+              onClick={() => exportOrdersExcel(filtered, country !== 'ALL' ? country : 'KE')}
+              disabled={filtered.length === 0}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+            >
               <Download size={13} />
-              Export
+              Export Excel
             </button>
           </div>
         </div>

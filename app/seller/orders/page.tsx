@@ -14,6 +14,7 @@ import { useT, type TKey } from '@/lib/i18n'
 import OrderItemsDetails from '@/components/OrderItemsDetails'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { getCountry } from '@/lib/countries'
+import { exportOrdersExcel } from '@/lib/exportExcel'
 
 type OrderRow = {
   id: string
@@ -167,27 +168,7 @@ export default function SellerOrdersPage() {
 
   const handleExport = () => {
     if (filtered.length === 0) { alert(t('ord_no_export')); return }
-    const headers = ['ID','Source','Subuser','Customer','Phone','City','Items','Total','Status','Date']
-    const rows = filtered.map(o => [
-      o.tracking_number,
-      o.source || 'Manual',
-      o.subuser || '',
-      o.customer_name,
-      o.customer_phone,
-      o.customer_city,
-      Array.isArray(o.items) ? o.items.length : 0,
-      o.total_amount,
-      o.status,
-      formatDateTime(o.created_at),
-    ])
-    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href = url
-    a.download = `orders-${formatDateOnly(new Date().toISOString())}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    exportOrdersExcel(filtered, sellerCountry)
   }
 
   return (

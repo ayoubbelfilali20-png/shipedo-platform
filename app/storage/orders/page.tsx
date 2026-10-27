@@ -6,9 +6,10 @@ import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone, MapPin,
-  X, ChevronDown, Calendar, Printer, CheckSquare, Square,
+  X, ChevronDown, Calendar, Printer, CheckSquare, Square, Download,
 } from 'lucide-react'
 import { getCountry } from '@/lib/countries'
+import { exportOrdersExcel } from '@/lib/exportExcel'
 import { cn } from '@/lib/utils'
 
 type OrderRow = {
@@ -285,6 +286,13 @@ export default function StorageOrdersPage() {
             className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm" />
           {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"><X size={13} /></button>}
         </div>
+        <button
+          onClick={() => { let c = 'KE'; try { c = JSON.parse(localStorage.getItem('shipedo_storage') || '{}').country || 'KE' } catch {}; exportOrdersExcel(filtered, c) }}
+          disabled={filtered.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all"
+        >
+          <Download size={13} /> Export Excel
+        </button>
         {printQueue.size > 0 && (
           <button onClick={() => doPrint(Array.from(printQueue))}
             className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl">

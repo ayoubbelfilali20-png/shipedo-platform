@@ -4,10 +4,11 @@ import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
   Search, Truck, Package, Phone, MapPin,
-  X, Calendar, MessageSquare, Save,
+  X, Calendar, MessageSquare, Save, Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getCountry } from '@/lib/countries'
+import { exportOrdersExcel } from '@/lib/exportExcel'
 
 type OrderRow = {
   id: string
@@ -88,8 +89,17 @@ export default function DeliveryOrdersPage() {
           <h2 className="font-bold text-[#1a1c3a] text-lg">Orders Sent to Agent</h2>
           <p className="text-xs text-gray-400 mt-0.5">{orders.length} order(s) to follow up</p>
         </div>
-        <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-          <Package size={20} className="text-purple-600" />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { let c = 'KE'; try { c = JSON.parse(localStorage.getItem('shipedo_delivery') || '{}').country || 'KE' } catch {}; exportOrdersExcel(filtered, c) }}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-all"
+          >
+            <Download size={12} /> Export Excel
+          </button>
+          <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+            <Package size={20} className="text-purple-600" />
+          </div>
         </div>
       </div>
 

@@ -10,7 +10,7 @@ import {
   Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
   RefreshCw, FileText, Calendar, UserCheck, MapPin, Download,
 } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import { exportOrdersExcel } from '@/lib/exportExcel'
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { getCountry } from '@/lib/countries'
@@ -449,41 +449,7 @@ export default function AgentShippingPage() {
   const togglePrintQueue = (id: string) => {
     setPrintQueue(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
-  const exportExcel = () => {
-    const rows = filtered.map(o => {
-      const items = Array.isArray(o.items) ? o.items : []
-      const productNames = items.map((it: any) => {
-        const q = Number(it.quantity) || 1
-        return q > 1 ? `${it.name || 'Item'} x${q}` : (it.name || 'Item')
-      }).join(', ')
-      const cur = getCountry(o.country || agentCountry).currencySymbol
-      return {
-        'Tracking #': o.tracking_number,
-        'Delivery Tracking': (o as any).delivery_tracking || '',
-        'Customer Name': o.customer_name,
-        'Phone': o.customer_phone,
-        'City': o.customer_city,
-        'Address': o.customer_address || '',
-        'Products': productNames,
-        'Amount': `${cur} ${(o.total_amount || 0).toLocaleString()}`,
-        'Payment': o.payment_method,
-        'Status': (statusConfig[o.status]?.label || o.status),
-        'Order Date': o.created_at ? new Date(o.created_at).toLocaleDateString('en-GB') : '',
-        'Shipped Date': o.shipped_at ? new Date(o.shipped_at).toLocaleDateString('en-GB') : '',
-      }
-    })
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const colWidths = [
-      { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 16 },
-      { wch: 16 }, { wch: 28 }, { wch: 30 }, { wch: 14 },
-      { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
-    ]
-    ws['!cols'] = colWidths
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Orders')
-    const today = new Date().toISOString().slice(0, 10)
-    XLSX.writeFile(wb, `Shipedo_Orders_${today}.xlsx`)
-  }
+  const exportExcel = () => exportOrdersExcel(filtered, agentCountry)
 
   const queuedOrders = orders.filter(o => printQueue.has(o.id))
   const doPrint = async (ids: string[]) => {

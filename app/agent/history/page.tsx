@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils'
 import {
   Phone, CheckCircle, Search, X, TrendingUp, Package, Truck,
   ChevronDown, Pencil, Save, MessageCircle, Calendar, PhoneOff,
-  PhoneCall, Clock, FileText, Plus, Trash2,
+  PhoneCall, Clock, FileText, Plus, Trash2, Download,
 } from 'lucide-react'
 import { getCountry } from '@/lib/countries'
+import { exportOrdersExcel } from '@/lib/exportExcel'
 
 type OrderRow = {
   id: string
@@ -446,7 +447,14 @@ export default function AgentHistoryPage() {
               className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[#f4991a]/20 focus:border-[#f4991a]"
             />
           )}
-          <span className="text-[10px] text-gray-400 ml-auto">{filtered.length} orders</span>
+          <button
+            onClick={() => exportOrdersExcel(filtered, agentCountry)}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold rounded-lg transition-all ml-auto"
+          >
+            <Download size={12} /> Export Excel
+          </button>
+          <span className="text-[10px] text-gray-400">{filtered.length} orders</span>
         </div>
 
         {/* Search + status filter */}
