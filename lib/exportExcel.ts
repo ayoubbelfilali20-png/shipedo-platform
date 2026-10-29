@@ -24,15 +24,14 @@ export function exportOrdersExcel(
       'Amount': `${cur} ${(o.total_amount || 0).toLocaleString()}`,
       'Payment': o.payment_method || '',
       'Status': o.status || '',
-      'Order Date': o.created_at ? new Date(o.created_at).toLocaleDateString('en-GB') : '',
-      'Shipped Date': o.shipped_at ? new Date(o.shipped_at).toLocaleDateString('en-GB') : '',
+      'Shipped Date': o.shipped_to_agent_at ? new Date(o.shipped_to_agent_at).toLocaleDateString('en-GB') : (o.shipped_at ? new Date(o.shipped_at).toLocaleDateString('en-GB') : ''),
     }
   })
   const ws = XLSX.utils.json_to_sheet(rows)
   ws['!cols'] = [
     { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 16 },
     { wch: 16 }, { wch: 28 }, { wch: 30 }, { wch: 14 },
-    { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
+    { wch: 10 }, { wch: 14 }, { wch: 14 },
   ]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Orders')
