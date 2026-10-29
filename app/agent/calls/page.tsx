@@ -468,6 +468,7 @@ export default function AgentCallsPage() {
     items: Array.isArray(o.items) ? o.items : [],
     totalAmount: o.total_amount,
     paymentMethod: o.payment_method || 'COD',
+    country: (o as any).country,
   })
   const doPrint = async (ids: string[]) => {
     const toPrint = confirmedOrders.filter(o => ids.includes(o.id))

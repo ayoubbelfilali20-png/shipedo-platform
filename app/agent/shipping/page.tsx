@@ -143,6 +143,7 @@ function orderToLabel(o: OrderRow): PrintLabelProps {
     items: Array.isArray(o.items) ? o.items : [],
     totalAmount: o.total_amount,
     paymentMethod: o.payment_method,
+    country: o.country,
   }
 }
 

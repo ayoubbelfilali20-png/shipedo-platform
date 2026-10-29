@@ -86,6 +86,7 @@ function orderToLabel(o: OrderRow): PrintLabelProps {
     customerPhone: o.customer_phone, customerAddress: o.customer_address || '',
     customerCity: o.customer_city, items: Array.isArray(o.items) ? o.items : [],
     totalAmount: o.total_amount, paymentMethod: o.payment_method,
+    country: (o as any).country,
   }
 }
 

@@ -27,6 +27,7 @@ type OrderRow = {
   last_call_note?: string | null
   created_at: string
   seller_id?: string | null
+  country?: string
 }
 
 const statusOptions = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
@@ -160,6 +161,7 @@ export default function AdminOrderDetailPage() {
                     items: Array.isArray(order.items) ? order.items : [],
                     totalAmount: order.total_amount,
                     paymentMethod: order.payment_method,
+                    country: order.country,
                   })
                   refresh()
                 }}
@@ -179,6 +181,7 @@ export default function AdminOrderDetailPage() {
                   items: Array.isArray(order.items) ? order.items : [],
                   totalAmount: order.total_amount,
                   paymentMethod: order.payment_method,
+                  country: order.country,
                 })
               }}
               className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-all"
