@@ -8,7 +8,7 @@ import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, ChevronUp, Printer, CheckSquare, Square,
   Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
-  RefreshCw, FileText, Calendar, UserCheck, MapPin, Download, Sheet, Settings, Copy, Check,
+  RefreshCw, FileText, Calendar, UserCheck, MapPin, Download, Sheet,
 } from 'lucide-react'
 import { exportOrdersExcel } from '@/lib/exportExcel'
 import { cn } from '@/lib/utils'
@@ -147,49 +147,6 @@ function orderToLabel(o: OrderRow): PrintLabelProps {
   }
 }
 
-const APPS_SCRIPT_TEMPLATE = `function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = JSON.parse(e.postData.contents);
-  var orders = data.orders || [];
-
-  // Add headers if sheet is empty
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow([
-      'Tracking #', 'Delivery Tracking', 'Customer Name', 'Phone',
-      'City', 'Address', 'Products', 'Amount', 'Currency',
-      'Payment', 'Status', 'Shipped Date'
-    ]);
-    // Bold headers
-    sheet.getRange(1, 1, 1, 12).setFontWeight('bold');
-  }
-
-  orders.forEach(function(o) {
-    var shippedDate = '';
-    if (o.shipped_date) {
-      var d = new Date(o.shipped_date);
-      shippedDate = Utilities.formatDate(d, Session.getScriptTimeZone(), 'dd/MM/yyyy');
-    }
-    sheet.appendRow([
-      o.tracking || '',
-      o.delivery_tracking || '',
-      o.customer_name || '',
-      o.phone || '',
-      o.city || '',
-      o.address || '',
-      o.products || '',
-      o.amount || 0,
-      o.currency || '',
-      o.payment || '',
-      o.status || '',
-      shippedDate
-    ]);
-  });
-
-  return ContentService.createTextOutput(
-    JSON.stringify({ ok: true, count: orders.length })
-  ).setMimeType(ContentService.MimeType.JSON);
-}`;
-
 export default function AgentShippingPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -227,11 +184,7 @@ export default function AgentShippingPage() {
   const [agentCountry, setAgentCountry] = useState('KE')
 
   // Google Sheet export
-  const [sheetUrl, setSheetUrl] = useState('')
-  const [sheetModal, setSheetModal] = useState(false)
-  const [sheetUrlInput, setSheetUrlInput] = useState('')
-  const [sheetSending, setSheetSending] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
-  const [sheetCopied, setSheetCopied] = useState(false)
+  const [sheetStatus, setSheetStatus] = useState<'idle' | 'copied'>('idle')
 
   useEffect(() => {
     try {
@@ -242,8 +195,6 @@ export default function AgentShippingPage() {
         setAgentName(parsed.name || '')
         if (parsed.country) setAgentCountry(parsed.country)
       }
-      const url = localStorage.getItem('shipedo_sheet_export_url')
-      if (url) { setSheetUrl(url); setSheetUrlInput(url) }
     } catch {}
   }, [])
 
@@ -504,46 +455,37 @@ export default function AgentShippingPage() {
   }
   const exportExcel = () => exportOrdersExcel(filtered, agentCountry)
 
-  const sendToSheet = async () => {
-    if (!sheetUrl || filtered.length === 0) return
-    setSheetSending('sending')
-    try {
-      const cur = getCountry(agentCountry).currencySymbol
-      const rows = filtered.map(o => ({
-        tracking: o.tracking_number,
-        delivery_tracking: (o as any).delivery_tracking || '',
-        customer_name: o.customer_name,
-        phone: o.customer_phone,
-        city: o.customer_city,
-        address: o.customer_address || '',
-        products: (Array.isArray(o.items) ? o.items : []).map((it: any) => {
-          const q = Number(it.quantity) || 1
-          return q > 1 ? `${it.name || 'Item'} x${q}` : (it.name || 'Item')
-        }).join(', '),
-        amount: (o.total_amount || 0),
-        currency: getCountry(o.country || agentCountry).currencySymbol,
-        payment: o.payment_method,
-        status: o.status,
-        shipped_date: o.shipped_to_agent_at || o.shipped_at || '',
-      }))
-      const res = await fetch('/api/export/sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetUrl, orders: rows }),
-      })
-      const data = await res.json()
-      setSheetSending(data.ok ? 'sent' : 'error')
-    } catch {
-      setSheetSending('error')
-    }
-    setTimeout(() => setSheetSending('idle'), 3000)
-  }
-
-  const saveSheetUrl = () => {
-    const url = sheetUrlInput.trim()
-    setSheetUrl(url)
-    localStorage.setItem('shipedo_sheet_export_url', url)
-    setSheetModal(false)
+  const sendToSheet = () => {
+    if (filtered.length === 0) return
+    const header = ['Tracking #', 'Delivery Tracking', 'Customer Name', 'Phone', 'City', 'Address', 'Products', 'Amount', 'Currency', 'Payment', 'Status', 'Shipped Date']
+    const rows = filtered.map(o => {
+      const items = Array.isArray(o.items) ? o.items : []
+      const products = items.map((it: any) => {
+        const q = Number(it.quantity) || 1
+        return q > 1 ? `${it.name || 'Item'} x${q}` : (it.name || 'Item')
+      }).join(', ')
+      const cur = getCountry(o.country || agentCountry).currencySymbol
+      const shippedDate = o.shipped_to_agent_at || o.shipped_at
+      return [
+        o.tracking_number,
+        (o as any).delivery_tracking || '',
+        o.customer_name,
+        o.customer_phone,
+        o.customer_city,
+        o.customer_address || '',
+        products,
+        String(o.total_amount || 0),
+        cur,
+        o.payment_method,
+        o.status,
+        shippedDate ? new Date(shippedDate).toLocaleDateString('en-GB') : '',
+      ].join('\t')
+    })
+    const tsv = [header.join('\t'), ...rows].join('\n')
+    navigator.clipboard.writeText(tsv)
+    setSheetStatus('copied')
+    setTimeout(() => setSheetStatus('idle'), 3000)
+    window.open('https://sheets.new', '_blank')
   }
 
   const queuedOrders = orders.filter(o => printQueue.has(o.id))
@@ -686,32 +628,19 @@ export default function AgentShippingPage() {
             <Download size={13} /> Export Excel
           </button>
 
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => sheetUrl ? sendToSheet() : setSheetModal(true)}
-              disabled={filtered.length === 0 || sheetSending === 'sending'}
-              className={cn(
-                'flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl transition-all',
-                sheetSending === 'sent' ? 'bg-emerald-500 text-white' :
-                sheetSending === 'error' ? 'bg-red-500 text-white' :
-                sheetSending === 'sending' ? 'bg-green-400 text-white animate-pulse' :
-                'bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white'
-              )}
-            >
-              <Sheet size={13} />
-              {sheetSending === 'sending' ? 'Sending...' :
-               sheetSending === 'sent' ? 'Sent!' :
-               sheetSending === 'error' ? 'Failed' :
-               'Google Sheet'}
-            </button>
-            <button
-              onClick={() => setSheetModal(true)}
-              className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-all"
-              title="Configure Google Sheet"
-            >
-              <Settings size={12} />
-            </button>
-          </div>
+          <button
+            onClick={sendToSheet}
+            disabled={filtered.length === 0}
+            className={cn(
+              'flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold rounded-xl transition-all',
+              sheetStatus === 'copied'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white'
+            )}
+          >
+            <Sheet size={13} />
+            {sheetStatus === 'copied' ? 'Copied! Paste in Sheet' : 'Google Sheet'}
+          </button>
 
           {printQueue.size > 0 && (
             <button
@@ -1011,60 +940,6 @@ export default function AgentShippingPage() {
             </div>
           </div>
         )}
-        {/* Google Sheet config modal */}
-        {sheetModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="font-bold text-[#1a1c3a] flex items-center gap-2"><Sheet size={16} className="text-green-600" /> Google Sheet Export</h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Send orders directly to your Google Sheet</p>
-              </div>
-              <div className="p-5 space-y-4">
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Apps Script Web App URL</label>
-                  <input
-                    value={sheetUrlInput}
-                    onChange={e => setSheetUrlInput(e.target.value)}
-                    placeholder="https://script.google.com/macros/s/.../exec"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
-                  />
-                </div>
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Setup Instructions</span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(APPS_SCRIPT_TEMPLATE)
-                        setSheetCopied(true)
-                        setTimeout(() => setSheetCopied(false), 2000)
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[11px] font-bold text-gray-500 hover:text-green-600 hover:border-green-300 transition-all"
-                    >
-                      {sheetCopied ? <><Check size={10} className="text-green-600" /> Copied!</> : <><Copy size={10} /> Copy Script</>}
-                    </button>
-                  </div>
-                  <ol className="text-[11px] text-gray-500 space-y-1.5 list-decimal pl-4">
-                    <li>Open your Google Sheet</li>
-                    <li>Go to <strong>Extensions → Apps Script</strong></li>
-                    <li>Delete everything, paste the copied script</li>
-                    <li>Click <strong>Deploy → New deployment</strong></li>
-                    <li>Type: <strong>Web app</strong>, Access: <strong>Anyone</strong></li>
-                    <li>Click <strong>Deploy</strong>, copy the URL and paste above</li>
-                  </ol>
-                </div>
-              </div>
-              <div className="px-5 py-4 border-t border-gray-100 flex gap-2">
-                <button onClick={() => setSheetModal(false)}
-                  className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-50">Cancel</button>
-                <button onClick={saveSheetUrl}
-                  className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl">
-                  Save URL
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Delivery tracking modal */}
         {trackingModal && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
