@@ -457,31 +457,24 @@ export default function AgentShippingPage() {
 
   const sendToSheet = () => {
     if (filtered.length === 0) return
-    const header = ['Tracking #', 'Delivery Tracking', 'Customer Name', 'Phone', 'City', 'Address', 'Products', 'Amount', 'Currency', 'Payment', 'Status', 'Shipped Date']
     const rows = filtered.map(o => {
       const items = Array.isArray(o.items) ? o.items : []
       const products = items.map((it: any) => {
         const q = Number(it.quantity) || 1
         return q > 1 ? `${it.name || 'Item'} x${q}` : (it.name || 'Item')
       }).join(', ')
-      const cur = getCountry(o.country || agentCountry).currencySymbol
       const shippedDate = o.shipped_to_agent_at || o.shipped_at
       return [
-        o.tracking_number,
-        (o as any).delivery_tracking || '',
+        (o as any).delivery_tracking || o.tracking_number || '',
+        shippedDate ? new Date(shippedDate).toLocaleDateString('en-GB') : '',
         o.customer_name,
         o.customer_phone,
         o.customer_city,
-        o.customer_address || '',
         products,
         String(o.total_amount || 0),
-        cur,
-        o.payment_method,
-        o.status,
-        shippedDate ? new Date(shippedDate).toLocaleDateString('en-GB') : '',
       ].join('\t')
     })
-    const tsv = [header.join('\t'), ...rows].join('\n')
+    const tsv = rows.join('\n')
     navigator.clipboard.writeText(tsv)
     setSheetStatus('copied')
     setTimeout(() => setSheetStatus('idle'), 3000)

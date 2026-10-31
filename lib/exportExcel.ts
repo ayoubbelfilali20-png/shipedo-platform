@@ -1,5 +1,4 @@
 import * as XLSX from 'xlsx'
-import { getCountry } from '@/lib/countries'
 
 export function exportOrdersExcel(
   orders: any[],
@@ -12,26 +11,21 @@ export function exportOrdersExcel(
       const q = Number(it.quantity) || 1
       return q > 1 ? `${it.name || 'Item'} x${q}` : (it.name || 'Item')
     }).join(', ')
-    const cur = getCountry(o.country || countryCode).currencySymbol
+    const shippedDate = o.shipped_to_agent_at || o.shipped_at
     return {
-      'Tracking #': o.tracking_number || '',
-      'Delivery Tracking': o.delivery_tracking || '',
-      'Customer Name': o.customer_name || '',
-      'Phone': o.customer_phone || '',
-      'City': o.customer_city || '',
-      'Address': o.customer_address || '',
+      'Delivery Tracking': o.delivery_tracking || o.tracking_number || '',
+      'Date': shippedDate ? new Date(shippedDate).toLocaleDateString('en-GB') : '',
+      'Name of Client': o.customer_name || '',
+      'Phone No': o.customer_phone || '',
+      'Region': o.customer_city || '',
       'Products': productNames,
-      'Amount': `${cur} ${(o.total_amount || 0).toLocaleString()}`,
-      'Payment': o.payment_method || '',
-      'Status': o.status || '',
-      'Shipped Date': o.shipped_to_agent_at ? new Date(o.shipped_to_agent_at).toLocaleDateString('en-GB') : (o.shipped_at ? new Date(o.shipped_at).toLocaleDateString('en-GB') : ''),
+      'Amount': o.total_amount || 0,
     }
   })
   const ws = XLSX.utils.json_to_sheet(rows)
   ws['!cols'] = [
-    { wch: 16 }, { wch: 20 }, { wch: 22 }, { wch: 16 },
-    { wch: 16 }, { wch: 28 }, { wch: 30 }, { wch: 14 },
-    { wch: 10 }, { wch: 14 }, { wch: 14 },
+    { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 16 },
+    { wch: 16 }, { wch: 30 }, { wch: 14 },
   ]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Orders')
