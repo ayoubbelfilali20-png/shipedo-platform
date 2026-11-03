@@ -57,7 +57,12 @@ function buildLabelHtml(order: PrintLabelProps) {
     <div class="total-row">
       <span class="total-label">Total ${order.paymentMethod ? `<span class="payment-badge">${order.paymentMethod}</span>` : ''}</span>
       <span class="total-value">${(order.totalAmount || 0) > 0 ? cur + ' ' + (order.totalAmount || 0).toLocaleString() : '—'}</span>
-    </div>
+    </div>${(order.country || 'KE') === 'TZ' ? `
+    <div class="payment-box">
+      <div class="payment-box-title">Payment Number</div>
+      <div class="payment-box-name">Ayoub Bel Filali</div>
+      <div class="payment-box-phone">0722408623</div>
+    </div>` : ''}
   </div>`
 }
 
@@ -90,6 +95,10 @@ const pageStyles = `
   .total-label { font-size: 13px; font-weight: bold; color: #555; text-transform: uppercase; }
   .total-value { font-size: 20px; font-weight: 900; color: #000; }
   .payment-badge { display: inline-block; background: #000; color: #fff; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
+  .payment-box { border: 2px solid #000; border-radius: 4px; margin: 8px 16px 10px; padding: 8px 12px; text-align: center; flex-shrink: 0; }
+  .payment-box-title { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: #666; margin-bottom: 4px; }
+  .payment-box-name { font-size: 15px; font-weight: 900; color: #000; }
+  .payment-box-phone { font-size: 16px; font-weight: 900; color: #000; letter-spacing: 1px; margin-top: 2px; }
   @page { size: 4in 6in; margin: 0; }
   @media print {
     body { padding: 0; }
