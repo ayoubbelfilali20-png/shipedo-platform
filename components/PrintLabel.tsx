@@ -37,8 +37,15 @@ function buildLabelHtml(order: PrintLabelProps) {
         ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
       </div>
     </div>
-    <div class="barcode-wrap">
-      <svg class="barcode" data-tracking="${order.tracking}"></svg>
+    <div class="barcode-row">
+      <div class="barcode-wrap">
+        <svg class="barcode" data-tracking="${order.tracking}"></svg>
+      </div>${(order.country || 'KE') === 'TZ' ? `
+      <div class="payment-box">
+        <div class="payment-box-title">M-Pesa Vodacom</div>
+        <div class="payment-box-name">Ayoub Bel Filali</div>
+        <div class="payment-box-phone">0722408623</div>
+      </div>` : ''}
     </div>
     <div class="section">
       <div class="section-title">Deliver to</div>
@@ -57,12 +64,7 @@ function buildLabelHtml(order: PrintLabelProps) {
     <div class="total-row">
       <span class="total-label">Total ${order.paymentMethod ? `<span class="payment-badge">${order.paymentMethod}</span>` : ''}</span>
       <span class="total-value">${(order.totalAmount || 0) > 0 ? cur + ' ' + (order.totalAmount || 0).toLocaleString() : '—'}</span>
-    </div>${(order.country || 'KE') === 'TZ' ? `
-    <div class="payment-box">
-      <div class="payment-box-title">M-Pesa Vodacom</div>
-      <div class="payment-box-name">Ayoub Bel Filali</div>
-      <div class="payment-box-phone">0722408623</div>
-    </div>` : ''}
+    </div>
   </div>`
 }
 
@@ -81,7 +83,8 @@ const pageStyles = `
   .header { background: #000; color: #fff; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
   .header .logo { font-size: 20px; font-weight: 900; letter-spacing: 2px; }
   .header .tracking { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 2px; }
-  .barcode-wrap { text-align: center; padding: 10px 16px 6px; border-bottom: 1px dashed #999; flex-shrink: 0; }
+  .barcode-row { display: flex; align-items: center; border-bottom: 1px dashed #999; flex-shrink: 0; }
+  .barcode-wrap { text-align: center; padding: 10px 16px 6px; flex: 1; }
   .barcode-wrap svg { width: 100%; max-height: 52px; }
   .section { padding: 10px 16px; border-bottom: 1px dashed #999; }
   .section-title { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: #666; margin-bottom: 5px; }
@@ -95,10 +98,10 @@ const pageStyles = `
   .total-label { font-size: 13px; font-weight: bold; color: #555; text-transform: uppercase; }
   .total-value { font-size: 20px; font-weight: 900; color: #000; }
   .payment-badge { display: inline-block; background: #000; color: #fff; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 3px; margin-left: 6px; }
-  .payment-box { border: 2px solid #000; border-radius: 4px; margin: 8px 16px 10px; padding: 8px 12px; text-align: center; flex-shrink: 0; }
-  .payment-box-title { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: #666; margin-bottom: 4px; }
-  .payment-box-name { font-size: 15px; font-weight: 900; color: #000; }
-  .payment-box-phone { font-size: 16px; font-weight: 900; color: #000; letter-spacing: 1px; margin-top: 2px; }
+  .payment-box { border: 2px solid #000; border-radius: 4px; margin: 6px 12px 6px 0; padding: 6px 10px; text-align: center; flex-shrink: 0; white-space: nowrap; }
+  .payment-box-title { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 2px; }
+  .payment-box-name { font-size: 11px; font-weight: 900; color: #000; }
+  .payment-box-phone { font-size: 13px; font-weight: 900; color: #000; letter-spacing: 1px; margin-top: 1px; }
   @page { size: 4in 6in; margin: 0; }
   @media print {
     body { padding: 0; }
