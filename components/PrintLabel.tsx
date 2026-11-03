@@ -59,7 +59,7 @@ function buildLabelHtml(order: PrintLabelProps) {
       <span class="total-value">${(order.totalAmount || 0) > 0 ? cur + ' ' + (order.totalAmount || 0).toLocaleString() : '—'}</span>
     </div>${(order.country || 'KE') === 'TZ' ? `
     <div class="payment-box">
-      <div class="payment-box-title">Payment Number</div>
+      <div class="payment-box-title">M-Pesa Vodacom</div>
       <div class="payment-box-name">Ayoub Bel Filali</div>
       <div class="payment-box-phone">0722408623</div>
     </div>` : ''}
