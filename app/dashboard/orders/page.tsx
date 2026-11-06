@@ -44,8 +44,9 @@ const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
   { value: 'prepared',         label: 'Prepared'       },
   { value: 'shipped_to_agent', label: 'Sent to Agent'  },
   { value: 'shipped',          label: 'Shipped'        },
-  { value: 'delivered',        label: 'Delivered'      },
-  { value: 'returned',         label: 'Returned'       },
+  { value: 'delivered',          label: 'Delivered'        },
+  { value: 'delivered_by_agent', label: 'Delivered by Agent' },
+  { value: 'returned',          label: 'Returned'         },
   { value: 'cancelled',        label: 'Cancelled'      },
 ]
 

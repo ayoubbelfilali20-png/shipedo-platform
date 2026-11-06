@@ -86,7 +86,7 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
-  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if ((o.status === 'delivered' || o.status === 'delivered_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
@@ -120,11 +120,11 @@ export default function AdminDashboard() {
 
   const stats = useMemo(() => {
     const total = orders.length
-    const delivered = orders.filter(o => o.status === 'delivered').length
+    const delivered = orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length
     const returned = orders.filter(o => o.status === 'returned').length
     const pending = orders.filter(o => o.status === 'pending').length
     const shipped = orders.filter(o => o.status === 'shipped').length
-    const revenue = orders.filter(o => o.status === 'delivered').reduce((s, o) => s + (o.total_amount || 0), 0)
+    const revenue = orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').reduce((s, o) => s + (o.total_amount || 0), 0)
     return {
       total, delivered, returned, pending, shipped, revenue,
       deliveryRate: total > 0 ? ((delivered / total) * 100).toFixed(1) : '0',
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
       const m = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const label = m.toLocaleDateString('en-US', { month: 'short' })
       const rev = orders
-        .filter(o => o.status === 'delivered')
+        .filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent')
         .filter(o => {
           const d = new Date(getStatusDate(o))
           return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear()
@@ -160,9 +160,9 @@ export default function AdminDashboard() {
   const sellerStats = useMemo(() => {
     return sellers.map(s => {
       const sOrders = orders.filter(o => o.seller_id === s.id)
-      const delivered = sOrders.filter(o => o.status === 'delivered').length
+      const delivered = sOrders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length
       const returned = sOrders.filter(o => o.status === 'returned').length
-      const revenue = sOrders.filter(o => o.status === 'delivered').reduce((acc, o) => acc + (o.total_amount || 0), 0)
+      const revenue = sOrders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').reduce((acc, o) => acc + (o.total_amount || 0), 0)
       const rate = sOrders.length > 0 ? Math.round((delivered / sOrders.length) * 100) : 0
       const retRate = sOrders.length > 0 ? Math.round((returned / sOrders.length) * 100) : 0
       return { ...s, orderCount: sOrders.length, delivered, returned, revenue, rate, retRate }
@@ -173,7 +173,7 @@ export default function AdminDashboard() {
     return agents.map(a => {
       const handled = orders.filter(o => o.last_call_agent_id === a.id)
       const totalCalls = handled.reduce((sum, o) => sum + (o.call_attempts || 0), 0) || handled.length
-      const confirmed = handled.filter(o => ['confirmed','prepared','shipped','delivered'].includes(o.status)).length
+      const confirmed = handled.filter(o => ['confirmed','prepared','shipped','delivered','delivered_by_agent'].includes(o.status)).length
       const notReached = handled.filter(o => o.status === 'pending' && (o.call_attempts || 0) > 0 && !o.reminded_at).length
       const rescheduled = handled.filter(o => o.status === 'pending' && !!o.reminded_at).length
       const rate = totalCalls > 0 ? Math.round((confirmed / totalCalls) * 100) : 0

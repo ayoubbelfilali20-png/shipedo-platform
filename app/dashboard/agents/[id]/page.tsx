@@ -32,7 +32,7 @@ export default function AgentDetailPage() {
       const { data: orders } = await supabase.from('orders').select('status').eq('agent_id', id)
       if (orders) {
         const total = orders.length
-        const confirmed = orders.filter((o: any) => o.status === 'confirmed' || o.status === 'delivered').length
+        const confirmed = orders.filter((o: any) => o.status === 'confirmed' || o.status === 'delivered' || o.status === 'delivered_by_agent').length
         const pending = orders.filter((o: any) => o.status === 'pending' || o.status === 'new').length
         const cancelled = orders.filter((o: any) => o.status === 'cancelled' || o.status === 'rejected').length
         setStats({ total, confirmed, pending, cancelled })

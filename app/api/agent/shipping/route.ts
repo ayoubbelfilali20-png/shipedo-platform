@@ -7,7 +7,7 @@ const COLS_SAFE = 'id, tracking_number, customer_name, customer_phone, customer_
 
 const pages = [0, 1, 2]
 const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
-const STATUSES = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned']
+const STATUSES = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned']
 
 export async function GET(req: NextRequest) {
   const agentId = req.headers.get('x-agent-id')

@@ -748,7 +748,7 @@ export default function AgentCallsPage() {
 
                 {/* Client history */}
                 {clientHistory.length > 0 && (() => {
-                  const delivered = clientHistory.filter(h => h.status === 'delivered').length
+                  const delivered = clientHistory.filter(h => h.status === 'delivered' || h.status === 'delivered_by_agent').length
                   const returned = clientHistory.filter(h => h.status === 'returned').length
                   const cancelled = clientHistory.filter(h => h.status === 'cancelled').length
                   const shippedToAgent = clientHistory.filter(h => h.status === 'shipped_to_agent').length

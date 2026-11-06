@@ -30,7 +30,7 @@ type OrderRow = {
   country?: string
 }
 
-const statusOptions = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
+const statusOptions = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned', 'cancelled']
 
 const statusColors: Record<string, string> = {
   pending:          'bg-rose-50 text-rose-600 border-rose-300',

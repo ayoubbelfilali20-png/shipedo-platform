@@ -49,21 +49,22 @@ type OrderRow = {
   country?: string
 }
 
-type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'returned' | 'cancelled'
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'returned' | 'cancelled'
 
 const statusConfig: Record<string, { label: string; color: string; border: string; bg: string }> = {
-  pending:          { label: 'Pending',          color: 'text-rose-600',    border: 'border-rose-400',    bg: 'bg-rose-50'    },
-  confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', border: 'border-emerald-400', bg: 'bg-emerald-50' },
-  prepared:         { label: 'Prepared',         color: 'text-indigo-600',  border: 'border-indigo-400',  bg: 'bg-indigo-50'  },
-  shipped_to_agent: { label: 'Shipped to Agent', color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50'  },
-  shipped:          { label: 'Shipped',          color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50'    },
-  delivered:        { label: 'Delivered',        color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50'     },
-  returned:         { label: 'Returned',         color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50'     },
-  cancelled:        { label: 'Cancelled',        color: 'text-gray-500',    border: 'border-gray-300',    bg: 'bg-gray-50'    },
+  pending:              { label: 'Pending',          color: 'text-rose-600',    border: 'border-rose-400',    bg: 'bg-rose-50'    },
+  confirmed:            { label: 'Confirmed',        color: 'text-emerald-600', border: 'border-emerald-400', bg: 'bg-emerald-50' },
+  prepared:             { label: 'Prepared',         color: 'text-indigo-600',  border: 'border-indigo-400',  bg: 'bg-indigo-50'  },
+  shipped_to_agent:     { label: 'Sent to Agent',    color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50'  },
+  shipped:              { label: 'Shipped',          color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50'    },
+  delivered:            { label: 'Delivered',        color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50'     },
+  delivered_by_agent:   { label: 'Delivered by Agent', color: 'text-teal-600',  border: 'border-teal-400',    bg: 'bg-teal-50'    },
+  returned:             { label: 'Returned',         color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50'     },
+  cancelled:            { label: 'Cancelled',        color: 'text-gray-500',    border: 'border-gray-300',    bg: 'bg-gray-50'    },
 }
 
-const shippingStatuses: AllStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned']
-const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned', 'cancelled']
+const shippingStatuses: AllStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned']
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned', 'cancelled']
 
 type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'custom'
 const datePresets: { value: DatePreset; label: string }[] = [
@@ -97,7 +98,7 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
-  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if ((o.status === 'delivered' || o.status === 'delivered_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
@@ -356,7 +357,7 @@ export default function AdminShippingPage() {
       if (!c) return
       const cur = map.get(c) || { total: 0, delivered: 0, shipped: 0, pending: 0 }
       cur.total++
-      if (o.status === 'delivered') cur.delivered++
+      if (o.status === 'delivered' || o.status === 'delivered_by_agent') cur.delivered++
       if (o.status === 'shipped' || o.status === 'shipped_to_agent') cur.shipped++
       if (o.status === 'confirmed' || o.status === 'prepared') cur.pending++
       map.set(c, cur)
@@ -978,6 +979,7 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
                     'bg-purple-500':  s === 'shipped_to_agent',
                     'bg-blue-500':    s === 'shipped',
                     'bg-sky-500':     s === 'delivered',
+                    'bg-teal-500':    s === 'delivered_by_agent',
                     'bg-red-500':     s === 'returned',
                     'bg-gray-400':    s === 'cancelled',
                   })} />

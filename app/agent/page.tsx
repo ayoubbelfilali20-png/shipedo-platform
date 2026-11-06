@@ -81,7 +81,7 @@ const statusLabels: Record<string, string> = {
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
-  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if ((o.status === 'delivered' || o.status === 'delivered_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
@@ -228,11 +228,11 @@ export default function AgentDashboard() {
       prepared:        f.filter(o => o.status === 'prepared').length,
       shipped_to_agent: f.filter(o => o.status === 'shipped_to_agent').length,
       shipped:         f.filter(o => o.status === 'shipped').length,
-      delivered:       f.filter(o => o.status === 'delivered').length,
+      delivered:       f.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length,
       cancelled:       f.filter(o => o.status === 'cancelled').length,
       paid:            f.filter(o => o.payment_status === 'paid').length,
       done:            f.filter(o => isDone(o.status)).length,
-      revenue:         f.filter(o => o.status === 'delivered').reduce((s, o) => s + (o.total_amount || 0), 0),
+      revenue:         f.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').reduce((s, o) => s + (o.total_amount || 0), 0),
     }
   }, [filteredByPeriod, pending])
 
@@ -256,7 +256,7 @@ export default function AgentDashboard() {
       days.push({
         day,
         confirmed: inDay.filter(o => ['confirmed','prepared','shipped_to_agent','shipped','delivered'].includes(o.status)).length,
-        delivered: inDay.filter(o => o.status === 'delivered').length,
+        delivered: inDay.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length,
       })
     }
     return days
@@ -585,7 +585,7 @@ export default function AgentDashboard() {
                   </tr>
                 ) : tableRows.map(o => {
                   const flow = statusFlow[o.status]
-                  const isFinal = o.status === 'delivered' || o.status === 'cancelled'
+                  const isFinal = o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'cancelled'
                   return (
                     <tr key={o.id} className="hover:bg-gray-50/50">
                       <td className="px-5 py-3">
@@ -705,7 +705,7 @@ export default function AgentDashboard() {
                               {flow.label}
                             </button>
                           )}
-                          {o.status === 'delivered' && o.payment_status !== 'paid' && (
+                          {(o.status === 'delivered' || o.status === 'delivered_by_agent') && o.payment_status !== 'paid' && (
                             <button
                               disabled={busyId === o.id}
                               onClick={() => markPaid(o)}

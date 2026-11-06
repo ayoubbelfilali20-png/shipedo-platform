@@ -118,7 +118,7 @@ export function aggregate(
     return t >= startMs && t < endMs
   }
 
-  const delivered = orders.filter(o => o.status === 'delivered' && o.seller_id && inPeriod(o))
+  const delivered = orders.filter(o => (o.status === 'delivered' || o.status === 'delivered_by_agent') && o.seller_id && inPeriod(o))
 
   const bySeller = new Map<string, OrderRow[]>()
   for (const o of delivered) {

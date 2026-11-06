@@ -35,7 +35,7 @@ export default function StorageDashboard() {
     prepared: orders.filter(o => o.status === 'prepared').length,
     shipped_to_agent: orders.filter(o => o.status === 'shipped_to_agent').length,
     shipped: orders.filter(o => o.status === 'shipped').length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
+    delivered: orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length,
     returned: orders.filter(o => o.status === 'returned').length,
   }), [orders])
 

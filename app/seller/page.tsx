@@ -51,7 +51,7 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
-  if (o.status === 'delivered' && o.delivered_at) return o.delivered_at
+  if ((o.status === 'delivered' || o.status === 'delivered_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
@@ -201,10 +201,10 @@ export default function SellerDashboard() {
     const filtered  = orders.filter(o => inDesktopPeriod(getStatusDate(o), period) && orderMatchesProduct(o))
     const total     = filtered.length
     const confirmed = filtered.filter(o => ['confirmed','shipped','delivered'].includes(o.status)).length
-    const delivered = filtered.filter(o => o.status === 'delivered').length
+    const delivered = filtered.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length
     const returned  = filtered.filter(o => o.status === 'returned').length
     const pending   = filtered.filter(o => o.status === 'pending').length
-    const revenue   = filtered.filter(o => o.status === 'delivered').reduce((s,o) => s + (o.total_amount || 0), 0)
+    const revenue   = filtered.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').reduce((s,o) => s + (o.total_amount || 0), 0)
     const confirmRate = total > 0 ? ((confirmed / total) * 100).toFixed(1) : '0'
     const deliveryRate = total > 0 ? ((delivered / total) * 100).toFixed(1) : '0'
     const returnRate   = total > 0 ? ((returned / total) * 100).toFixed(1) : '0'
@@ -219,7 +219,7 @@ export default function SellerDashboard() {
       const m = new Date(now.getFullYear(), now.getMonth() - i, 1)
       const label = m.toLocaleDateString('en-US', { month: 'short' })
       const rev = orders
-        .filter(o => o.status === 'delivered')
+        .filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent')
         .filter(o => {
           const d = new Date(getStatusDate(o))
           return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear()
@@ -251,10 +251,10 @@ export default function SellerDashboard() {
   const mobileFiltered = useMemo(() => orders.filter(o => inMobilePeriod(getStatusDate(o), mobilePeriod) && orderMatchesProduct(o)), [orders, mobilePeriod, selectedProduct])
   const mTotal     = mobileFiltered.length
   const mConfirmed = mobileFiltered.filter(o => ['confirmed','shipped','delivered'].includes(o.status)).length
-  const mDelivered = mobileFiltered.filter(o => o.status === 'delivered').length
+  const mDelivered = mobileFiltered.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length
   const mReturned  = mobileFiltered.filter(o => o.status === 'returned').length
   const mPending   = mobileFiltered.filter(o => o.status === 'pending').length
-  const mRevenue   = mobileFiltered.filter(o => o.status === 'delivered').reduce((s,o) => s + (o.total_amount||0), 0)
+  const mRevenue   = mobileFiltered.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').reduce((s,o) => s + (o.total_amount||0), 0)
   const mConfirmRate = mTotal > 0 ? Math.round((mConfirmed / mTotal) * 100) : 0
 
   const handleLogout = () => {
