@@ -184,9 +184,6 @@ export default function AgentShippingPage() {
   const [agentName, setAgentName] = useState<string>('')
   const [agentCountry, setAgentCountry] = useState('KE')
 
-  // Expanded row for detail view
-  const [expandedRow, setExpandedRow] = useState<string | null>(null)
-
   // Google Sheet export
   const [sheetStatus, setSheetStatus] = useState<'idle' | 'copied'>('idle')
 
@@ -699,226 +696,183 @@ export default function AgentShippingPage() {
           )}
         </div>
 
-        {/* Orders table (sheet view) */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        {/* Orders list */}
+        <div className="space-y-1">
           {loading ? (
-            <div className="py-16 text-center text-sm text-gray-400">Loading...</div>
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-sm text-gray-400">Loading...</div>
           ) : filtered.length === 0 ? (
-            <div className="py-16 text-center text-gray-400">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm py-16 text-center text-gray-400">
               <Truck size={40} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">No orders found</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-left">
-                    <th className="px-2 py-2.5 w-8">
-                      <Square size={12} className="text-gray-300" />
-                    </th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Tracking</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Client</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Phone</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">City</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Products</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px] text-right">Amount</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Status</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Date</th>
-                    <th className="px-2 py-2.5 font-bold text-gray-500 uppercase tracking-wider text-[10px]">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((order, idx) => {
-                    const cfg = statusConfig[order.status] || statusConfig.confirmed
-                    const isEditing = editingId === order.id
-                    const items = Array.isArray(order.items) ? order.items : []
-                    const productNames = items.map((it: any) => {
-                      const q = Number(it.quantity) || 1
-                      return q > 1 ? `${it.name || 'Item'} x${q}` : (it.name || 'Item')
-                    }).join(', ')
-                    const shippedDate = order.shipped_to_agent_at || order.shipped_at || order.created_at
-                    const dup = duplicateMap.get(order.id)
-                    return (
-                      <tr key={order.id} className={cn(
-                        'border-b border-gray-100 hover:bg-gray-50/60 transition-colors',
-                        idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30',
-                        expandedRow === order.id && 'bg-orange-50/30'
-                      )}>
-                        <td className="px-2 py-2">
-                          <button onClick={() => togglePrintQueue(order.id)} className="text-gray-300 hover:text-blue-600">
-                            {printQueue.has(order.id) ? <CheckSquare size={13} className="text-blue-600" /> : <Square size={13} />}
-                          </button>
-                        </td>
-                        <td className="px-2 py-2">
-                          <button onClick={() => setExpandedRow(expandedRow === order.id ? null : order.id)}
-                            className="text-left group">
-                            <span className="font-mono font-bold text-[#1a1c3a] group-hover:text-[#f4991a]">{order.tracking_number}</span>
-                            {(order as any).delivery_tracking && (
-                              <span className="block text-[9px] font-mono text-blue-500">{(order as any).delivery_tracking}</span>
-                            )}
-                          </button>
-                          {dup?.isDuplicate && <span className="ml-1 text-[8px] font-bold text-red-600 bg-red-50 px-1 rounded">DUP</span>}
-                          {dup?.isSameClient && !dup?.isDuplicate && <span className="ml-1 text-[8px] font-bold text-amber-600 bg-amber-50 px-1 rounded">SAME</span>}
-                        </td>
-                        <td className="px-2 py-2">
-                          {isEditing ? (
-                            <input value={editName} onChange={e => setEditName(e.target.value)}
-                              className="px-1.5 py-1 bg-white border border-orange-300 rounded text-xs w-28 focus:outline-none" />
-                          ) : (
-                            <span className="font-semibold text-[#1a1c3a]">{order.customer_name}</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2">
-                          {isEditing ? (
-                            <input value={editPhone} onChange={e => setEditPhone(e.target.value)}
-                              className="px-1.5 py-1 bg-white border border-orange-300 rounded text-xs w-24 focus:outline-none" />
-                          ) : (
-                            <span className="text-gray-600">{order.customer_phone}</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2">
-                          {isEditing ? (
-                            <input value={editCity} onChange={e => setEditCity(e.target.value)}
-                              className="px-1.5 py-1 bg-white border border-orange-300 rounded text-xs w-24 focus:outline-none" />
-                          ) : (
-                            <span className="font-medium text-gray-700">{order.customer_city}</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2 max-w-[200px]">
-                          <span className="text-gray-600 truncate block">{productNames}</span>
-                        </td>
-                        <td className="px-2 py-2 text-right whitespace-nowrap">
-                          <span className="font-bold text-[#f4991a]">
-                            {getCountry(agentCountry).currencySymbol} {(order.total_amount || 0).toLocaleString()}
-                          </span>
-                        </td>
-                        <td className="px-2 py-2">
-                          <StatusDropdown
-                            currentStatus={order.status as AllStatus}
-                            processing={processing === order.id}
-                            onChangeStatus={(s) => changeStatus(order.id, s)}
-                          />
-                        </td>
-                        <td className="px-2 py-2 whitespace-nowrap text-gray-400">
-                          {new Date(shippedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                        </td>
-                        <td className="px-2 py-2">
-                          <div className="flex items-center gap-1">
-                            <a href={`tel:${cleanPhone(order.customer_phone)}`}
-                              className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500">
-                              <Phone size={11} />
-                            </a>
-                            <button
-                              disabled={waSendStatus[order.id] === 'sending'}
-                              onClick={async () => {
-                                setWaSendStatus(p => ({ ...p, [order.id]: 'sending' }))
-                                const msg = `Hello ${order.customer_name}, your order *${order.tracking_number}* for ${items.map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way. Please confirm your availability for delivery.`
-                                const result = await sendWaMsg(order.customer_phone, msg, order.id, agentId, agentName)
-                                setWaSendStatus(p => ({ ...p, [order.id]: result.ok ? 'sent' : 'failed' }))
-                                if (result.ok) logWhatsAppContact(order.id, agentId, agentName, order.customer_name)
-                                setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[order.id]; return n }), 2500)
-                              }}
-                              className={cn(
-                                "w-6 h-6 rounded-md flex items-center justify-center transition-all",
-                                waSendStatus[order.id] === 'sent' ? 'bg-emerald-500 text-white' :
-                                waSendStatus[order.id] === 'failed' ? 'bg-red-100 text-red-500' :
-                                waSendStatus[order.id] === 'sending' ? 'bg-emerald-100 text-emerald-400 animate-pulse' :
-                                'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
-                              )}
-                              title="Send WhatsApp">
-                              <MessageCircle size={11} />
-                            </button>
-                            <button onClick={() => isEditing ? saveEdit() : startEdit(order)}
-                              disabled={isEditing && savingEdit}
-                              className={cn(
-                                "w-6 h-6 rounded-md flex items-center justify-center transition-all",
-                                isEditing ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-[#f4991a]'
-                              )}>
-                              {isEditing ? (savingEdit ? <Clock size={11} /> : <Save size={11} />) : <Pencil size={11} />}
-                            </button>
-                            {isEditing && (
-                              <button onClick={cancelEdit}
-                                className="w-6 h-6 rounded-md bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
-                                <X size={11} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {/* Expanded row detail */}
-          {expandedRow && (() => {
-            const order = filtered.find(o => o.id === expandedRow)
-            if (!order) return null
+          ) : filtered.map(order => {
+            const cfg = statusConfig[order.status] || statusConfig.confirmed
+            const isEditing = editingId === order.id
             return (
-              <div className="border-t-2 border-[#f4991a] bg-orange-50/30 px-4 py-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#1a1c3a]">{order.tracking_number} — {order.customer_name}</span>
-                  <button onClick={() => setExpandedRow(null)} className="text-gray-400 hover:text-gray-600"><X size={14} /></button>
-                </div>
-                {order.customer_address && <p className="text-xs text-gray-500">Address: {order.customer_address}</p>}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {order.created_at && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-600 bg-white border border-gray-200 rounded px-1.5 py-0.5">
-                      <Calendar size={10} /> {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </span>
-                  )}
-                  {order.shipped_to_agent_at && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5">
-                      <UserCheck size={10} /> To Agent: {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    </span>
-                  )}
-                  {order.delivered_at && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded px-1.5 py-0.5">
-                      <CheckCircle size={10} /> Delivered: {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    </span>
-                  )}
-                  {order.returned_at && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
-                      <RotateCcw size={10} /> Returned: {new Date(order.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                    </span>
-                  )}
-                  {(order.print_count || 0) > 0 && (
-                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">{order.print_count}x Printed</span>
-                  )}
-                </div>
-                {order.last_call_note && (
-                  <div className="flex items-start gap-1.5 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1.5">
-                    <Phone size={10} className="mt-0.5 flex-shrink-0" /> <span>Call note: {order.last_call_note}</span>
+              <div key={order.id} className={cn('bg-white rounded-lg border shadow-sm', cfg.border)}>
+                {/* Header row */}
+                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
+                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                    <button onClick={() => togglePrintQueue(order.id)} className="text-gray-300 hover:text-blue-600">
+                      {printQueue.has(order.id) ? <CheckSquare size={13} className="text-blue-600" /> : <Square size={13} />}
+                    </button>
+                    {(order.print_count || 0) > 0 && (
+                      <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded">{order.print_count}x</span>
+                    )}
+                    <span className="text-[11px] font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+                    {(order as any).delivery_tracking && (
+                      <span className="text-[9px] font-mono font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">{(order as any).delivery_tracking}</span>
+                    )}
+                    {duplicateMap.get(order.id)?.isDuplicate && (
+                      <span className="text-[7px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
+                    )}
+                    {duplicateMap.get(order.id)?.isSameClient && !duplicateMap.get(order.id)?.isDuplicate && (
+                      <span className="text-[7px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded">SAME</span>
+                    )}
+                    <span className="text-[9px] text-gray-400">{order.payment_method}</span>
+                    {(order.total_amount || 0) > 0 && (
+                      <span className="text-[11px] font-bold text-[#f4991a]">
+                        {getCountry(agentCountry).currencySymbol} {order.total_amount.toLocaleString()}
+                      </span>
+                    )}
                   </div>
-                )}
-                <div className="flex items-center gap-1.5">
-                  {editNoteId === order.id ? (
-                    <div className="flex-1 flex items-center gap-1.5">
-                      <input value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Note..."
-                        className="flex-1 px-2 py-1 bg-white border border-gray-200 rounded text-xs focus:outline-none focus:border-amber-400" />
-                      <button onClick={saveNote} disabled={savingNote}
-                        className="px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold rounded">{savingNote ? '...' : 'Save'}</button>
-                      <button onClick={() => setEditNoteId(null)}
-                        className="px-2 py-1 bg-gray-200 text-gray-600 text-[10px] font-bold rounded">Cancel</button>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <a href={`tel:${cleanPhone(order.customer_phone)}`}
+                      className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500">
+                      <Phone size={11} />
+                    </a>
+                    <button
+                      disabled={waSendStatus[order.id] === 'sending'}
+                      onClick={async () => {
+                        setWaSendStatus(p => ({ ...p, [order.id]: 'sending' }))
+                        const msg = `Hello ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way. Please confirm your availability for delivery.`
+                        const result = await sendWaMsg(order.customer_phone, msg, order.id, agentId, agentName)
+                        setWaSendStatus(p => ({ ...p, [order.id]: result.ok ? 'sent' : 'failed' }))
+                        if (result.ok) logWhatsAppContact(order.id, agentId, agentName, order.customer_name)
+                        setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[order.id]; return n }), 2500)
+                      }}
+                      className={cn(
+                        "w-6 h-6 rounded-md flex items-center justify-center transition-all",
+                        waSendStatus[order.id] === 'sent' ? 'bg-emerald-500 text-white' :
+                        waSendStatus[order.id] === 'failed' ? 'bg-red-100 text-red-500' :
+                        waSendStatus[order.id] === 'sending' ? 'bg-emerald-100 text-emerald-400 animate-pulse' :
+                        'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
+                      )}
+                      title="Send WhatsApp">
+                      <MessageCircle size={11} />
+                    </button>
+                    <StatusDropdown
+                      currentStatus={order.status as AllStatus}
+                      processing={processing === order.id}
+                      onChangeStatus={(s) => changeStatus(order.id, s)}
+                    />
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="px-3 py-2 space-y-1.5">
+                  {isEditing ? (
+                    <div className="space-y-1.5 bg-orange-50/50 border border-orange-200 rounded-lg p-2.5">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Name"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                        <input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address"
+                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={saveEdit} disabled={savingEdit}
+                          className="px-2.5 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded">
+                          {savingEdit ? '...' : 'Save'}
+                        </button>
+                        <button onClick={cancelEdit}
+                          className="px-2.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded">Cancel</button>
+                      </div>
                     </div>
                   ) : (
-                    <>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-[12px] font-semibold text-[#1a1c3a]">{order.customer_name}</p>
+                      <span className="text-[11px] text-gray-400">{order.customer_phone}</span>
+                      <span className="text-[11px] font-medium text-gray-500">{order.customer_city}</span>
+                      {order.customer_address && <span className="text-[10px] text-gray-300">{order.customer_address}</span>}
+                      <button onClick={() => startEdit(order)}
+                        className="w-4 h-4 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a]">
+                        <Pencil size={9} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Items */}
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500 flex-wrap">
+                    <Package size={10} className="text-gray-300 flex-shrink-0" />
+                    {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
+                      <span key={i} className="font-medium">{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ' · ' : ''}</span>
+                    ))}
+                  </div>
+
+                  {/* Dates */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {order.shipped_to_agent_at && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5">
+                        <UserCheck size={9} /> {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                      </span>
+                    )}
+                    {order.delivered_at && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded px-1.5 py-0.5">
+                        <CheckCircle size={9} /> {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                      </span>
+                    )}
+                    {order.returned_at && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
+                        <RotateCcw size={9} /> {new Date(order.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Call note */}
+                  {order.last_call_note && (
+                    <div className="flex items-start gap-1 text-[11px] text-blue-600 bg-blue-50 rounded px-2 py-1">
+                      <Phone size={9} className="mt-0.5 flex-shrink-0" />
+                      <span>{order.last_call_note}</span>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {editNoteId === order.id ? (
+                    <div className="bg-amber-50/50 border border-amber-200 rounded p-2 space-y-1">
+                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
+                        placeholder="Add a note..." rows={2}
+                        className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-amber-400 resize-none" />
+                      <div className="flex items-center gap-1">
+                        <button onClick={saveNote} disabled={savingNote}
+                          className="px-2.5 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded">
+                          {savingNote ? '...' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditNoteId(null)}
+                          className="px-2.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
                       {order.notes && (
-                        <div className="flex-1 flex items-start gap-1 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
-                          <FileText size={10} className="mt-0.5 flex-shrink-0" /> <span>{order.notes}</span>
+                        <div className="flex-1 flex items-start gap-1 text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">
+                          <FileText size={9} className="mt-0.5 flex-shrink-0" />
+                          <span>{order.notes}</span>
                         </div>
                       )}
                       <button onClick={() => startEditNote(order)}
-                        className="text-[10px] font-bold text-gray-400 hover:text-amber-600 flex items-center gap-1">
-                        <FileText size={10} /> {order.notes ? 'Edit' : 'Add note'}
+                        className="text-[10px] font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-0.5">
+                        {order.notes ? <Pencil size={9} /> : <span className="flex items-center gap-0.5"><FileText size={9} /> Note</span>}
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
             )
-          })()}
+          })}
         </div>
 
         {/* Print queue */}
