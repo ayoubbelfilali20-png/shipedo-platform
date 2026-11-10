@@ -8,13 +8,14 @@ import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, ChevronUp, Printer, CheckSquare, Square,
   Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
-  RefreshCw, FileText, Calendar, UserCheck, MapPin, Download, Sheet,
+  RefreshCw, FileText, Calendar, UserCheck, MapPin, Download, Sheet, User,
 } from 'lucide-react'
 import { exportOrdersExcel } from '@/lib/exportExcel'
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { getCountry } from '@/lib/countries'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
+import { USIRI_AGENTS, USIRI_REGIONS, findUsiriAgent, type UsiriAgent } from '@/lib/usiriAgents'
 
 type OrderRow = {
   id: string
@@ -156,11 +157,14 @@ export default function AgentShippingPage() {
   const [filterProduct, setFilterProduct] = useState<string>('all')
   const [filterCity, setFilterCity] = useState<string>('all')
   const [citiesExpanded, setCitiesExpanded] = useState(false)
+  const [groupByCity, setGroupByCity] = useState(false)
   const [processing, setProcessing] = useState<string | null>(null)
   const [waSendStatus, setWaSendStatus] = useState<Record<string, 'sending' | 'sent' | 'failed'>>({})
   const [datePreset, setDatePreset] = useState<DatePreset>('today')
   const [trackingModal, setTrackingModal] = useState<{ orderId: string; newStatus: string } | null>(null)
   const [deliveryTrackingInput, setDeliveryTrackingInput] = useState('')
+  const [regionModal, setRegionModal] = useState<{ orderId: string; region: string; agent: UsiriAgent | null } | null>(null)
+  const [regionSearch, setRegionSearch] = useState('')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [fullDataLoaded, setFullDataLoaded] = useState(false)
@@ -270,9 +274,17 @@ export default function AgentShippingPage() {
   // Resolve city once per order — used by every filter/breakdown computation
   const cityByOrderId = useMemo(() => {
     const m = new Map<string, string | null>()
-    orders.forEach(o => m.set(o.id, resolveCity(o.customer_city, o.customer_address)))
+    orders.forEach(o => {
+      if (agentCountry === 'TZ') {
+        const raw = (o.customer_city || '').trim().toUpperCase()
+        const usiri = findUsiriAgent(raw)
+        m.set(o.id, usiri ? usiri.region : raw || null)
+      } else {
+        m.set(o.id, resolveCity(o.customer_city, o.customer_address))
+      }
+    })
     return m
-  }, [orders])
+  }, [orders, agentCountry])
 
   const productOptions = useMemo(() => {
     const set = new Map<string, string>()
@@ -292,8 +304,11 @@ export default function AgentShippingPage() {
   const cityOptions = useMemo(() => {
     const present = new Set<string>()
     cityByOrderId.forEach(c => { if (c) present.add(c) })
-    return KENYAN_CITIES.filter(c => present.has(c))
-  }, [cityByOrderId])
+    const list = agentCountry === 'TZ' ? USIRI_REGIONS : KENYAN_CITIES
+    const matched = list.filter(c => present.has(c))
+    const extra = Array.from(present).filter(c => !list.includes(c)).sort()
+    return [...matched, ...extra]
+  }, [cityByOrderId, agentCountry])
 
   // Pre-compute date range once so we don't reparse per row
   const { from: dateFrom, to: dateTo } = useMemo(
@@ -340,11 +355,22 @@ export default function AgentShippingPage() {
     return acc
   }, [baseFiltered])
 
+  const groupedByCity = useMemo(() => {
+    if (!groupByCity) return null
+    const map = new Map<string, OrderRow[]>()
+    filtered.forEach(o => {
+      const city = cityByOrderId.get(o.id) || 'Unknown'
+      if (!map.has(city)) map.set(city, [])
+      map.get(city)!.push(o)
+    })
+    return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length)
+  }, [filtered, groupByCity, cityByOrderId])
+
   // City breakdown (uses base filter — respects date, product, search; ignores city/status)
   const cityBreakdown = useMemo(() => {
     const q = search.toLowerCase().trim()
     const productLower = filterProduct.toLowerCase()
-    const map = new Map<string, { total: number; delivered: number; shipped: number; pending: number }>()
+    const map = new Map<string, { total: number; delivered: number; shipped: number; pending: number; returned: number; amount: number }>()
     orders.forEach(o => {
       const matchesSearch = !q ||
         o.tracking_number?.toLowerCase().includes(q) ||
@@ -364,11 +390,13 @@ export default function AgentShippingPage() {
       }
       const c = cityByOrderId.get(o.id)
       if (!c) return
-      const cur = map.get(c) || { total: 0, delivered: 0, shipped: 0, pending: 0 }
+      const cur = map.get(c) || { total: 0, delivered: 0, shipped: 0, pending: 0, returned: 0, amount: 0 }
       cur.total++
       if (o.status === 'delivered' || o.status === 'delivered_by_agent') cur.delivered++
       if (o.status === 'shipped' || o.status === 'shipped_to_agent') cur.shipped++
       if (o.status === 'confirmed' || o.status === 'prepared') cur.pending++
+      if (o.status === 'returned') cur.returned++
+      cur.amount += o.total_amount || 0
       map.set(c, cur)
     })
     return Array.from(map.entries())
@@ -498,6 +526,195 @@ export default function AgentShippingPage() {
       ? { ...o, printed: true, print_count: nextCounts.get(o.id)! }
       : o))
     setPrintQueue(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n })
+  }
+
+  const renderOrderCard = (order: OrderRow) => {
+    const cfg = statusConfig[order.status] || statusConfig.confirmed
+    const isEditing = editingId === order.id
+    return (
+      <div key={order.id} className={cn('bg-white rounded-lg border shadow-sm', cfg.border)}>
+        <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
+          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+            <button onClick={() => togglePrintQueue(order.id)} className="text-gray-300 hover:text-blue-600">
+              {printQueue.has(order.id) ? <CheckSquare size={13} className="text-blue-600" /> : <Square size={13} />}
+            </button>
+            {(order.print_count || 0) > 0 && (
+              <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded">{order.print_count}x</span>
+            )}
+            <span className="text-[11px] font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
+            {(order as any).delivery_tracking && (
+              <span className="text-[9px] font-mono font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">{(order as any).delivery_tracking}</span>
+            )}
+            {duplicateMap.get(order.id)?.isDuplicate && (
+              <span className="text-[7px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
+            )}
+            {duplicateMap.get(order.id)?.isSameClient && !duplicateMap.get(order.id)?.isDuplicate && (
+              <span className="text-[7px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded">SAME</span>
+            )}
+            <span className="text-[9px] text-gray-400">{order.payment_method}</span>
+            {(order.total_amount || 0) > 0 && (
+              <span className="text-[11px] font-bold text-[#f4991a]">
+                {getCountry(agentCountry).currencySymbol} {order.total_amount.toLocaleString()}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <a href={`tel:${cleanPhone(order.customer_phone)}`}
+              className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500">
+              <Phone size={11} />
+            </a>
+            <button
+              disabled={waSendStatus[order.id] === 'sending'}
+              onClick={async () => {
+                setWaSendStatus(p => ({ ...p, [order.id]: 'sending' }))
+                const msg = `Hello ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way. Please confirm your availability for delivery.`
+                const result = await sendWaMsg(order.customer_phone, msg, order.id, agentId, agentName)
+                setWaSendStatus(p => ({ ...p, [order.id]: result.ok ? 'sent' : 'failed' }))
+                if (result.ok) logWhatsAppContact(order.id, agentId, agentName, order.customer_name)
+                setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[order.id]; return n }), 2500)
+              }}
+              className={cn(
+                "w-6 h-6 rounded-md flex items-center justify-center transition-all",
+                waSendStatus[order.id] === 'sent' ? 'bg-emerald-500 text-white' :
+                waSendStatus[order.id] === 'failed' ? 'bg-red-100 text-red-500' :
+                waSendStatus[order.id] === 'sending' ? 'bg-emerald-100 text-emerald-400 animate-pulse' :
+                'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
+              )}
+              title="Send WhatsApp">
+              <MessageCircle size={11} />
+            </button>
+            <StatusDropdown
+              currentStatus={order.status as AllStatus}
+              processing={processing === order.id}
+              onChangeStatus={(s) => changeStatus(order.id, s)}
+            />
+          </div>
+        </div>
+        <div className="px-3 py-2 space-y-1.5">
+          {isEditing ? (
+            <div className="space-y-1.5 bg-orange-50/50 border border-orange-200 rounded-lg p-2.5">
+              <div className="grid grid-cols-2 gap-1.5">
+                <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Name"
+                  className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone"
+                  className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                <input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City"
+                  className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+                <input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address"
+                  className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={saveEdit} disabled={savingEdit}
+                  className="px-2.5 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded">
+                  {savingEdit ? '...' : 'Save'}
+                </button>
+                <button onClick={cancelEdit}
+                  className="px-2.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-[12px] font-semibold text-[#1a1c3a]">{order.customer_name}</p>
+              <span className="text-[11px] text-gray-400">{order.customer_phone}</span>
+              <span className="text-[11px] font-medium text-gray-500">{order.customer_city}</span>
+              {order.customer_address && <span className="text-[10px] text-gray-300">{order.customer_address}</span>}
+              <button onClick={() => startEdit(order)}
+                className="w-4 h-4 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a]">
+                <Pencil size={9} />
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 text-[11px] text-gray-500 flex-wrap">
+            <Package size={10} className="text-gray-300 flex-shrink-0" />
+            {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
+              <span key={i} className="font-medium">{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ' · ' : ''}</span>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {order.shipped_to_agent_at && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5">
+                <UserCheck size={9} /> {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+              </span>
+            )}
+            {order.delivered_at && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded px-1.5 py-0.5">
+                <CheckCircle size={9} /> {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+              </span>
+            )}
+            {order.returned_at && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
+                <RotateCcw size={9} /> {new Date(order.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+              </span>
+            )}
+          </div>
+          {/* Usiri agent info (TZ only) */}
+          {agentCountry === 'TZ' && (() => {
+            const usiri = findUsiriAgent(order.customer_city)
+            if (usiri) return (
+              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded px-2 py-1.5">
+                <User size={10} className="text-indigo-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[10px] font-bold text-indigo-700">{usiri.name}</span>
+                  <span className="text-[9px] text-indigo-400 ml-1.5">{usiri.region}</span>
+                  {usiri.office && <span className="text-[9px] text-indigo-300 ml-1">· {usiri.office}</span>}
+                </div>
+                <span className="text-[10px] font-mono font-semibold text-indigo-600">{usiri.phone}</span>
+                <a href={`tel:${usiri.phone.replace(/-/g, '')}`}
+                  className="w-5 h-5 rounded bg-indigo-500 hover:bg-indigo-600 flex items-center justify-center text-white flex-shrink-0">
+                  <Phone size={9} />
+                </a>
+              </div>
+            )
+            return (
+              <button
+                onClick={() => {
+                  setRegionSearch('')
+                  setRegionModal({ orderId: order.id, region: order.customer_city, agent: null })
+                }}
+                className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1 hover:bg-amber-100"
+              >
+                <AlertCircle size={10} /> No Usiri agent for &quot;{order.customer_city}&quot; — Set Region
+              </button>
+            )
+          })()}
+
+          {order.last_call_note && (
+            <div className="flex items-start gap-1 text-[11px] text-blue-600 bg-blue-50 rounded px-2 py-1">
+              <Phone size={9} className="mt-0.5 flex-shrink-0" />
+              <span>{order.last_call_note}</span>
+            </div>
+          )}
+          {editNoteId === order.id ? (
+            <div className="bg-amber-50/50 border border-amber-200 rounded p-2 space-y-1">
+              <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
+                placeholder="Add a note..." rows={2}
+                className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-amber-400 resize-none" />
+              <div className="flex items-center gap-1">
+                <button onClick={saveNote} disabled={savingNote}
+                  className="px-2.5 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded">
+                  {savingNote ? '...' : 'Save'}
+                </button>
+                <button onClick={() => setEditNoteId(null)}
+                  className="px-2.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              {order.notes && (
+                <div className="flex-1 flex items-start gap-1 text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">
+                  <FileText size={9} className="mt-0.5 flex-shrink-0" />
+                  <span>{order.notes}</span>
+                </div>
+              )}
+              <button onClick={() => startEditNote(order)}
+                className="text-[10px] font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-0.5">
+                {order.notes ? <Pencil size={9} /> : <span className="flex items-center gap-0.5"><FileText size={9} /> Note</span>}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -648,48 +865,80 @@ export default function AgentShippingPage() {
 
         {/* Cities breakdown */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <button
-            onClick={() => setCitiesExpanded(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-          >
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between px-4 py-3">
+            <button
+              onClick={() => setCitiesExpanded(v => !v)}
+              className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+            >
               <MapPin size={14} className="text-[#f4991a]" />
               <span className="text-sm font-bold text-[#1a1c3a]">Cities</span>
               <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                {cityBreakdown.length} towns · {cityBreakdown.reduce((s, c) => s + c.total, 0)} orders
+                {cityBreakdown.length} cities · {cityBreakdown.reduce((s, c) => s + c.total, 0)} orders
               </span>
-            </div>
-            {citiesExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
-          </button>
+              {citiesExpanded ? <ChevronUp size={12} className="text-gray-400" /> : <ChevronDown size={12} className="text-gray-400" />}
+            </button>
+            <button
+              onClick={() => setGroupByCity(v => !v)}
+              className={cn(
+                'text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1',
+                groupByCity
+                  ? 'bg-[#f4991a] text-white border-[#f4991a]'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-[#f4991a] hover:text-[#f4991a]'
+              )}
+            >
+              <MapPin size={10} /> {groupByCity ? 'Grouped by City ✓' : 'Group by City'}
+            </button>
+          </div>
           {citiesExpanded && (
-            <div className="px-4 pb-4 pt-1 max-h-[360px] overflow-y-auto">
+            <div className="px-4 pb-4 pt-1 max-h-[400px] overflow-y-auto">
               {cityBreakdown.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-6">No cities in current filter</p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                  {cityBreakdown.map(c => (
-                    <button
-                      key={c.city}
-                      onClick={() => setFilterCity(filterCity === c.city ? 'all' : c.city)}
-                      className={cn(
-                        'flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-all',
-                        filterCity === c.city
-                          ? 'border-[#f4991a] bg-orange-50 shadow-sm'
-                          : 'border-gray-100 bg-gray-50/60 hover:bg-gray-50 hover:border-gray-200'
-                      )}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-[#1a1c3a] truncate">{c.city}</p>
-                        <p className="text-[9px] text-gray-400 mt-0.5">
-                          {c.delivered > 0 && <span className="text-sky-600">{c.delivered} deliv · </span>}
-                          {c.shipped > 0 && <span className="text-blue-600">{c.shipped} ship · </span>}
-                          {c.pending > 0 && <span className="text-emerald-600">{c.pending} pend</span>}
-                          {c.delivered === 0 && c.shipped === 0 && c.pending === 0 && <span>—</span>}
-                        </p>
-                      </div>
-                      <span className="text-sm font-bold text-[#f4991a] flex-shrink-0 ml-2">{c.total}</span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {cityBreakdown.map(c => {
+                    const deliveryRate = c.total > 0 ? Math.round((c.delivered / c.total) * 100) : 0
+                    const inProgress = c.total - c.delivered - c.returned
+                    const usiri = agentCountry === 'TZ' ? findUsiriAgent(c.city) : null
+                    return (
+                      <button
+                        key={c.city}
+                        onClick={() => setFilterCity(filterCity === c.city ? 'all' : c.city)}
+                        className={cn(
+                          'relative px-3 py-2.5 rounded-lg border text-left transition-all overflow-hidden',
+                          filterCity === c.city
+                            ? 'border-[#f4991a] bg-orange-50 shadow-sm'
+                            : 'border-gray-100 bg-gray-50/60 hover:bg-gray-50 hover:border-gray-200'
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[11px] font-bold text-[#1a1c3a] truncate">{c.city}</p>
+                          <span className="text-sm font-bold text-[#f4991a] flex-shrink-0 ml-2">{c.total}</span>
+                        </div>
+                        {usiri && (
+                          <p className="text-[9px] text-indigo-500 font-semibold mb-1 truncate">
+                            {usiri.name} · {usiri.phone}
+                          </p>
+                        )}
+                        <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1.5">
+                          <div className="h-full flex">
+                            {c.delivered > 0 && <div className="bg-emerald-500 h-full" style={{ width: `${(c.delivered / c.total) * 100}%` }} />}
+                            {c.returned > 0 && <div className="bg-red-400 h-full" style={{ width: `${(c.returned / c.total) * 100}%` }} />}
+                            {inProgress > 0 && <div className="bg-blue-400 h-full" style={{ width: `${(inProgress / c.total) * 100}%` }} />}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[9px] flex-wrap">
+                          <span className="text-emerald-600 font-semibold">{c.delivered} deliv</span>
+                          {c.returned > 0 && <span className="text-red-500 font-semibold">{c.returned} ret</span>}
+                          {c.shipped > 0 && <span className="text-blue-600">{c.shipped} ship</span>}
+                          {c.pending > 0 && <span className="text-amber-600">{c.pending} pend</span>}
+                          <span className="ml-auto text-gray-400 font-bold">{deliveryRate}%</span>
+                        </div>
+                        <div className="text-[9px] text-gray-400 mt-0.5">
+                          {getCountry(agentCountry).currencySymbol} {c.amount.toLocaleString()}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -705,174 +954,45 @@ export default function AgentShippingPage() {
               <Truck size={40} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">No orders found</p>
             </div>
-          ) : filtered.map(order => {
-            const cfg = statusConfig[order.status] || statusConfig.confirmed
-            const isEditing = editingId === order.id
+          ) : groupByCity && groupedByCity ? groupedByCity.map(([city, cityOrders]) => {
+            const cityDelivered = cityOrders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length
+            const cityReturned = cityOrders.filter(o => o.status === 'returned').length
+            const cityAmount = cityOrders.reduce((s, o) => s + (o.total_amount || 0), 0)
+            const cityRate = cityOrders.length > 0 ? Math.round((cityDelivered / cityOrders.length) * 100) : 0
+            const usiriAgent = agentCountry === 'TZ' ? findUsiriAgent(city) : null
             return (
-              <div key={order.id} className={cn('bg-white rounded-lg border shadow-sm', cfg.border)}>
-                {/* Header row */}
-                <div className="px-3 py-2 flex items-center justify-between border-b border-gray-50 bg-gray-50/40">
-                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                    <button onClick={() => togglePrintQueue(order.id)} className="text-gray-300 hover:text-blue-600">
-                      {printQueue.has(order.id) ? <CheckSquare size={13} className="text-blue-600" /> : <Square size={13} />}
-                    </button>
-                    {(order.print_count || 0) > 0 && (
-                      <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded">{order.print_count}x</span>
-                    )}
-                    <span className="text-[11px] font-mono font-bold text-[#1a1c3a]">{order.tracking_number}</span>
-                    {(order as any).delivery_tracking && (
-                      <span className="text-[9px] font-mono font-semibold text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">{(order as any).delivery_tracking}</span>
-                    )}
-                    {duplicateMap.get(order.id)?.isDuplicate && (
-                      <span className="text-[7px] font-bold text-red-600 bg-red-50 border border-red-200 px-1 py-0.5 rounded">DUP</span>
-                    )}
-                    {duplicateMap.get(order.id)?.isSameClient && !duplicateMap.get(order.id)?.isDuplicate && (
-                      <span className="text-[7px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded">SAME</span>
-                    )}
-                    <span className="text-[9px] text-gray-400">{order.payment_method}</span>
-                    {(order.total_amount || 0) > 0 && (
-                      <span className="text-[11px] font-bold text-[#f4991a]">
-                        {getCountry(agentCountry).currencySymbol} {order.total_amount.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <a href={`tel:${cleanPhone(order.customer_phone)}`}
-                      className="w-6 h-6 rounded-md bg-orange-50 hover:bg-orange-100 flex items-center justify-center text-orange-500">
-                      <Phone size={11} />
-                    </a>
-                    <button
-                      disabled={waSendStatus[order.id] === 'sending'}
-                      onClick={async () => {
-                        setWaSendStatus(p => ({ ...p, [order.id]: 'sending' }))
-                        const msg = `Hello ${order.customer_name}, your order *${order.tracking_number}* for ${(Array.isArray(order.items) ? order.items : []).map((it: any) => { const q = Number(it.quantity) || 1; return q > 1 ? `${it.name || 'Item'} (x${q})` : (it.name || 'Item') }).join(', ')} is on its way. Please confirm your availability for delivery.`
-                        const result = await sendWaMsg(order.customer_phone, msg, order.id, agentId, agentName)
-                        setWaSendStatus(p => ({ ...p, [order.id]: result.ok ? 'sent' : 'failed' }))
-                        if (result.ok) logWhatsAppContact(order.id, agentId, agentName, order.customer_name)
-                        setTimeout(() => setWaSendStatus(p => { const n = { ...p }; delete n[order.id]; return n }), 2500)
-                      }}
-                      className={cn(
-                        "w-6 h-6 rounded-md flex items-center justify-center transition-all",
-                        waSendStatus[order.id] === 'sent' ? 'bg-emerald-500 text-white' :
-                        waSendStatus[order.id] === 'failed' ? 'bg-red-100 text-red-500' :
-                        waSendStatus[order.id] === 'sending' ? 'bg-emerald-100 text-emerald-400 animate-pulse' :
-                        'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'
-                      )}
-                      title="Send WhatsApp">
-                      <MessageCircle size={11} />
-                    </button>
-                    <StatusDropdown
-                      currentStatus={order.status as AllStatus}
-                      processing={processing === order.id}
-                      onChangeStatus={(s) => changeStatus(order.id, s)}
-                    />
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="px-3 py-2 space-y-1.5">
-                  {isEditing ? (
-                    <div className="space-y-1.5 bg-orange-50/50 border border-orange-200 rounded-lg p-2.5">
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Name"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
-                        <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
-                        <input value={editCity} onChange={e => setEditCity(e.target.value)} placeholder="City"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
-                        <input value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address"
-                          className="px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-orange-400" />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={saveEdit} disabled={savingEdit}
-                          className="px-2.5 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded">
-                          {savingEdit ? '...' : 'Save'}
-                        </button>
-                        <button onClick={cancelEdit}
-                          className="px-2.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded">Cancel</button>
-                      </div>
+              <div key={city} className="space-y-1 mb-4">
+                <div className="sticky top-0 z-10 bg-gradient-to-r from-[#1a1c3a] to-[#2a2c4a] rounded-lg px-4 py-2.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin size={13} className="text-[#f4991a]" />
+                      <span className="text-sm font-bold text-white">{city}</span>
+                      <span className="text-[10px] font-bold text-white/60 bg-white/10 px-2 py-0.5 rounded-full">{cityOrders.length} orders</span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-[12px] font-semibold text-[#1a1c3a]">{order.customer_name}</p>
-                      <span className="text-[11px] text-gray-400">{order.customer_phone}</span>
-                      <span className="text-[11px] font-medium text-gray-500">{order.customer_city}</span>
-                      {order.customer_address && <span className="text-[10px] text-gray-300">{order.customer_address}</span>}
-                      <button onClick={() => startEdit(order)}
-                        className="w-4 h-4 rounded flex items-center justify-center text-gray-300 hover:text-[#f4991a]">
-                        <Pencil size={9} />
-                      </button>
+                    <div className="flex items-center gap-3 text-[10px] font-semibold">
+                      <span className="text-emerald-400">{cityDelivered} deliv</span>
+                      {cityReturned > 0 && <span className="text-red-400">{cityReturned} ret</span>}
+                      <span className="text-white/40">{cityRate}%</span>
+                      <span className="text-[#f4991a] font-bold">{getCountry(agentCountry).currencySymbol} {cityAmount.toLocaleString()}</span>
                     </div>
-                  )}
-
-                  {/* Items */}
-                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500 flex-wrap">
-                    <Package size={10} className="text-gray-300 flex-shrink-0" />
-                    {(Array.isArray(order.items) ? order.items : []).map((it: any, i: number) => (
-                      <span key={i} className="font-medium">{it.name || 'Item'} x{it.quantity || 1}{i < order.items.length - 1 ? ' · ' : ''}</span>
-                    ))}
                   </div>
-
-                  {/* Dates */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {order.shipped_to_agent_at && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-600 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5">
-                        <UserCheck size={9} /> {new Date(order.shipped_to_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                      </span>
-                    )}
-                    {order.delivered_at && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded px-1.5 py-0.5">
-                        <CheckCircle size={9} /> {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                      </span>
-                    )}
-                    {order.returned_at && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
-                        <RotateCcw size={9} /> {new Date(order.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Call note */}
-                  {order.last_call_note && (
-                    <div className="flex items-start gap-1 text-[11px] text-blue-600 bg-blue-50 rounded px-2 py-1">
-                      <Phone size={9} className="mt-0.5 flex-shrink-0" />
-                      <span>{order.last_call_note}</span>
-                    </div>
-                  )}
-
-                  {/* Notes */}
-                  {editNoteId === order.id ? (
-                    <div className="bg-amber-50/50 border border-amber-200 rounded p-2 space-y-1">
-                      <textarea value={editNote} onChange={e => setEditNote(e.target.value)}
-                        placeholder="Add a note..." rows={2}
-                        className="w-full px-2 py-1 bg-white border border-gray-200 rounded text-[11px] focus:outline-none focus:border-amber-400 resize-none" />
-                      <div className="flex items-center gap-1">
-                        <button onClick={saveNote} disabled={savingNote}
-                          className="px-2.5 py-0.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-[10px] font-bold rounded">
-                          {savingNote ? '...' : 'Save'}
-                        </button>
-                        <button onClick={() => setEditNoteId(null)}
-                          className="px-2.5 py-0.5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-[10px] font-bold rounded">Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      {order.notes && (
-                        <div className="flex-1 flex items-start gap-1 text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">
-                          <FileText size={9} className="mt-0.5 flex-shrink-0" />
-                          <span>{order.notes}</span>
-                        </div>
-                      )}
-                      <button onClick={() => startEditNote(order)}
-                        className="text-[10px] font-bold text-gray-300 hover:text-amber-600 flex-shrink-0 px-0.5">
-                        {order.notes ? <Pencil size={9} /> : <span className="flex items-center gap-0.5"><FileText size={9} /> Note</span>}
-                      </button>
+                  {usiriAgent && (
+                    <div className="mt-1.5 flex items-center gap-2 bg-white/10 rounded px-2.5 py-1.5">
+                      <User size={10} className="text-indigo-300" />
+                      <span className="text-[10px] font-bold text-white">{usiriAgent.name}</span>
+                      <span className="text-[10px] font-mono text-indigo-300">{usiriAgent.phone}</span>
+                      {usiriAgent.office && <span className="text-[9px] text-white/40">· {usiriAgent.office}</span>}
+                      <a href={`tel:${usiriAgent.phone.replace(/-/g, '')}`}
+                        className="ml-auto w-5 h-5 rounded bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center text-white">
+                        <Phone size={9} />
+                      </a>
                     </div>
                   )}
                 </div>
+                {cityOrders.map(order => renderOrderCard(order))}
               </div>
             )
-          })}
+          }) : filtered.map(order => renderOrderCard(order))}
         </div>
 
         {/* Print queue */}
@@ -928,6 +1048,58 @@ export default function AgentShippingPage() {
                 }} className="flex-1 py-2.5 bg-[#1a1c3a] hover:bg-[#2a2c4a] text-white text-sm font-bold rounded-xl">
                   {deliveryTrackingInput.trim() ? 'Save & Update' : 'Skip & Update'}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Region picker modal (TZ — Usiri agents) */}
+        {regionModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h3 className="font-bold text-[#1a1c3a] flex items-center gap-2"><MapPin size={16} className="text-[#f4991a]" /> Select Usiri Region</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Current city: <span className="font-bold text-gray-600">{regionModal.region}</span> — pick the matching Usiri region
+                </p>
+              </div>
+              <div className="px-5 pt-3">
+                <input
+                  value={regionSearch}
+                  onChange={e => setRegionSearch(e.target.value)}
+                  placeholder="Search region..."
+                  autoFocus
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                />
+              </div>
+              <div className="flex-1 overflow-y-auto px-5 py-3 space-y-1">
+                {USIRI_AGENTS
+                  .filter(a => !regionSearch || a.region.toLowerCase().includes(regionSearch.toLowerCase()) || a.name.toLowerCase().includes(regionSearch.toLowerCase()))
+                  .map(a => (
+                  <button
+                    key={a.region}
+                    onClick={async () => {
+                      await supabase.from('orders').update({ customer_city: a.region }).eq('id', regionModal.orderId)
+                      setOrders(prev => prev.map(o => o.id === regionModal.orderId ? { ...o, customer_city: a.region } : o))
+                      setRegionModal(null)
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-gray-100 hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#1a1c3a]">{a.region}</p>
+                      <p className="text-[10px] text-gray-400">{a.name}{a.office ? ` · ${a.office}` : ''}</p>
+                    </div>
+                    <span className="text-[11px] font-mono text-indigo-600 flex-shrink-0">{a.phone}</span>
+                    <a href={`tel:${a.phone.replace(/-/g, '')}`} onClick={e => e.stopPropagation()}
+                      className="w-6 h-6 rounded-md bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center text-indigo-500 flex-shrink-0">
+                      <Phone size={11} />
+                    </a>
+                  </button>
+                ))}
+              </div>
+              <div className="px-5 py-3 border-t border-gray-100">
+                <button onClick={() => setRegionModal(null)}
+                  className="w-full py-2.5 border border-gray-200 text-gray-500 text-sm font-bold rounded-xl hover:bg-gray-50">Cancel</button>
               </div>
             </div>
           </div>
