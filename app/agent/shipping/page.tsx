@@ -647,8 +647,8 @@ export default function AgentShippingPage() {
               </span>
             )}
           </div>
-          {/* Usiri agent info (TZ only) */}
-          {agentCountry === 'TZ' && (() => {
+          {/* Usiri agent info (TZ + shipped_to_agent only) */}
+          {agentCountry === 'TZ' && order.status === 'shipped_to_agent' && (() => {
             const usiri = findUsiriAgent(order.customer_city)
             if (usiri) return (
               <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded px-2 py-1.5">
