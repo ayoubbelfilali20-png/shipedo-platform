@@ -37,7 +37,7 @@ type OrderRow = {
   seller_id?: string | null
 }
 
-type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'returned' | 'cancelled'
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'paid_by_agent' | 'returned' | 'cancelled'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
   pending:              { label: 'Pending',            color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'    },
@@ -47,15 +47,16 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; b
   shipped:              { label: 'Shipped',            color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
   delivered:            { label: 'Delivered',          color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200'     },
   delivered_by_agent:   { label: 'Delivered by Agent', color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'    },
+  paid_by_agent:        { label: 'Paid by Agent',      color: 'text-cyan-600',    bg: 'bg-cyan-50',    border: 'border-cyan-200'    },
   returned:             { label: 'Returned',           color: 'text-red-700',     bg: 'bg-red-50',     border: 'border-red-200'     },
   cancelled:            { label: 'Cancelled',          color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
 }
 
-const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned', 'cancelled']
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned', 'cancelled']
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
-  if ((o.status === 'delivered' || o.status === 'delivered_by_agent') && o.delivered_at) return o.delivered_at
+  if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
@@ -224,7 +225,7 @@ export default function AgentHistoryPage() {
   const changeStatus = async (orderId: string, newStatus: string) => {
     setBusy(orderId)
 
-    if (newStatus === 'delivered' || newStatus === 'delivered_by_agent') {
+    if (newStatus === 'delivered' || newStatus === 'delivered_by_agent' || newStatus === 'paid_by_agent') {
       const order = orders.find(o => o.id === orderId)
       if (order) await decrementTotalQuantityForOrderItems(order.items as any[], (order as any).country || 'KE')
     }
@@ -381,7 +382,7 @@ export default function AgentHistoryPage() {
     prepared:        orders.filter(o => o.status === 'prepared').length,
     shipped_to_agent: orders.filter(o => o.status === 'shipped_to_agent').length,
     shipped:         orders.filter(o => o.status === 'shipped').length,
-    delivered:       orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length,
+    delivered:       orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent').length,
     cancelled:       orders.filter(o => o.status === 'cancelled').length,
   }), [orders])
 
@@ -480,6 +481,7 @@ export default function AgentHistoryPage() {
               { value: 'shipped', label: 'Shipped' },
               { value: 'delivered', label: 'Delivered' },
               { value: 'delivered_by_agent', label: 'Delivered by Agent' },
+              { value: 'paid_by_agent', label: 'Paid by Agent' },
               { value: 'returned', label: 'Returned' },
               { value: 'cancelled', label: 'Cancelled' },
             ] as const).map(f => (
@@ -935,6 +937,7 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
                     'bg-blue-500':    s === 'shipped',
                     'bg-sky-500':     s === 'delivered',
                     'bg-teal-500':    s === 'delivered_by_agent',
+                    'bg-cyan-500':    s === 'paid_by_agent',
                     'bg-red-500':     s === 'returned',
                     'bg-gray-400':    s === 'cancelled',
                   })} />

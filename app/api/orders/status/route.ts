@@ -41,6 +41,10 @@ export async function PATCH(req: NextRequest) {
     patch.delivered_at = nowIso
   }
 
+  if (newStatus === 'paid_by_agent') {
+    patch.paid_by_agent_at = nowIso
+  }
+
   if (newStatus === 'returned') {
     patch.returned_at = nowIso
   }

@@ -43,6 +43,7 @@ export default function LoginPage() {
         agent: '/agent',
         delivery: '/delivery',
         storage: '/storage',
+        followup: '/followup',
       }
       window.location.href = routes[user.role] || '/login'
     } catch (err: any) {

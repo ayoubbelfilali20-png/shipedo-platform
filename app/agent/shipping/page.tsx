@@ -47,7 +47,7 @@ type OrderRow = {
   status_changed_at?: string | null
 }
 
-type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'returned' | 'cancelled'
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'paid_by_agent' | 'returned' | 'cancelled'
 
 const statusConfig: Record<string, { label: string; color: string; border: string; bg: string; dot: string }> = {
   pending:              { label: 'Pending',          color: 'text-rose-600',    border: 'border-rose-400',    bg: 'bg-rose-50',    dot: 'bg-rose-500'    },
@@ -57,12 +57,13 @@ const statusConfig: Record<string, { label: string; color: string; border: strin
   shipped:              { label: 'Shipped',          color: 'text-blue-600',    border: 'border-blue-400',    bg: 'bg-blue-50',    dot: 'bg-blue-500'    },
   delivered:            { label: 'Delivered',        color: 'text-sky-600',     border: 'border-sky-400',     bg: 'bg-sky-50',     dot: 'bg-sky-500'     },
   delivered_by_agent:   { label: 'Delivered by Agent', color: 'text-teal-600',  border: 'border-teal-400',    bg: 'bg-teal-50',    dot: 'bg-teal-500'    },
+  paid_by_agent:        { label: 'Paid by Agent',    color: 'text-cyan-600',    border: 'border-cyan-400',    bg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
   returned:             { label: 'Returned',         color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50',     dot: 'bg-red-500'     },
   cancelled:            { label: 'Cancelled',        color: 'text-gray-500',    border: 'border-gray-300',    bg: 'bg-gray-50',    dot: 'bg-gray-400'    },
 }
 
-const shippingStatuses: AllStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned']
-const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned', 'cancelled']
+const shippingStatuses: AllStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned']
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned', 'cancelled']
 
 type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'custom'
 const datePresets: { value: DatePreset; label: string }[] = [
@@ -96,7 +97,7 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
-  if ((o.status === 'delivered' || o.status === 'delivered_by_agent') && o.delivered_at) return o.delivered_at
+  if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
@@ -247,7 +248,7 @@ export default function AgentShippingPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
-          if (['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned'].includes(row.status)) {
+          if (['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned'].includes(row.status)) {
             setOrders(prev => {
               if (prev.some(o => o.id === row.id)) return prev
               return [row, ...prev]
@@ -256,7 +257,7 @@ export default function AgentShippingPage() {
         } else if (payload.eventType === 'UPDATE') {
           const row = payload.new as OrderRow
           setOrders(prev => {
-            const validStatus = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'returned'].includes(row.status)
+            const validStatus = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned'].includes(row.status)
             const exists = prev.some(o => o.id === row.id)
             if (exists && validStatus) return prev.map(o => o.id === row.id ? { ...o, ...row } : o)
             if (exists && !validStatus) return prev.filter(o => o.id !== row.id)
@@ -392,7 +393,7 @@ export default function AgentShippingPage() {
       if (!c) return
       const cur = map.get(c) || { total: 0, delivered: 0, shipped: 0, pending: 0, returned: 0, amount: 0 }
       cur.total++
-      if (o.status === 'delivered' || o.status === 'delivered_by_agent') cur.delivered++
+      if (o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') cur.delivered++
       if (o.status === 'shipped' || o.status === 'shipped_to_agent') cur.shipped++
       if (o.status === 'confirmed' || o.status === 'prepared') cur.pending++
       if (o.status === 'returned') cur.returned++
@@ -955,7 +956,7 @@ export default function AgentShippingPage() {
               <p className="text-sm">No orders found</p>
             </div>
           ) : groupByCity && groupedByCity ? groupedByCity.map(([city, cityOrders]) => {
-            const cityDelivered = cityOrders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent').length
+            const cityDelivered = cityOrders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent').length
             const cityReturned = cityOrders.filter(o => o.status === 'returned').length
             const cityAmount = cityOrders.reduce((s, o) => s + (o.total_amount || 0), 0)
             const cityRate = cityOrders.length > 0 ? Math.round((cityDelivered / cityOrders.length) * 100) : 0

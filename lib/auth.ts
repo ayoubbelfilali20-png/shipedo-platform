@@ -4,7 +4,7 @@
  * cross-contaminate sessions.
  */
 
-export type Role = 'admin' | 'seller' | 'agent' | 'delivery' | 'storage' | 'teamleader'
+export type Role = 'admin' | 'seller' | 'agent' | 'delivery' | 'storage' | 'teamleader' | 'followup'
 
 export type StoredUser = {
   role: Role
@@ -22,6 +22,7 @@ const KEYS: Record<Role, string> = {
   delivery:   'shipedo_delivery',
   storage:    'shipedo_storage',
   teamleader: 'shipedo_teamleader',
+  followup:   'shipedo_followup',
 }
 
 function read(role: Role): StoredUser | null {
@@ -43,6 +44,7 @@ export function getAgent():      StoredUser | null { return read('agent')      }
 export function getDelivery():   StoredUser | null { return read('delivery')   }
 export function getStorage():    StoredUser | null { return read('storage')    }
 export function getTeamLeader(): StoredUser | null { return read('teamleader') }
+export function getFollowup():   StoredUser | null { return read('followup')   }
 
 export function setUser(user: StoredUser) {
   if (typeof window === 'undefined') return
@@ -56,5 +58,5 @@ export function clearUser(role: Role) {
 
 /** Legacy fallback: read whichever single user key exists. */
 export function getCurrentUser(): StoredUser | null {
-  return getAdmin() || getSeller() || getAgent() || getDelivery() || getStorage() || getTeamLeader()
+  return getAdmin() || getSeller() || getAgent() || getDelivery() || getStorage() || getTeamLeader() || getFollowup()
 }
