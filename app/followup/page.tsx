@@ -6,7 +6,7 @@ import {
   Search, Package, Phone, X, ChevronDown, ChevronUp,
   RefreshCw, MapPin, User, MessageSquarePlus, Clock, Send,
   CheckCircle2, RotateCcw, Banknote, LogOut, StickyNote, Filter,
-  Truck, AlertTriangle,
+  Truck, AlertTriangle, Calendar, PackageCheck,
 } from 'lucide-react'
 import { getFollowup, clearUser } from '@/lib/auth'
 import { getCountry } from '@/lib/countries'
@@ -28,6 +28,7 @@ type OrderRow = {
   last_call_note?: string | null
   shipped_at?: string | null
   shipped_to_agent_at?: string | null
+  received_by_agent_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
   paid_by_agent_at?: string | null
@@ -46,13 +47,34 @@ type FollowupNote = {
 }
 
 const statusConfig: Record<string, { label: string; color: string; border: string; bg: string; dot: string }> = {
-  shipped_to_agent:   { label: 'Sent to Agent',      color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50',  dot: 'bg-purple-500'  },
-  delivered_by_agent: { label: 'Delivered by Agent',  color: 'text-teal-600',    border: 'border-teal-400',    bg: 'bg-teal-50',    dot: 'bg-teal-500'    },
-  paid_by_agent:      { label: 'Paid by Agent',       color: 'text-cyan-600',    border: 'border-cyan-400',    bg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
-  returned:           { label: 'Returned',            color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50',     dot: 'bg-red-500'     },
+  shipped_to_agent:   { label: 'Sent to Agent',       color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50',  dot: 'bg-purple-500'  },
+  received_by_agent:  { label: 'Received by Agent',   color: 'text-orange-600',  border: 'border-orange-400',  bg: 'bg-orange-50',  dot: 'bg-orange-500'  },
+  delivered_by_agent: { label: 'Delivered by Agent',   color: 'text-teal-600',    border: 'border-teal-400',    bg: 'bg-teal-50',    dot: 'bg-teal-500'    },
+  paid_by_agent:      { label: 'Paid by Agent',        color: 'text-cyan-600',    border: 'border-cyan-400',    bg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
+  returned:           { label: 'Returned',             color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50',     dot: 'bg-red-500'     },
 }
 
-const STATUS_TABS = ['all', 'shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'] as const
+const ALL_FOLLOWUP_STATUSES = ['shipped_to_agent', 'received_by_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'] as const
+
+function daysSince(iso?: string | null): number | null {
+  if (!iso) return null
+  const diff = Date.now() - new Date(iso).getTime()
+  return Math.floor(diff / 86400000)
+}
+
+function daysLabel(days: number | null): string {
+  if (days === null) return ''
+  if (days === 0) return 'today'
+  if (days === 1) return '1 day'
+  return `${days} days`
+}
+
+function daysColor(days: number | null): string {
+  if (days === null) return 'text-gray-400'
+  if (days <= 2) return 'text-green-600'
+  if (days <= 5) return 'text-amber-600'
+  return 'text-red-600'
+}
 
 export default function FollowupPage() {
   const router = useRouter()
@@ -67,6 +89,11 @@ export default function FollowupPage() {
   const [savingNote, setSavingNote] = useState<string | null>(null)
   const [changingStatus, setChangingStatus] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Date filter
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [showDateFilter, setShowDateFilter] = useState(false)
 
   useEffect(() => {
     const u = getFollowup()
@@ -156,8 +183,23 @@ export default function FollowupPage() {
         o.customer_city?.toLowerCase().includes(q)
       )
     }
+    // Date filter
+    if (dateFrom) {
+      const from = new Date(dateFrom + 'T00:00:00').getTime()
+      list = list.filter(o => {
+        const d = new Date(o.shipped_to_agent_at || o.created_at).getTime()
+        return d >= from
+      })
+    }
+    if (dateTo) {
+      const to = new Date(dateTo + 'T23:59:59').getTime()
+      list = list.filter(o => {
+        const d = new Date(o.shipped_to_agent_at || o.created_at).getTime()
+        return d <= to
+      })
+    }
     return list
-  }, [orders, activeTab, search])
+  }, [orders, activeTab, search, dateFrom, dateTo])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: orders.length }
@@ -172,6 +214,11 @@ export default function FollowupPage() {
   const handleLogout = () => {
     clearUser('followup')
     router.push('/login')
+  }
+
+  const clearDateFilter = () => {
+    setDateFrom('')
+    setDateTo('')
   }
 
   if (!user) return null
@@ -194,6 +241,10 @@ export default function FollowupPage() {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
+  const getOrderDays = (order: OrderRow): number | null => {
+    return daysSince(order.shipped_to_agent_at || order.created_at)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -209,6 +260,9 @@ export default function FollowupPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setShowDateFilter(!showDateFilter)} className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${(dateFrom || dateTo) ? 'bg-purple-50' : ''}`}>
+              <Calendar size={16} className={`${(dateFrom || dateTo) ? 'text-purple-500' : 'text-gray-500'}`} />
+            </button>
             <button onClick={fetchOrders} disabled={refreshing} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <RefreshCw size={16} className={`text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
@@ -219,29 +273,56 @@ export default function FollowupPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-4xl mx-auto px-4 py-4 space-y-3">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-2">
-          {(['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'] as const).map(s => {
+        <div className="grid grid-cols-5 gap-1.5">
+          {ALL_FOLLOWUP_STATUSES.map(s => {
             const cfg = statusConfig[s]
             return (
               <button
                 key={s}
                 onClick={() => setActiveTab(activeTab === s ? 'all' : s)}
-                className={`rounded-xl p-3 text-center transition-all border ${
+                className={`rounded-xl p-2.5 text-center transition-all border ${
                   activeTab === s ? `${cfg.bg} ${cfg.border} ring-1 ring-offset-1` : 'bg-white border-gray-100 hover:border-gray-200'
                 }`}
               >
                 <div className={`text-lg font-bold ${cfg.color}`}>{counts[s] || 0}</div>
-                <div className="text-[9px] text-gray-500 font-medium mt-0.5 leading-tight">{cfg.label}</div>
+                <div className="text-[8px] text-gray-500 font-medium mt-0.5 leading-tight">{cfg.label}</div>
               </button>
             )
           })}
         </div>
 
+        {/* Date filter */}
+        {showDateFilter && (
+          <div className="bg-white rounded-xl border border-purple-200 px-4 py-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Filter by Date</span>
+              {(dateFrom || dateTo) && (
+                <button onClick={clearDateFilter} className="text-[10px] text-purple-500 font-medium hover:underline">Clear</button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-[10px] text-gray-400 mb-1">From</label>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400" />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] text-gray-400 mb-1">To</label>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Summary bar */}
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-2.5 flex items-center justify-between">
-          <span className="text-xs text-gray-500">{filtered.length} orders</span>
+          <span className="text-xs text-gray-500">
+            {filtered.length} orders
+            {(dateFrom || dateTo) && <span className="text-purple-500 ml-1">(filtered)</span>}
+          </span>
           <span className="text-xs font-semibold text-gray-700">{cs} {totalAmount.toLocaleString()}</span>
         </div>
 
@@ -281,6 +362,7 @@ export default function FollowupPage() {
               const usiriAgent = order.country === 'TZ' ? findUsiriAgent(order.customer_city) : null
               const items = Array.isArray(order.items) ? order.items : []
               const productNames = items.map((it: any) => it.product_name || it.name || '?').join(', ')
+              const days = getOrderDays(order)
 
               return (
                 <div key={order.id} className={`bg-white rounded-xl border ${cfg.border} overflow-hidden transition-all`}>
@@ -297,6 +379,13 @@ export default function FollowupPage() {
                             {cfg.label}
                           </span>
                           <span className="text-[10px] text-gray-400 font-mono">{order.tracking_number}</span>
+                          {/* Days counter */}
+                          {days !== null && (
+                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${daysColor(days)}`}>
+                              <Clock size={9} />
+                              {daysLabel(days)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-semibold text-gray-900 truncate">{order.customer_name}</span>
@@ -318,7 +407,7 @@ export default function FollowupPage() {
                       </div>
                     </div>
                     {/* Usiri agent info for TZ */}
-                    {usiriAgent && order.status === 'shipped_to_agent' && (
+                    {usiriAgent && (order.status === 'shipped_to_agent' || order.status === 'received_by_agent') && (
                       <div className="mt-2 flex items-center gap-2 px-2 py-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
                         <User size={12} className="text-indigo-500 flex-shrink-0" />
                         <span className="text-[10px] text-indigo-700 font-medium truncate">
@@ -365,11 +454,12 @@ export default function FollowupPage() {
                       {/* Timeline */}
                       <div className="bg-gray-50 rounded-lg px-3 py-2 space-y-1">
                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Timeline</div>
-                        {order.created_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-24 inline-block">Created:</span> {fmtDate(order.created_at)}</div>}
-                        {order.shipped_to_agent_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-24 inline-block">Sent to agent:</span> {fmtDate(order.shipped_to_agent_at)}</div>}
-                        {order.delivered_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-24 inline-block">Delivered:</span> {fmtDate(order.delivered_at)}</div>}
-                        {order.paid_by_agent_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-24 inline-block">Paid:</span> {fmtDate(order.paid_by_agent_at)}</div>}
-                        {order.returned_at && <div className="text-[11px] text-red-600"><span className="text-gray-400 w-24 inline-block">Returned:</span> {fmtDate(order.returned_at)}</div>}
+                        {order.created_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Created:</span> {fmtDate(order.created_at)}</div>}
+                        {order.shipped_to_agent_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Sent to agent:</span> {fmtDate(order.shipped_to_agent_at)}</div>}
+                        {order.received_by_agent_at && <div className="text-[11px] text-orange-600"><span className="text-gray-400 w-28 inline-block">Received:</span> {fmtDate(order.received_by_agent_at)}</div>}
+                        {order.delivered_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Delivered:</span> {fmtDate(order.delivered_at)}</div>}
+                        {order.paid_by_agent_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Paid:</span> {fmtDate(order.paid_by_agent_at)}</div>}
+                        {order.returned_at && <div className="text-[11px] text-red-600"><span className="text-gray-400 w-28 inline-block">Returned:</span> {fmtDate(order.returned_at)}</div>}
                       </div>
 
                       {/* Status actions */}
@@ -377,6 +467,24 @@ export default function FollowupPage() {
                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Change Status</div>
                         <div className="flex gap-2">
                           {order.status === 'shipped_to_agent' && (
+                            <>
+                              <button
+                                onClick={() => handleStatusChange(order.id, 'received_by_agent')}
+                                disabled={changingStatus === order.id}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                              >
+                                <PackageCheck size={13} /> Received
+                              </button>
+                              <button
+                                onClick={() => handleStatusChange(order.id, 'returned')}
+                                disabled={changingStatus === order.id}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                              >
+                                <RotateCcw size={13} /> Returned
+                              </button>
+                            </>
+                          )}
+                          {order.status === 'received_by_agent' && (
                             <>
                               <button
                                 onClick={() => handleStatusChange(order.id, 'delivered_by_agent')}

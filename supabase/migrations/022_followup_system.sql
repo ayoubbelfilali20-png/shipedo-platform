@@ -27,5 +27,6 @@ CREATE TABLE IF NOT EXISTS followup_notes (
 ALTER TABLE followup_notes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "service_role_full_access" ON followup_notes FOR ALL USING (true) WITH CHECK (true);
 
--- Add paid_by_agent_at column to orders if not exists
+-- Add new timestamp columns to orders if not exists
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_by_agent_at timestamptz;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS received_by_agent_at timestamptz;

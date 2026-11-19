@@ -43,6 +43,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
   prepared:         { label: 'Prepared',         color: 'text-indigo-600',  bg: 'bg-indigo-50 border-indigo-200'   },
   shipped_to_agent: { label: 'Sent to Agent',    color: 'text-purple-600',  bg: 'bg-purple-50 border-purple-200'   },
+  received_by_agent: { label: 'Received by Agent', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200' },
   shipped:          { label: 'Shipped',          color: 'text-blue-600',    bg: 'bg-blue-50 border-blue-200'       },
   delivered:            { label: 'Delivered',          color: 'text-sky-600',    bg: 'bg-sky-50 border-sky-200'         },
   delivered_by_agent:   { label: 'Delivered by Agent', color: 'text-teal-600',   bg: 'bg-teal-50 border-teal-200'       },
@@ -50,7 +51,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
   returned:             { label: 'Returned',           color: 'text-red-600',    bg: 'bg-red-50 border-red-200'         },
 }
 
-const allStatuses = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned']
+const allStatuses = ['confirmed', 'prepared', 'shipped_to_agent', 'received_by_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned']
 type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month'
 
 function getDateRange(preset: DatePreset): { from: Date | null; to: Date | null } {
@@ -71,6 +72,7 @@ function getStatusDate(o: OrderRow): string {
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'received_by_agent' && (o as any).received_by_agent_at) return (o as any).received_by_agent_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
   if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
   return o.created_at

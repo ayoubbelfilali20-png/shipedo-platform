@@ -54,6 +54,7 @@ function getStatusDate(o: any): string {
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'received_by_agent' && o.received_by_agent_at) return o.received_by_agent_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
   if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
   return o.created_at

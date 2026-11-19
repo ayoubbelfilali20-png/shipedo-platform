@@ -37,13 +37,14 @@ type OrderRow = {
   seller_id?: string | null
 }
 
-type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'paid_by_agent' | 'returned' | 'cancelled'
+type AllStatus = 'pending' | 'confirmed' | 'prepared' | 'shipped_to_agent' | 'received_by_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'paid_by_agent' | 'returned' | 'cancelled'
 
 const statusConfig: Record<string, { label: string; color: string; bg: string; border: string }> = {
   pending:              { label: 'Pending',            color: 'text-rose-700',    bg: 'bg-rose-50',    border: 'border-rose-200'    },
   confirmed:            { label: 'Confirmed',          color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   prepared:             { label: 'Prepared',           color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200'  },
   shipped_to_agent:     { label: 'Sent to Agent',      color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200'  },
+  received_by_agent:    { label: 'Received by Agent',  color: 'text-orange-600',  bg: 'bg-orange-50',  border: 'border-orange-200'  },
   shipped:              { label: 'Shipped',            color: 'text-blue-700',    bg: 'bg-blue-50',    border: 'border-blue-200'    },
   delivered:            { label: 'Delivered',          color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200'     },
   delivered_by_agent:   { label: 'Delivered by Agent', color: 'text-teal-700',    bg: 'bg-teal-50',    border: 'border-teal-200'    },
@@ -52,13 +53,14 @@ const statusConfig: Record<string, { label: string; color: string; bg: string; b
   cancelled:            { label: 'Cancelled',          color: 'text-gray-500',    bg: 'bg-gray-50',    border: 'border-gray-200'    },
 }
 
-const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned', 'cancelled']
+const allStatuses: AllStatus[] = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'received_by_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned', 'cancelled']
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
+  if (o.status === 'received_by_agent' && o.received_by_agent_at) return o.received_by_agent_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
   if (o.status === 'cancelled' && o.last_call_at) return o.last_call_at
   if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
@@ -380,7 +382,7 @@ export default function AgentHistoryPage() {
     total:           orders.length,
     confirmed:       orders.filter(o => o.status === 'confirmed').length,
     prepared:        orders.filter(o => o.status === 'prepared').length,
-    shipped_to_agent: orders.filter(o => o.status === 'shipped_to_agent').length,
+    shipped_to_agent: orders.filter(o => o.status === 'shipped_to_agent' || o.status === 'received_by_agent').length,
     shipped:         orders.filter(o => o.status === 'shipped').length,
     delivered:       orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent').length,
     cancelled:       orders.filter(o => o.status === 'cancelled').length,
@@ -478,6 +480,7 @@ export default function AgentHistoryPage() {
               { value: 'confirmed', label: 'Confirmed' },
               { value: 'prepared', label: 'Prepared' },
               { value: 'shipped_to_agent', label: 'Sent to Agent' },
+              { value: 'received_by_agent', label: 'Received by Agent' },
               { value: 'shipped', label: 'Shipped' },
               { value: 'delivered', label: 'Delivered' },
               { value: 'delivered_by_agent', label: 'Delivered by Agent' },
@@ -934,6 +937,7 @@ function StatusDropdown({ currentStatus, processing, onChangeStatus }: {
                     'bg-emerald-500': s === 'confirmed',
                     'bg-indigo-500':  s === 'prepared',
                     'bg-purple-500':  s === 'shipped_to_agent',
+                    'bg-orange-500':  s === 'received_by_agent',
                     'bg-blue-500':    s === 'shipped',
                     'bg-sky-500':     s === 'delivered',
                     'bg-teal-500':    s === 'delivered_by_agent',

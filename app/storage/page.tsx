@@ -24,7 +24,7 @@ export default function StorageDashboard() {
   useEffect(() => {
     supabase.from('orders')
       .select('id, tracking_number, customer_name, customer_city, status, total_amount, created_at, last_call_at, country')
-      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
+      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'received_by_agent', 'shipped', 'delivered', 'returned'])
       .order('last_call_at', { ascending: false, nullsFirst: false })
       .limit(1000)
       .then(({ data }) => { setOrders((data || []) as OrderRow[]); setLoading(false) })
@@ -33,7 +33,7 @@ export default function StorageDashboard() {
   const stats = useMemo(() => ({
     confirmed: orders.filter(o => o.status === 'confirmed').length,
     prepared: orders.filter(o => o.status === 'prepared').length,
-    shipped_to_agent: orders.filter(o => o.status === 'shipped_to_agent').length,
+    shipped_to_agent: orders.filter(o => o.status === 'shipped_to_agent' || o.status === 'received_by_agent').length,
     shipped: orders.filter(o => o.status === 'shipped').length,
     delivered: orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent').length,
     returned: orders.filter(o => o.status === 'returned').length,
