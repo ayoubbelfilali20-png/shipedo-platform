@@ -29,4 +29,3 @@ CREATE POLICY "service_role_full_access" ON followup_notes FOR ALL USING (true) 
 
 -- Add new timestamp columns to orders if not exists
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_by_agent_at timestamptz;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS received_by_agent_at timestamptz;

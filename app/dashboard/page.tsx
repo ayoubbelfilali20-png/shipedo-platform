@@ -89,7 +89,6 @@ function getStatusDate(o: any): string {
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
-  if (o.status === 'received_by_agent' && o.received_by_agent_at) return o.received_by_agent_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
   if (o.status === 'cancelled' && o.last_call_at) return o.last_call_at
   if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
@@ -174,7 +173,7 @@ export default function AdminDashboard() {
     return agents.map(a => {
       const handled = orders.filter(o => o.last_call_agent_id === a.id)
       const totalCalls = handled.reduce((sum, o) => sum + (o.call_attempts || 0), 0) || handled.length
-      const confirmed = handled.filter(o => ['confirmed','prepared','shipped','delivered','delivered_by_agent','paid_by_agent','received_by_agent'].includes(o.status)).length
+      const confirmed = handled.filter(o => ['confirmed','prepared','shipped','delivered','delivered_by_agent','paid_by_agent'].includes(o.status)).length
       const notReached = handled.filter(o => o.status === 'pending' && (o.call_attempts || 0) > 0 && !o.reminded_at).length
       const rescheduled = handled.filter(o => o.status === 'pending' && !!o.reminded_at).length
       const rate = totalCalls > 0 ? Math.round((confirmed / totalCalls) * 100) : 0

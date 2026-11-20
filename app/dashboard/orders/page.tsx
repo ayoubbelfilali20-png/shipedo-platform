@@ -43,7 +43,6 @@ const statusFilters: { value: OrderStatus | 'all'; label: string }[] = [
   { value: 'confirmed',        label: 'Confirmed'      },
   { value: 'prepared',         label: 'Prepared'       },
   { value: 'shipped_to_agent', label: 'Sent to Agent'  },
-  { value: 'received_by_agent', label: 'Received by Agent' },
   { value: 'shipped',          label: 'Shipped'        },
   { value: 'delivered',          label: 'Delivered'        },
   { value: 'delivered_by_agent', label: 'Delivered by Agent' },

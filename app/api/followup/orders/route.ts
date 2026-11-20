@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
-const COLS_FULL = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, last_call_note, shipped_at, shipped_to_agent_at, received_by_agent_at, delivered_at, returned_at, created_at, seller_id, delivery_tracking, country, paid_by_agent_at'
-
-const COLS_SAFE = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, created_at, seller_id, delivery_tracking, country, paid_by_agent_at'
+const COLS = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, created_at, seller_id, delivery_tracking, country, paid_by_agent_at'
 
 const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 
@@ -14,13 +12,8 @@ export async function GET(req: NextRequest) {
   const statusFilter = req.nextUrl.searchParams.get('status')
   const showAll = req.nextUrl.searchParams.get('all') === '1'
 
-  // detect if received_by_agent_at column exists
-  let cols = COLS_FULL
-  const test = await supabaseAdmin.from('orders').select('received_by_agent_at').limit(1)
-  if (test.error) cols = COLS_SAFE
-
-  let q = supabaseAdmin.from('orders').select(cols)
-    .in('status', ['shipped_to_agent', 'received_by_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'])
+  let q = supabaseAdmin.from('orders').select(COLS)
+    .in('status', ['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'])
     .order('created_at', { ascending: false })
 
   if (statusFilter) {

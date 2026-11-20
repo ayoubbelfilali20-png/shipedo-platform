@@ -30,14 +30,13 @@ type OrderRow = {
   country?: string
 }
 
-const statusOptions = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'received_by_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned', 'cancelled']
+const statusOptions = ['pending', 'confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned', 'cancelled']
 
 const statusColors: Record<string, string> = {
   pending:          'bg-rose-50 text-rose-600 border-rose-300',
   confirmed:        'bg-emerald-50 text-emerald-600 border-emerald-400',
   prepared:         'bg-indigo-50 text-indigo-600 border-indigo-300',
   shipped_to_agent: 'bg-purple-50 text-purple-600 border-purple-300',
-  received_by_agent: 'bg-orange-50 text-orange-600 border-orange-300',
   shipped:          'bg-blue-50 text-blue-600 border-blue-300',
   delivered:        'bg-sky-50 text-sky-600 border-sky-300',
   returned:         'bg-red-50 text-red-600 border-red-300',
@@ -46,7 +45,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabelsAdmin: Record<string, string> = {
   pending: 'Pending', confirmed: 'Confirmed', prepared: 'Prepared',
-  shipped_to_agent: 'Sent to Agent', received_by_agent: 'Received by Agent', shipped: 'Shipped',
+  shipped_to_agent: 'Sent to Agent', shipped: 'Shipped',
   delivered: 'Delivered', returned: 'Returned', cancelled: 'Cancelled',
 }
 

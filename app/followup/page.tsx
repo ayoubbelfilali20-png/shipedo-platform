@@ -28,7 +28,6 @@ type OrderRow = {
   last_call_note?: string | null
   shipped_at?: string | null
   shipped_to_agent_at?: string | null
-  received_by_agent_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
   paid_by_agent_at?: string | null
@@ -48,13 +47,12 @@ type FollowupNote = {
 
 const statusConfig: Record<string, { label: string; color: string; border: string; bg: string; dot: string }> = {
   shipped_to_agent:   { label: 'Sent to Agent',       color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50',  dot: 'bg-purple-500'  },
-  received_by_agent:  { label: 'Received by Agent',   color: 'text-orange-600',  border: 'border-orange-400',  bg: 'bg-orange-50',  dot: 'bg-orange-500'  },
   delivered_by_agent: { label: 'Delivered by Agent',   color: 'text-teal-600',    border: 'border-teal-400',    bg: 'bg-teal-50',    dot: 'bg-teal-500'    },
   paid_by_agent:      { label: 'Paid by Agent',        color: 'text-cyan-600',    border: 'border-cyan-400',    bg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
   returned:           { label: 'Returned',             color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50',     dot: 'bg-red-500'     },
 }
 
-const ALL_FOLLOWUP_STATUSES = ['shipped_to_agent', 'received_by_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'] as const
+const ALL_FOLLOWUP_STATUSES = ['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'] as const
 
 function daysSince(iso?: string | null): number | null {
   if (!iso) return null
@@ -407,7 +405,7 @@ export default function FollowupPage() {
                       </div>
                     </div>
                     {/* Usiri agent info for TZ */}
-                    {usiriAgent && (order.status === 'shipped_to_agent' || order.status === 'received_by_agent') && (
+                    {usiriAgent && order.status === 'shipped_to_agent' && (
                       <div className="mt-2 flex items-center gap-2 px-2 py-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
                         <User size={12} className="text-indigo-500 flex-shrink-0" />
                         <span className="text-[10px] text-indigo-700 font-medium truncate">
@@ -456,7 +454,6 @@ export default function FollowupPage() {
                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Timeline</div>
                         {order.created_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Created:</span> {fmtDate(order.created_at)}</div>}
                         {order.shipped_to_agent_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Sent to agent:</span> {fmtDate(order.shipped_to_agent_at)}</div>}
-                        {order.received_by_agent_at && <div className="text-[11px] text-orange-600"><span className="text-gray-400 w-28 inline-block">Received:</span> {fmtDate(order.received_by_agent_at)}</div>}
                         {order.delivered_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Delivered:</span> {fmtDate(order.delivered_at)}</div>}
                         {order.paid_by_agent_at && <div className="text-[11px] text-gray-600"><span className="text-gray-400 w-28 inline-block">Paid:</span> {fmtDate(order.paid_by_agent_at)}</div>}
                         {order.returned_at && <div className="text-[11px] text-red-600"><span className="text-gray-400 w-28 inline-block">Returned:</span> {fmtDate(order.returned_at)}</div>}
@@ -467,24 +464,6 @@ export default function FollowupPage() {
                         <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Change Status</div>
                         <div className="flex gap-2">
                           {order.status === 'shipped_to_agent' && (
-                            <>
-                              <button
-                                onClick={() => handleStatusChange(order.id, 'received_by_agent')}
-                                disabled={changingStatus === order.id}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                              >
-                                <PackageCheck size={13} /> Received
-                              </button>
-                              <button
-                                onClick={() => handleStatusChange(order.id, 'returned')}
-                                disabled={changingStatus === order.id}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                              >
-                                <RotateCcw size={13} /> Returned
-                              </button>
-                            </>
-                          )}
-                          {order.status === 'received_by_agent' && (
                             <>
                               <button
                                 onClick={() => handleStatusChange(order.id, 'delivered_by_agent')}

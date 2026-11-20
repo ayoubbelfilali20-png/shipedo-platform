@@ -37,10 +37,6 @@ export async function PATCH(req: NextRequest) {
     if (deliveryTracking) patch.delivery_tracking = deliveryTracking
   }
 
-  if (newStatus === 'received_by_agent') {
-    patch.received_by_agent_at = nowIso
-  }
-
   if (newStatus === 'delivered' || newStatus === 'delivered_by_agent') {
     patch.delivered_at = nowIso
   }

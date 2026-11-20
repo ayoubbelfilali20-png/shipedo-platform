@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { getCountry } from '@/lib/countries'
 
-type ShipStatus = 'confirmed' | 'prepared' | 'shipped_to_agent' | 'received_by_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'paid_by_agent' | 'returned'
+type ShipStatus = 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'paid_by_agent' | 'returned'
 
 type OrderRow = {
   id: string
@@ -39,7 +39,6 @@ const statusConfig: Record<ShipStatus, { label: string; color: string; border: s
   confirmed:        { label: 'Confirmed',        color: 'text-emerald-600', border: 'border-emerald-400', dot: 'bg-emerald-400' },
   prepared:         { label: 'Prepared',         color: 'text-indigo-600',  border: 'border-indigo-400',  dot: 'bg-indigo-400'  },
   shipped_to_agent: { label: 'Shipped to Agent', color: 'text-purple-600',  border: 'border-purple-400',  dot: 'bg-purple-400'  },
-  received_by_agent: { label: 'Received by Agent', color: 'text-orange-600', border: 'border-orange-400', dot: 'bg-orange-400' },
   shipped:          { label: 'Shipped',          color: 'text-blue-600',    border: 'border-blue-400',    dot: 'bg-blue-400'    },
   delivered:            { label: 'Delivered',          color: 'text-sky-600',    border: 'border-sky-400',    dot: 'bg-sky-400'    },
   delivered_by_agent:   { label: 'Delivered by Agent', color: 'text-teal-600',   border: 'border-teal-400',   dot: 'bg-teal-400'   },
@@ -47,7 +46,7 @@ const statusConfig: Record<ShipStatus, { label: string; color: string; border: s
   returned:             { label: 'Returned',           color: 'text-red-500',    border: 'border-red-400',    dot: 'bg-red-400'    },
 }
 
-const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'received_by_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned']
+const allStatuses: ShipStatus[] = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned']
 
 type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'custom'
 const datePresets: { value: DatePreset; label: string }[] = [
@@ -84,7 +83,6 @@ function getStatusDate(o: any): string {
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
-  if (o.status === 'received_by_agent' && o.received_by_agent_at) return o.received_by_agent_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
   if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
   return o.created_at
@@ -122,7 +120,7 @@ export default function SellerShippingPage() {
     let q = supabase.from('orders')
       .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, country, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at, status_changed_at')
       .eq('seller_id', sid)
-      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'received_by_agent', 'shipped', 'delivered', 'returned'])
+      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
       .order('created_at', { ascending: false })
     if (ctry) q = q.eq('country', ctry)
 
@@ -194,7 +192,7 @@ export default function SellerShippingPage() {
   }, [dateSearchFiltered, filterStatus])
 
   const counts = useMemo(() => {
-    const c: Record<ShipStatus, number> = { confirmed: 0, prepared: 0, shipped_to_agent: 0, received_by_agent: 0, shipped: 0, delivered: 0, delivered_by_agent: 0, paid_by_agent: 0, returned: 0 }
+    const c: Record<ShipStatus, number> = { confirmed: 0, prepared: 0, shipped_to_agent: 0, shipped: 0, delivered: 0, delivered_by_agent: 0, paid_by_agent: 0, returned: 0 }
     dateSearchFiltered.forEach(o => { if (o.status in c) c[o.status as ShipStatus]++ })
     return c
   }, [dateSearchFiltered])

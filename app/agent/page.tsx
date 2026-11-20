@@ -58,7 +58,6 @@ const statusFlow: Record<string, { next?: string; label: string; color: string }
   confirmed:        { next: 'prepared',        label: 'Prepare',        color: 'bg-indigo-500 hover:bg-indigo-600'   },
   prepared:         { next: 'shipped_to_agent', label: 'Send to Agent', color: 'bg-purple-500 hover:bg-purple-600'   },
   shipped_to_agent: { next: 'shipped',         label: 'Ship',           color: 'bg-blue-500 hover:bg-blue-600'       },
-  received_by_agent: { next: 'shipped',       label: 'Ship',           color: 'bg-blue-500 hover:bg-blue-600'       },
   shipped:          { next: 'delivered',       label: 'Deliver',        color: 'bg-sky-500 hover:bg-sky-600'         },
   delivered:        { next: undefined,         label: '—',              color: '' },
 }
@@ -68,7 +67,6 @@ const statusColors: Record<string, string> = {
   confirmed:        'bg-emerald-50 text-emerald-700 border-emerald-200',
   prepared:         'bg-indigo-50 text-indigo-700 border-indigo-200',
   shipped_to_agent: 'bg-purple-50 text-purple-700 border-purple-200',
-  received_by_agent: 'bg-orange-50 text-orange-700 border-orange-200',
   shipped:          'bg-blue-50 text-blue-700 border-blue-200',
   delivered:        'bg-sky-50 text-sky-700 border-sky-200',
   cancelled:        'bg-gray-100 text-gray-500 border-gray-200',
@@ -77,7 +75,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   pending: 'Pending', confirmed: 'Confirmed', prepared: 'Prepared',
-  shipped_to_agent: 'Sent to Agent', received_by_agent: 'Received by Agent', shipped: 'Shipped',
+  shipped_to_agent: 'Sent to Agent', shipped: 'Shipped',
   delivered: 'Delivered', cancelled: 'Cancelled', returned: 'Returned',
 }
 
@@ -86,7 +84,6 @@ function getStatusDate(o: any): string {
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
-  if (o.status === 'received_by_agent' && o.received_by_agent_at) return o.received_by_agent_at
   if (o.status === 'shipped_to_agent' && o.shipped_to_agent_at) return o.shipped_to_agent_at
   if (o.status === 'cancelled' && o.last_call_at) return o.last_call_at
   if ((o.status === 'confirmed' || o.status === 'prepared') && o.last_call_at) return o.last_call_at
@@ -223,13 +220,13 @@ export default function AgentDashboard() {
 
   const stats = useMemo(() => {
     const f = filteredByPeriod
-    const isDone = (s: string) => ['confirmed','prepared','shipped_to_agent','received_by_agent','shipped','delivered'].includes(s)
+    const isDone = (s: string) => ['confirmed','prepared','shipped_to_agent','shipped','delivered'].includes(s)
     return {
       toCall:          realToCallCount || pending.length,
       total:           f.length,
       confirmed:       f.filter(o => o.status === 'confirmed').length,
       prepared:        f.filter(o => o.status === 'prepared').length,
-      shipped_to_agent: f.filter(o => o.status === 'shipped_to_agent' || o.status === 'received_by_agent').length,
+      shipped_to_agent: f.filter(o => o.status === 'shipped_to_agent').length,
       shipped:         f.filter(o => o.status === 'shipped').length,
       delivered:       f.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent').length,
       cancelled:       f.filter(o => o.status === 'cancelled').length,
@@ -258,7 +255,7 @@ export default function AgentDashboard() {
       })
       days.push({
         day,
-        confirmed: inDay.filter(o => ['confirmed','prepared','shipped_to_agent','received_by_agent','shipped','delivered'].includes(o.status)).length,
+        confirmed: inDay.filter(o => ['confirmed','prepared','shipped_to_agent','shipped','delivered'].includes(o.status)).length,
         delivered: inDay.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent').length,
       })
     }
@@ -556,7 +553,6 @@ export default function AgentDashboard() {
                 <option value="confirmed">Confirmed</option>
                 <option value="prepared">Prepared</option>
                 <option value="shipped_to_agent">Sent to Agent</option>
-                <option value="received_by_agent">Received by Agent</option>
                 <option value="shipped">Shipped</option>
                 <option value="delivered">Delivered</option>
                 <option value="cancelled">Cancelled</option>
@@ -589,7 +585,7 @@ export default function AgentDashboard() {
                   </tr>
                 ) : tableRows.map(o => {
                   const flow = statusFlow[o.status]
-                  const isFinal = o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent' || o.status === 'received_by_agent' || o.status === 'cancelled'
+                  const isFinal = o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent' || o.status === 'cancelled'
                   return (
                     <tr key={o.id} className="hover:bg-gray-50/50">
                       <td className="px-5 py-3">
