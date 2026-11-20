@@ -11,6 +11,7 @@ import {
 import { getFollowup, clearUser } from '@/lib/auth'
 import { getCountry } from '@/lib/countries'
 import { findUsiriAgent, type UsiriAgent } from '@/lib/usiriAgents'
+import { supabase } from '@/lib/supabase'
 
 type OrderRow = {
   id: string
@@ -119,6 +120,23 @@ export default function FollowupPage() {
   }, [user])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
+
+  // Real-time: refetch when orders change status
+  useEffect(() => {
+    const channel = supabase
+      .channel('followup-orders-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchOrders()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchOrders])
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchOrders, 30000)
+    return () => clearInterval(interval)
+  }, [fetchOrders])
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     setChangingStatus(orderId)
