@@ -230,7 +230,7 @@ export default function FollowupPage() {
 
   const getDateRange = useCallback((preset: DatePreset): { from: string; to: string } => {
     const now = new Date()
-    const fmt = (d: Date) => d.toISOString().slice(0, 10)
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     const sod = (d: Date) => { const c = new Date(d); c.setHours(0,0,0,0); return c }
     switch (preset) {
       case 'today': return { from: fmt(sod(now)), to: fmt(now) }
