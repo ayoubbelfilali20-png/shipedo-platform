@@ -89,6 +89,8 @@ export default function FollowupPage() {
   const [refreshing, setRefreshing] = useState(false)
 
   // Date filter
+  type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'custom'
+  const [datePreset, setDatePreset] = useState<DatePreset>('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDateFilter, setShowDateFilter] = useState(false)
@@ -167,21 +169,8 @@ export default function FollowupPage() {
     }
   }
 
-  const filtered = useMemo(() => {
+  const dateFiltered = useMemo(() => {
     let list = orders
-    if (activeTab !== 'all') {
-      list = list.filter(o => o.status === activeTab)
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      list = list.filter(o =>
-        o.customer_name?.toLowerCase().includes(q) ||
-        o.customer_phone?.includes(q) ||
-        o.tracking_number?.toLowerCase().includes(q) ||
-        o.customer_city?.toLowerCase().includes(q)
-      )
-    }
-    // Date filter
     if (dateFrom) {
       const from = new Date(dateFrom + 'T00:00:00').getTime()
       list = list.filter(o => {
@@ -196,18 +185,56 @@ export default function FollowupPage() {
         return d <= to
       })
     }
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      list = list.filter(o =>
+        o.customer_name?.toLowerCase().includes(q) ||
+        o.customer_phone?.includes(q) ||
+        o.tracking_number?.toLowerCase().includes(q) ||
+        o.customer_city?.toLowerCase().includes(q)
+      )
+    }
     return list
-  }, [orders, activeTab, search, dateFrom, dateTo])
+  }, [orders, search, dateFrom, dateTo])
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: orders.length }
-    for (const o of orders) c[o.status] = (c[o.status] || 0) + 1
+    const c: Record<string, number> = { all: dateFiltered.length }
+    for (const o of dateFiltered) c[o.status] = (c[o.status] || 0) + 1
     return c
-  }, [orders])
+  }, [dateFiltered])
+
+  const filtered = useMemo(() => {
+    if (activeTab === 'all') return dateFiltered
+    return dateFiltered.filter(o => o.status === activeTab)
+  }, [dateFiltered, activeTab])
 
   const totalAmount = useMemo(() => {
     return filtered.reduce((sum, o) => sum + (o.total_amount || 0), 0)
   }, [filtered])
+
+  const getDateRange = useCallback((preset: DatePreset): { from: string; to: string } => {
+    const now = new Date()
+    const fmt = (d: Date) => d.toISOString().slice(0, 10)
+    const sod = (d: Date) => { const c = new Date(d); c.setHours(0,0,0,0); return c }
+    switch (preset) {
+      case 'today': return { from: fmt(sod(now)), to: fmt(now) }
+      case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); return { from: fmt(sod(y)), to: fmt(sod(y)) } }
+      case 'this_week': { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { from: fmt(sod(d)), to: fmt(now) } }
+      case 'this_month': return { from: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), to: fmt(now) }
+      case 'last_month': { const f = new Date(now.getFullYear(), now.getMonth() - 1, 1); const l = new Date(now.getFullYear(), now.getMonth(), 0); return { from: fmt(f), to: fmt(l) } }
+      default: return { from: '', to: '' }
+    }
+  }, [])
+
+  const handlePreset = (p: DatePreset) => {
+    setDatePreset(p)
+    if (p === 'all') { setDateFrom(''); setDateTo('') }
+    else if (p !== 'custom') {
+      const r = getDateRange(p)
+      setDateFrom(r.from)
+      setDateTo(r.to)
+    }
+  }
 
   const handleLogout = () => {
     clearUser('followup')
@@ -215,6 +242,7 @@ export default function FollowupPage() {
   }
 
   const clearDateFilter = () => {
+    setDatePreset('all')
     setDateFrom('')
     setDateTo('')
   }
@@ -258,8 +286,8 @@ export default function FollowupPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowDateFilter(!showDateFilter)} className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${(dateFrom || dateTo) ? 'bg-purple-50' : ''}`}>
-              <Calendar size={16} className={`${(dateFrom || dateTo) ? 'text-purple-500' : 'text-gray-500'}`} />
+            <button onClick={() => setShowDateFilter(!showDateFilter)} className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${datePreset !== 'all' ? 'bg-purple-50' : ''}`}>
+              <Calendar size={16} className={`${datePreset !== 'all' ? 'text-purple-500' : 'text-gray-500'}`} />
             </button>
             <button onClick={fetchOrders} disabled={refreshing} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <RefreshCw size={16} className={`text-gray-500 ${refreshing ? 'animate-spin' : ''}`} />
@@ -273,14 +301,23 @@ export default function FollowupPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-4 space-y-3">
         {/* Stats */}
-        <div className="grid grid-cols-5 gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex-1 min-w-0 rounded-xl p-2.5 text-center transition-all border ${
+              activeTab === 'all' ? 'bg-gray-100 border-gray-400 ring-1 ring-offset-1' : 'bg-white border-gray-100 hover:border-gray-200'
+            }`}
+          >
+            <div className="text-lg font-bold text-gray-700">{counts.all || 0}</div>
+            <div className="text-[8px] text-gray-500 font-medium mt-0.5 leading-tight">All</div>
+          </button>
           {ALL_FOLLOWUP_STATUSES.map(s => {
             const cfg = statusConfig[s]
             return (
               <button
                 key={s}
                 onClick={() => setActiveTab(activeTab === s ? 'all' : s)}
-                className={`rounded-xl p-2.5 text-center transition-all border ${
+                className={`flex-1 min-w-0 rounded-xl p-2.5 text-center transition-all border ${
                   activeTab === s ? `${cfg.bg} ${cfg.border} ring-1 ring-offset-1` : 'bg-white border-gray-100 hover:border-gray-200'
                 }`}
               >
@@ -293,33 +330,58 @@ export default function FollowupPage() {
 
         {/* Date filter */}
         {showDateFilter && (
-          <div className="bg-white rounded-xl border border-purple-200 px-4 py-3 space-y-2">
+          <div className="bg-white rounded-xl border border-purple-200 px-4 py-3 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">Filter by Date</span>
-              {(dateFrom || dateTo) && (
+              {datePreset !== 'all' && (
                 <button onClick={clearDateFilter} className="text-[10px] text-purple-500 font-medium hover:underline">Clear</button>
               )}
             </div>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="block text-[10px] text-gray-400 mb-1">From</label>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400" />
-              </div>
-              <div className="flex-1">
-                <label className="block text-[10px] text-gray-400 mb-1">To</label>
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400" />
-              </div>
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                { value: 'all', label: 'All Time' },
+                { value: 'today', label: 'Today' },
+                { value: 'yesterday', label: 'Yesterday' },
+                { value: 'this_week', label: 'This Week' },
+                { value: 'this_month', label: 'This Month' },
+                { value: 'last_month', label: 'Last Month' },
+                { value: 'custom', label: 'Custom' },
+              ] as { value: DatePreset; label: string }[]).map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => handlePreset(p.value)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all border ${
+                    datePreset === p.value
+                      ? 'bg-purple-500 text-white border-purple-500'
+                      : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-purple-300'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
+            {datePreset === 'custom' && (
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-[10px] text-gray-400 mb-1">From</label>
+                  <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setDatePreset('custom') }}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400" />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[10px] text-gray-400 mb-1">To</label>
+                  <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setDatePreset('custom') }}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400" />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         {/* Summary bar */}
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-2.5 flex items-center justify-between">
           <span className="text-xs text-gray-500">
-            {filtered.length} orders
-            {(dateFrom || dateTo) && <span className="text-purple-500 ml-1">(filtered)</span>}
+            {filtered.length} order{filtered.length !== 1 ? 's' : ''}
+            {datePreset !== 'all' && <span className="text-purple-500 ml-1">· {datePreset === 'custom' ? `${dateFrom || '...'} → ${dateTo || '...'}` : datePreset.replace('_', ' ')}</span>}
           </span>
           <span className="text-xs font-semibold text-gray-700">{cs} {totalAmount.toLocaleString()}</span>
         </div>
