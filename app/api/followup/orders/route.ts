@@ -9,7 +9,10 @@ export async function GET(req: NextRequest) {
   const agentId = req.headers.get('x-agent-id')
   if (!agentId) return NextResponse.json({ orders: [], notes: {} }, { status: 401 })
 
-  const agentCountry = req.headers.get('x-agent-country')
+  // Look up agent's country from DB (headers can be unreliable)
+  const { data: agent } = await supabaseAdmin.from('followup_agents').select('country').eq('id', agentId).single()
+  const agentCountry = agent?.country || null
+
   const statusFilter = req.nextUrl.searchParams.get('status')
   const showAll = req.nextUrl.searchParams.get('all') === '1'
 
