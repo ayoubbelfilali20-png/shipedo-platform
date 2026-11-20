@@ -48,11 +48,10 @@ type FollowupNote = {
 const statusConfig: Record<string, { label: string; color: string; border: string; bg: string; dot: string }> = {
   shipped_to_agent:   { label: 'Sent to Agent',       color: 'text-purple-600',  border: 'border-purple-400',  bg: 'bg-purple-50',  dot: 'bg-purple-500'  },
   delivered_by_agent: { label: 'Delivered by Agent',   color: 'text-teal-600',    border: 'border-teal-400',    bg: 'bg-teal-50',    dot: 'bg-teal-500'    },
-  paid_by_agent:      { label: 'Paid by Agent',        color: 'text-cyan-600',    border: 'border-cyan-400',    bg: 'bg-cyan-50',    dot: 'bg-cyan-500'    },
   returned:           { label: 'Returned',             color: 'text-red-600',     border: 'border-red-400',     bg: 'bg-red-50',     dot: 'bg-red-500'     },
 }
 
-const ALL_FOLLOWUP_STATUSES = ['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'] as const
+const ALL_FOLLOWUP_STATUSES = ['shipped_to_agent', 'delivered_by_agent', 'returned'] as const
 
 function daysSince(iso?: string | null): number | null {
   if (!iso) return null
@@ -198,13 +197,12 @@ export default function FollowupPage() {
   }, [orders, search, dateFrom, dateTo])
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: dateFiltered.length }
+    const c: Record<string, number> = {}
     for (const o of dateFiltered) c[o.status] = (c[o.status] || 0) + 1
     return c
   }, [dateFiltered])
 
   const filtered = useMemo(() => {
-    if (activeTab === 'all') return dateFiltered
     return dateFiltered.filter(o => o.status === activeTab)
   }, [dateFiltered, activeTab])
 
@@ -301,23 +299,14 @@ export default function FollowupPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-4 space-y-3">
         {/* Stats */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`flex-1 min-w-0 rounded-xl p-2.5 text-center transition-all border ${
-              activeTab === 'all' ? 'bg-gray-100 border-gray-400 ring-1 ring-offset-1' : 'bg-white border-gray-100 hover:border-gray-200'
-            }`}
-          >
-            <div className="text-lg font-bold text-gray-700">{counts.all || 0}</div>
-            <div className="text-[8px] text-gray-500 font-medium mt-0.5 leading-tight">All</div>
-          </button>
+        <div className="grid grid-cols-3 gap-1.5">
           {ALL_FOLLOWUP_STATUSES.map(s => {
             const cfg = statusConfig[s]
             return (
               <button
                 key={s}
-                onClick={() => setActiveTab(activeTab === s ? 'all' : s)}
-                className={`flex-1 min-w-0 rounded-xl p-2.5 text-center transition-all border ${
+                onClick={() => setActiveTab(s)}
+                className={`rounded-xl p-2.5 text-center transition-all border ${
                   activeTab === s ? `${cfg.bg} ${cfg.border} ring-1 ring-offset-1` : 'bg-white border-gray-100 hover:border-gray-200'
                 }`}
               >
@@ -419,6 +408,8 @@ export default function FollowupPage() {
               const cfg = statusConfig[order.status] || statusConfig.shipped_to_agent
               const isExpanded = expandedOrder === order.id
               const notes = notesByOrder[order.id] || []
+              const hasCallNote = !!(order.notes || order.last_call_note)
+              const totalNotes = notes.length + (hasCallNote ? 1 : 0)
               const usiriAgent = order.country === 'TZ' ? findUsiriAgent(order.customer_city) : null
               const items = Array.isArray(order.items) ? order.items : []
               const productNames = items.map((it: any) => it.product_name || it.name || '?').join(', ')
@@ -458,10 +449,10 @@ export default function FollowupPage() {
                       <div className="text-right flex-shrink-0">
                         <div className="text-sm font-bold text-gray-900">{cs} {(order.total_amount || 0).toLocaleString()}</div>
                         <div className="text-[10px] text-gray-400 mt-0.5">{fmtDate(order.shipped_to_agent_at || order.created_at)}</div>
-                        {notes.length > 0 && (
+                        {totalNotes > 0 && (
                           <div className="flex items-center gap-1 justify-end mt-1">
                             <StickyNote size={10} className="text-amber-500" />
-                            <span className="text-[10px] text-amber-600 font-medium">{notes.length} note{notes.length !== 1 ? 's' : ''}</span>
+                            <span className="text-[10px] text-amber-600 font-medium">{totalNotes} note{totalNotes !== 1 ? 's' : ''}</span>
                           </div>
                         )}
                       </div>
@@ -490,11 +481,20 @@ export default function FollowupPage() {
                         <span className="font-medium">Address:</span> {order.customer_address || '—'}
                       </div>
 
-                      {/* Call notes from agent */}
-                      {order.last_call_note && (
-                        <div className="text-xs bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
-                          <span className="font-medium text-amber-700">Agent note:</span>
-                          <span className="text-amber-800 ml-1">{order.last_call_note}</span>
+                      {/* Call agent notes */}
+                      {(order.notes || order.last_call_note) && (
+                        <div className="bg-amber-50 rounded-lg px-3 py-2 border border-amber-100 space-y-1.5">
+                          <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">Call Agent Notes</div>
+                          {order.notes && (
+                            <div className="text-xs text-amber-800">
+                              <span className="font-medium text-amber-700">Order note:</span> {order.notes}
+                            </div>
+                          )}
+                          {order.last_call_note && (
+                            <div className="text-xs text-amber-800">
+                              <span className="font-medium text-amber-700">Last call note:</span> {order.last_call_note}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -560,11 +560,6 @@ export default function FollowupPage() {
                                 <RotateCcw size={13} /> Returned
                               </button>
                             </>
-                          )}
-                          {order.status === 'paid_by_agent' && (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-cyan-50 border border-cyan-200 rounded-lg text-xs text-cyan-700 w-full">
-                              <Banknote size={13} /> Agent has paid — completed
-                            </div>
                           )}
                           {order.status === 'returned' && (
                             <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 w-full">

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const showAll = req.nextUrl.searchParams.get('all') === '1'
 
   let q = supabaseAdmin.from('orders').select(COLS)
-    .in('status', ['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'])
+    .in('status', ['shipped_to_agent', 'delivered_by_agent', 'returned'])
     .order('created_at', { ascending: false })
 
   if (statusFilter) {
