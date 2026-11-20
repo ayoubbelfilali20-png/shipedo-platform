@@ -9,12 +9,17 @@ export async function GET(req: NextRequest) {
   const agentId = req.headers.get('x-agent-id')
   if (!agentId) return NextResponse.json({ orders: [], notes: {} }, { status: 401 })
 
+  const agentCountry = req.headers.get('x-agent-country')
   const statusFilter = req.nextUrl.searchParams.get('status')
   const showAll = req.nextUrl.searchParams.get('all') === '1'
 
   let q = supabaseAdmin.from('orders').select(COLS)
     .in('status', ['shipped_to_agent', 'delivered_by_agent', 'returned'])
     .order('created_at', { ascending: false })
+
+  if (agentCountry) {
+    q = q.eq('country', agentCountry)
+  }
 
   if (statusFilter) {
     q = q.eq('status', statusFilter)

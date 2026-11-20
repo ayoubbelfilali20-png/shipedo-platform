@@ -106,7 +106,7 @@ export default function FollowupPage() {
     setRefreshing(true)
     try {
       const res = await fetch('/api/followup/orders', {
-        headers: { 'x-agent-id': user.id, 'x-agent-name': user.name || '' },
+        headers: { 'x-agent-id': user.id, 'x-agent-name': user.name || '', 'x-agent-country': user.country || '' },
       })
       const data = await res.json()
       setOrders(data.orders || [])
@@ -148,7 +148,17 @@ export default function FollowupPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
+        const nowIso = new Date().toISOString()
+        if (newStatus === 'paid_by_agent') {
+          setOrders(prev => prev.filter(o => o.id !== orderId))
+        } else {
+          setOrders(prev => prev.map(o => o.id === orderId ? {
+            ...o,
+            status: newStatus,
+            ...(newStatus === 'delivered_by_agent' ? { delivered_at: nowIso } : {}),
+            ...(newStatus === 'returned' ? { returned_at: nowIso } : {}),
+          } : o))
+        }
       }
     } catch (e) {
       console.error('Status change failed:', e)
