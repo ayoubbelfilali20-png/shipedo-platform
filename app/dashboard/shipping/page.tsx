@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
+import { TZ_CITIES, resolveTzCity } from '@/lib/tanzaniaCities'
 
 type OrderRow = {
   id: string
@@ -261,7 +262,9 @@ export default function AdminShippingPage() {
 
   const cityByOrderId = useMemo(() => {
     const m = new Map<string, string | null>()
-    orders.forEach(o => m.set(o.id, resolveCity(o.customer_city, o.customer_address)))
+    orders.forEach(o => m.set(o.id, (o.country || 'KE') === 'TZ'
+      ? resolveTzCity(o.customer_city, o.customer_address)
+      : resolveCity(o.customer_city, o.customer_address)))
     return m
   }, [orders])
 
@@ -283,7 +286,7 @@ export default function AdminShippingPage() {
   const cityOptions = useMemo(() => {
     const present = new Set<string>()
     cityByOrderId.forEach(c => { if (c) present.add(c) })
-    return KENYAN_CITIES.filter(c => present.has(c))
+    return [...KENYAN_CITIES, ...TZ_CITIES].filter(c => present.has(c))
   }, [cityByOrderId])
 
   const { from: dateFrom, to: dateTo } = useMemo(

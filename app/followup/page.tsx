@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { getFollowup, clearUser } from '@/lib/auth'
 import { getCountry } from '@/lib/countries'
 import { findUsiriAgent } from '@/lib/usiriAgents'
+import { TZ_CITIES, resolveTzCity } from '@/lib/tanzaniaCities'
 import { supabase } from '@/lib/supabase'
 
 type OrderRow = {
@@ -207,11 +208,18 @@ export default function FollowupPage() {
     return Array.from(set).sort()
   }, [orders])
 
+  // Normalize messy city values to the canonical region city (TZ only)
+  const cityOf = useCallback((o: OrderRow) => {
+    if ((user?.country || 'TZ') === 'TZ') return resolveTzCity(o.customer_city, o.customer_address) || 'Other'
+    return o.customer_city || '—'
+  }, [user?.country])
+
   const cityOptions = useMemo(() => {
     const set = new Set<string>()
-    orders.forEach(o => o.customer_city && set.add(o.customer_city))
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [orders])
+    orders.forEach(o => set.add(cityOf(o)))
+    const idx = (c: string) => { const i = TZ_CITIES.indexOf(c); return i === -1 ? 999 : i }
+    return Array.from(set).sort((a, b) => idx(a) - idx(b) || a.localeCompare(b))
+  }, [orders, cityOf])
 
   // Everything except the status filter — drives the stat cards so counts are real
   const baseFiltered = useMemo(() => {
@@ -223,7 +231,7 @@ export default function FollowupPage() {
         if (from && t < from.getTime()) return false
         if (to && t > to.getTime()) return false
       }
-      if (filterCity !== 'all' && o.customer_city !== filterCity) return false
+      if (filterCity !== 'all' && cityOf(o) !== filterCity) return false
       if (filterProduct !== 'all' && !(Array.isArray(o.items) ? o.items : []).some((it: any) => it?.name === filterProduct)) return false
       if (q) {
         const hay = `${o.tracking_number} ${o.delivery_tracking || ''} ${o.customer_name} ${o.customer_phone} ${o.customer_city} ${o.customer_address}`.toLowerCase()
@@ -231,7 +239,7 @@ export default function FollowupPage() {
       }
       return true
     })
-  }, [orders, datePreset, customFrom, customTo, search, filterCity, filterProduct])
+  }, [orders, datePreset, customFrom, customTo, search, filterCity, filterProduct, cityOf])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -248,7 +256,7 @@ export default function FollowupPage() {
   const cityBreakdown = useMemo(() => {
     const map = new Map<string, { total: number; sent: number; delivered: number; paid: number; returned: number; amount: number }>()
     filtered.forEach(o => {
-      const c = o.customer_city || '—'
+      const c = cityOf(o)
       const cur = map.get(c) || { total: 0, sent: 0, delivered: 0, paid: 0, returned: 0, amount: 0 }
       cur.total++
       if (o.status === 'shipped_to_agent') cur.sent++
@@ -259,17 +267,17 @@ export default function FollowupPage() {
       map.set(c, cur)
     })
     return Array.from(map.entries()).map(([city, s]) => ({ city, ...s })).sort((a, b) => b.total - a.total)
-  }, [filtered])
+  }, [filtered, cityOf])
 
   const groupedByCity = useMemo(() => {
     if (!groupByCity) return null
     const map = new Map<string, OrderRow[]>()
     filtered.forEach(o => {
-      const c = o.customer_city || '—'
+      const c = cityOf(o)
       map.set(c, [...(map.get(c) || []), o])
     })
     return Array.from(map.entries()).sort((a, b) => b[1].length - a[1].length)
-  }, [filtered, groupByCity])
+  }, [filtered, groupByCity, cityOf])
 
   if (!user) return null
 

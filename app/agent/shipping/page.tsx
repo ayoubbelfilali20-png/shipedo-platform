@@ -16,6 +16,7 @@ import { detectDuplicates } from '@/lib/detectDuplicates'
 import { getCountry } from '@/lib/countries'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
 import { USIRI_AGENTS, USIRI_REGIONS, findUsiriAgent, type UsiriAgent } from '@/lib/usiriAgents'
+import { resolveTzCity } from '@/lib/tanzaniaCities'
 
 type OrderRow = {
   id: string
@@ -279,7 +280,8 @@ export default function AgentShippingPage() {
       if (agentCountry === 'TZ') {
         const raw = (o.customer_city || '').trim().toUpperCase()
         const usiri = findUsiriAgent(raw)
-        m.set(o.id, usiri ? usiri.region : raw || null)
+        const canonical = usiri ? null : resolveTzCity(o.customer_city, o.customer_address)
+        m.set(o.id, usiri ? usiri.region : canonical ? canonical.toUpperCase() : raw ? 'OTHER' : null)
       } else {
         m.set(o.id, resolveCity(o.customer_city, o.customer_address))
       }
