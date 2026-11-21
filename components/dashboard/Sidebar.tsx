@@ -263,7 +263,7 @@ export default function Sidebar({ role = 'admin', collapsed: collapsedProp, onCo
         <div className="relative group">
           <Link href={role === 'seller' ? '/seller' : role === 'agent' ? '/agent' : role === 'delivery' ? '/delivery' : role === 'storage' ? '/storage' : '/dashboard'} className="flex items-center justify-center" title={role === 'teamleader' ? 'Team Leader Dashboard' : undefined}>
             {collapsed ? (
-              <img src="/logo2.png" alt="Shipedo" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+              <img src="/logooo2.png" alt="Shipedo" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
             ) : (
               <img src="/logo.png" alt="Shipedo" className="h-28 w-auto object-contain max-w-[210px]" />
             )}
