@@ -94,6 +94,7 @@ export default function FollowupPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showDateFilter, setShowDateFilter] = useState(false)
+  const [selectedCity, setSelectedCity] = useState('')
 
   useEffect(() => {
     const u = getFollowup()
@@ -196,8 +197,17 @@ export default function FollowupPage() {
     }
   }
 
+  const cities = useMemo(() => {
+    const set = new Set<string>()
+    for (const o of orders) if (o.customer_city) set.add(o.customer_city)
+    return Array.from(set).sort()
+  }, [orders])
+
   const dateFiltered = useMemo(() => {
     let list = orders
+    if (selectedCity) {
+      list = list.filter(o => o.customer_city === selectedCity)
+    }
     if (dateFrom) {
       const from = new Date(dateFrom + 'T00:00:00').getTime()
       list = list.filter(o => {
@@ -222,7 +232,7 @@ export default function FollowupPage() {
       )
     }
     return list
-  }, [orders, search, dateFrom, dateTo])
+  }, [orders, selectedCity, search, dateFrom, dateTo])
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -398,26 +408,41 @@ export default function FollowupPage() {
         <div className="bg-white rounded-xl border border-gray-100 px-4 py-2.5 flex items-center justify-between">
           <span className="text-xs text-gray-500">
             {filtered.length} order{filtered.length !== 1 ? 's' : ''}
+            {selectedCity && <span className="text-purple-500 ml-1">· {selectedCity}</span>}
             {datePreset !== 'all' && <span className="text-purple-500 ml-1">· {datePreset === 'custom' ? `${dateFrom || '...'} → ${dateTo || '...'}` : datePreset.replace('_', ' ')}</span>}
           </span>
           <span className="text-xs font-semibold text-gray-700">{cs} {totalAmount.toLocaleString()}</span>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name, phone, tracking..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
-              <X size={14} className="text-gray-400" />
-            </button>
-          )}
+        {/* Search + City filter */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search name, phone, tracking..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2">
+                <X size={14} className="text-gray-400" />
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <MapPin size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <select
+              value={selectedCity}
+              onChange={e => setSelectedCity(e.target.value)}
+              className={`pl-8 pr-7 py-2.5 bg-white border rounded-xl text-xs font-medium appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400 ${selectedCity ? 'border-purple-400 text-purple-700' : 'border-gray-200 text-gray-500'}`}
+            >
+              <option value="">All Cities</option>
+              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
         </div>
 
         {/* Orders list */}
