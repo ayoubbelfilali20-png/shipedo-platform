@@ -392,13 +392,16 @@ export default function FollowupPage() {
             </div>
           )}
 
-          {notes.length > 0 && !notesOpen && (
-            <div className="flex items-start gap-1 text-[11px] text-purple-700 bg-purple-50 rounded px-2 py-1">
+          {!notesOpen && notes.map(n => (
+            <div key={n.id} className="flex items-start gap-1 text-[11px] text-purple-700 bg-purple-50 rounded px-2 py-1">
               <StickyNote size={9} className="mt-0.5 flex-shrink-0" />
-              <span className="font-semibold">{notes[0].agent_name}:</span>
-              <span className="flex-1">{notes[0].note}</span>
+              <span className="font-semibold">{n.agent_name}:</span>
+              <span className="flex-1">{n.note}</span>
+              <span className="text-[9px] text-purple-300 flex-shrink-0">
+                {new Date(n.created_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
-          )}
+          ))}
 
           <button
             onClick={() => setOpenNotes(notesOpen ? null : order.id)}
