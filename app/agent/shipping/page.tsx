@@ -659,11 +659,6 @@ export default function AgentShippingPage() {
                   <span className="text-[9px] text-indigo-400 ml-1.5">{usiri.region}</span>
                   {usiri.office && <span className="text-[9px] text-indigo-300 ml-1">· {usiri.office}</span>}
                 </div>
-                <span className="text-[10px] font-mono font-semibold text-indigo-600">{usiri.phone}</span>
-                <a href={`tel:${usiri.phone.replace(/-/g, '')}`}
-                  className="w-5 h-5 rounded bg-indigo-500 hover:bg-indigo-600 flex items-center justify-center text-white flex-shrink-0">
-                  <Phone size={9} />
-                </a>
               </div>
             )
             return (
@@ -917,7 +912,7 @@ export default function AgentShippingPage() {
                         </div>
                         {usiri && (
                           <p className="text-[9px] text-indigo-500 font-semibold mb-1 truncate">
-                            {usiri.name} · {usiri.phone}
+                            {usiri.name}
                           </p>
                         )}
                         <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1.5">
@@ -981,12 +976,7 @@ export default function AgentShippingPage() {
                     <div className="mt-1.5 flex items-center gap-2 bg-white/10 rounded px-2.5 py-1.5">
                       <User size={10} className="text-indigo-300" />
                       <span className="text-[10px] font-bold text-white">{usiriAgent.name}</span>
-                      <span className="text-[10px] font-mono text-indigo-300">{usiriAgent.phone}</span>
                       {usiriAgent.office && <span className="text-[9px] text-white/40">· {usiriAgent.office}</span>}
-                      <a href={`tel:${usiriAgent.phone.replace(/-/g, '')}`}
-                        className="ml-auto w-5 h-5 rounded bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center text-white">
-                        <Phone size={9} />
-                      </a>
                     </div>
                   )}
                 </div>
@@ -1090,11 +1080,6 @@ export default function AgentShippingPage() {
                       <p className="text-xs font-bold text-[#1a1c3a]">{a.region}</p>
                       <p className="text-[10px] text-gray-400">{a.name}{a.office ? ` · ${a.office}` : ''}</p>
                     </div>
-                    <span className="text-[11px] font-mono text-indigo-600 flex-shrink-0">{a.phone}</span>
-                    <a href={`tel:${a.phone.replace(/-/g, '')}`} onClick={e => e.stopPropagation()}
-                      className="w-6 h-6 rounded-md bg-indigo-50 hover:bg-indigo-100 flex items-center justify-center text-indigo-500 flex-shrink-0">
-                      <Phone size={11} />
-                    </a>
                   </button>
                 ))}
               </div>

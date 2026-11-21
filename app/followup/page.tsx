@@ -371,11 +371,6 @@ export default function FollowupPage() {
                 <span className="text-[9px] text-indigo-400 ml-1.5">{usiri.region}</span>
                 {usiri.office && <span className="text-[9px] text-indigo-300 ml-1">· {usiri.office}</span>}
               </div>
-              <span className="text-[10px] font-mono font-semibold text-indigo-600">{usiri.phone}</span>
-              <a href={`tel:${usiri.phone.replace(/-/g, '')}`}
-                className="w-5 h-5 rounded bg-indigo-500 hover:bg-indigo-600 flex items-center justify-center text-white flex-shrink-0">
-                <Phone size={9} />
-              </a>
             </div>
           )}
 
@@ -622,7 +617,7 @@ export default function FollowupPage() {
                           <p className="text-[11px] font-bold text-[#1a1c3a] truncate">{c.city}</p>
                           <span className="text-sm font-bold text-[#f4991a] flex-shrink-0 ml-2">{c.total}</span>
                         </div>
-                        {usiri && <p className="text-[9px] text-indigo-500 font-semibold mb-1 truncate">{usiri.name} · {usiri.phone}</p>}
+                        {usiri && <p className="text-[9px] text-indigo-500 font-semibold mb-1 truncate">{usiri.name}</p>}
                         <div className="flex items-center gap-1.5 text-[9px] flex-wrap">
                           {c.sent > 0 && <span className="text-purple-600 font-semibold">{c.sent} sent</span>}
                           {c.delivered > 0 && <span className="text-teal-600 font-semibold">{c.delivered} deliv</span>}
@@ -666,11 +661,6 @@ export default function FollowupPage() {
                     <div className="mt-1.5 flex items-center gap-2 bg-white/10 rounded px-2.5 py-1.5">
                       <User size={10} className="text-indigo-300" />
                       <span className="text-[10px] font-bold text-white">{usiriAgent.name}</span>
-                      <span className="text-[10px] font-mono text-indigo-300">{usiriAgent.phone}</span>
-                      <a href={`tel:${usiriAgent.phone.replace(/-/g, '')}`}
-                        className="ml-auto w-5 h-5 rounded bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center text-white">
-                        <Phone size={9} />
-                      </a>
                     </div>
                   )}
                 </div>

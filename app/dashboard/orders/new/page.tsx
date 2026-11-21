@@ -12,11 +12,12 @@ import {
   Package, Copy, Check, ArrowRight, Search, Globe, AlertTriangle
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { TZ_CITIES } from '@/lib/tanzaniaCities'
 
 const countries = [
   { code: 'KE', name: 'Kenya',     flag: '🇰🇪', cities: ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri'] },
   { code: 'MA', name: 'Morocco',   flag: '🇲🇦', cities: ['Casablanca','Rabat','Marrakech','Fez','Tangier','Agadir','Meknès','Oujda'] },
-  { code: 'TZ', name: 'Tanzania',  flag: '🇹🇿', cities: ['Dar es Salaam','Dodoma','Mwanza','Arusha','Zanzibar City'] },
+  { code: 'TZ', name: 'Tanzania',  flag: '🇹🇿', cities: TZ_CITIES },
   { code: 'UG', name: 'Uganda',    flag: '🇺🇬', cities: ['Kampala','Entebbe','Gulu','Lira','Mbarara'] },
   { code: 'NG', name: 'Nigeria',   flag: '🇳🇬', cities: ['Lagos','Abuja','Kano','Ibadan','Port Harcourt','Benin City'] },
   { code: 'ZA', name: 'S. Africa', flag: '🇿🇦', cities: ['Johannesburg','Cape Town','Durban','Pretoria','Port Elizabeth'] },

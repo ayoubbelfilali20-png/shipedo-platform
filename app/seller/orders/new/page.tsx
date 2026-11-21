@@ -15,10 +15,11 @@ import { cn } from '@/lib/utils'
 import { useT } from '@/lib/i18n'
 import { pickAgentForOrder } from '@/lib/agentAssignment'
 import { getCountry } from '@/lib/countries'
+import { TZ_CITIES } from '@/lib/tanzaniaCities'
 
 const countries = [
   { code: 'KE', name: 'Kenya', flag: '🇰🇪', cities: ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri'] },
-  { code: 'TZ', name: 'Tanzania', flag: '🇹🇿', cities: ['Dar es Salaam','Dodoma','Mwanza','Arusha','Zanzibar City','Mbeya','Morogoro','Tanga'] },
+  { code: 'TZ', name: 'Tanzania', flag: '🇹🇿', cities: TZ_CITIES },
 ]
 
 const countryOriginMap: Record<string, string[]> = {

@@ -9,10 +9,11 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getCountry } from '@/lib/countries'
+import { TZ_CITIES } from '@/lib/tanzaniaCities'
 
 const citiesByCountry: Record<string, string[]> = {
   KE: ['Nairobi','Mombasa','Kisumu','Nakuru','Eldoret','Thika','Malindi','Kitale','Garissa','Nyeri'],
-  TZ: ['Dar es Salaam','Dodoma','Mwanza','Arusha','Zanzibar City','Mbeya','Morogoro','Tanga'],
+  TZ: TZ_CITIES,
 }
 
 type Seller = { id: string; name: string; company: string; email: string }
