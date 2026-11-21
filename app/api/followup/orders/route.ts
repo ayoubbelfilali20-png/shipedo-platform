@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const showAll = req.nextUrl.searchParams.get('all') === '1'
 
   let q = supabaseAdmin.from('orders').select(COLS)
-    .in('status', ['shipped_to_agent', 'delivered_by_agent', 'returned'])
+    .in('status', ['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'])
     .order('created_at', { ascending: false })
 
   if (agentCountry) {
@@ -34,8 +34,9 @@ export async function GET(req: NextRequest) {
     q = q.gte('created_at', cutoff.toISOString())
   }
 
-  const { data: orders, error } = await q.limit(2000)
+  const { data: rawOrders, error } = await q.limit(2000)
   if (error) return NextResponse.json({ orders: [], notes: {}, error: error.message }, { status: 500 })
+  const orders = (rawOrders || []).filter((o: any) => !!o.shipped_to_agent_at)
 
   const orderIds = (orders || []).map((o: any) => o.id)
   let notesByOrder: Record<string, any[]> = {}
