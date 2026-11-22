@@ -35,6 +35,7 @@ type OrderRow = {
   shipped_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
+  paid_by_agent_at?: string | null
 }
 
 const statusConfig: Record<ShipStatus, { label: string; color: string; border: string; dot: string }> = {
@@ -82,6 +83,7 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
+  if (o.status === 'paid_by_agent' && o.paid_by_agent_at) return o.paid_by_agent_at
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -120,9 +122,9 @@ export default function SellerShippingPage() {
 
     const ctry = (() => { try { return JSON.parse(localStorage.getItem('shipedo_seller') || '{}').country } catch { return undefined } })()
     let q = supabase.from('orders')
-      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, country, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at, status_changed_at')
+      .select('id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, payment_status, notes, seller_id, country, created_at, last_call_at, shipped_to_agent_at, shipped_at, delivered_at, returned_at, paid_by_agent_at, status_changed_at')
       .eq('seller_id', sid)
-      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
+      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned'])
       .order('created_at', { ascending: false })
     if (ctry) q = q.eq('country', ctry)
 
@@ -375,6 +377,9 @@ export default function SellerShippingPage() {
                     {row.delivered_at && (
                       <span className="text-sky-600"><span className="text-gray-300">Deliv:</span> {new Date(row.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
                     )}
+                    {row.paid_by_agent_at && (
+                      <span className="text-cyan-600"><span className="text-gray-300">Paid:</span> {new Date(row.paid_by_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+                    )}
                     {row.returned_at && (
                       <span className="text-red-600"><span className="text-gray-300">Ret:</span> {new Date(row.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
                     )}
@@ -499,6 +504,12 @@ function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400 text-xs">Returned</span>
                   <span className="font-semibold text-red-600 text-xs">{new Date(row.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </div>
+              )}
+              {row.paid_by_agent_at && (
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400 text-xs">Paid by Agent</span>
+                  <span className="font-semibold text-cyan-600 text-xs">{new Date(row.paid_by_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">

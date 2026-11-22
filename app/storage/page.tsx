@@ -24,7 +24,7 @@ export default function StorageDashboard() {
   useEffect(() => {
     supabase.from('orders')
       .select('id, tracking_number, customer_name, customer_city, status, total_amount, created_at, last_call_at, country')
-      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'returned'])
+      .in('status', ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned'])
       .order('last_call_at', { ascending: false, nullsFirst: false })
       .limit(1000)
       .then(({ data }) => { setOrders((data || []) as OrderRow[]); setLoading(false) })

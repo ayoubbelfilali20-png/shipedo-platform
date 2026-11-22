@@ -138,11 +138,6 @@ export default function DeliveryAgentsPage() {
                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-400" />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Phone</label>
-              <input value={phone} onChange={e => setPhone(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-blue-400" />
-            </div>
-            <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Password</label>
               <div className="flex gap-2">
                 <input value={password} onChange={e => setPassword(e.target.value)}
@@ -182,7 +177,6 @@ export default function DeliveryAgentsPage() {
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="text-left px-4 py-3 text-gray-400 uppercase font-bold">Name</th>
                 <th className="text-left px-4 py-3 text-gray-400 uppercase font-bold">Email</th>
-                <th className="text-left px-4 py-3 text-gray-400 uppercase font-bold">Phone</th>
                 <th className="text-left px-4 py-3 text-gray-400 uppercase font-bold">Password</th>
                 <th className="text-left px-4 py-3 text-gray-400 uppercase font-bold">Status</th>
                 <th className="text-left px-4 py-3 text-gray-400 uppercase font-bold">Created</th>
@@ -193,7 +187,6 @@ export default function DeliveryAgentsPage() {
                 <tr key={a.id} className="hover:bg-gray-50/50">
                   <td className="px-4 py-3 font-bold text-[#1a1c3a]">{a.name}</td>
                   <td className="px-4 py-3 text-gray-500">{a.email}</td>
-                  <td className="px-4 py-3 text-gray-500">{a.phone || '—'}</td>
                   <td className="px-4 py-3">
                     <button onClick={() => setShowPassFor(showPassFor === a.id ? null : a.id)}
                       className="flex items-center gap-1 text-gray-400 hover:text-gray-600">

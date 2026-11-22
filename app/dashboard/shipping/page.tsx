@@ -11,7 +11,7 @@ import {
   Search, Truck, CheckCircle, RotateCcw, Package, Phone,
   MessageCircle, X, ChevronDown, ChevronUp, Printer, CheckSquare, Square,
   Clock, AlertCircle, PhoneOff, Pencil, Save, XCircle,
-  RefreshCw, FileText, Calendar, UserCheck, MapPin,
+  RefreshCw, FileText, Calendar, UserCheck, MapPin, Banknote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
@@ -40,6 +40,7 @@ type OrderRow = {
   shipped_to_agent_at?: string | null
   delivered_at?: string | null
   returned_at?: string | null
+  paid_by_agent_at?: string | null
   last_call_at?: string | null
   created_at: string
   seller_id?: string | null
@@ -102,6 +103,7 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at
+  if (o.status === 'paid_by_agent' && o.paid_by_agent_at) return o.paid_by_agent_at
   if ((o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
   if (o.status === 'shipped' && o.shipped_at) return o.shipped_at
   if (o.status === 'returned' && o.returned_at) return o.returned_at
@@ -818,6 +820,11 @@ export default function AdminShippingPage() {
                     {order.delivered_at && (
                       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-sky-600 bg-sky-50 border border-sky-200 rounded-lg px-2 py-0.5">
                         <CheckCircle size={11} /> Delivered: {new Date(order.delivered_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                    )}
+                    {order.paid_by_agent_at && (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-cyan-600 bg-cyan-50 border border-cyan-200 rounded-lg px-2 py-0.5">
+                        <Banknote size={11} /> Paid: {new Date(order.paid_by_agent_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </span>
                     )}
                     {order.returned_at && (
