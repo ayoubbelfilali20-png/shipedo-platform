@@ -9,6 +9,8 @@ import {
 import { cn } from '@/lib/utils'
 import { getCountry } from '@/lib/countries'
 import { exportOrdersExcel } from '@/lib/exportExcel'
+import { getDelivery } from '@/lib/auth'
+import OrderNotes, { useSharedNotes } from '@/components/OrderNotes'
 
 type OrderRow = {
   id: string
@@ -43,6 +45,11 @@ export default function DeliveryOrdersPage() {
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [dateFilter, setDateFilter] = useState('')
+
+  // Shared notes visible to every role
+  const allOrderIds = useMemo(() => orders.map(o => o.id), [orders])
+  const { notesByOrder: sharedNotes, addLocalNote } = useSharedNotes(allOrderIds)
+  const deliveryUser = typeof window !== 'undefined' ? getDelivery() : null
 
   useEffect(() => {
     let ctry: string | undefined
@@ -209,6 +216,8 @@ export default function DeliveryOrdersPage() {
                   </button>
                 </div>
               )}
+              <OrderNotes orderId={order.id} notes={sharedNotes[order.id] || []}
+                user={{ id: deliveryUser?.id, name: deliveryUser?.name || 'Delivery', role: 'delivery' }} onAdded={addLocalNote} />
             </div>
           </div>
         ))}

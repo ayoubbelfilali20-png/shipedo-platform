@@ -17,6 +17,7 @@ import { getCountry } from '@/lib/countries'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
 import { USIRI_AGENTS, USIRI_REGIONS, findUsiriAgent, type UsiriAgent } from '@/lib/usiriAgents'
 import { resolveTzCity } from '@/lib/tanzaniaCities'
+import OrderNotes, { useSharedNotes } from '@/components/OrderNotes'
 
 type OrderRow = {
   id: string
@@ -272,6 +273,10 @@ export default function AgentShippingPage() {
 
     return () => { supabase.removeChannel(channel) }
   }, [])
+
+  // Shared notes visible to every role
+  const allOrderIds = useMemo(() => orders.map(o => o.id), [orders])
+  const { notesByOrder: sharedNotes, addLocalNote } = useSharedNotes(allOrderIds)
 
   // Resolve city once per order — used by every filter/breakdown computation
   const cityByOrderId = useMemo(() => {
@@ -710,6 +715,8 @@ export default function AgentShippingPage() {
               </button>
             </div>
           )}
+          <OrderNotes orderId={order.id} notes={sharedNotes[order.id] || []}
+            user={{ id: agentId, name: agentName, role: 'agent' }} onAdded={addLocalNote} />
         </div>
       </div>
     )

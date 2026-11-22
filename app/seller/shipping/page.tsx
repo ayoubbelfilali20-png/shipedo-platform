@@ -9,6 +9,8 @@ import {
 import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { getCountry } from '@/lib/countries'
+import { getSeller } from '@/lib/auth'
+import OrderNotes, { useSharedNotes } from '@/components/OrderNotes'
 
 type ShipStatus = 'confirmed' | 'prepared' | 'shipped_to_agent' | 'shipped' | 'delivered' | 'delivered_by_agent' | 'paid_by_agent' | 'returned'
 
@@ -400,6 +402,10 @@ export default function SellerShippingPage() {
 }
 
 function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
+  // Shared notes visible to every role
+  const noteIds = useMemo(() => [row.id], [row.id])
+  const { notesByOrder: sharedNotes, addLocalNote } = useSharedNotes(noteIds)
+  const seller = typeof window !== 'undefined' ? getSeller() : null
   const cfg = statusConfig[(row.status as ShipStatus)] || statusConfig.confirmed
   const items = Array.isArray(row.items) ? row.items : []
   const cur = getCountry((row as any).country || 'KE').currencySymbol
@@ -549,6 +555,11 @@ function OrderDetail({ row, onClose }: { row: OrderRow; onClose: () => void }) {
               <p className="text-xs text-amber-600">{row.notes}</p>
             </div>
           )}
+
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <OrderNotes orderId={row.id} notes={sharedNotes[row.id] || []}
+              user={{ id: seller?.id, name: seller?.name || seller?.fullName || 'Seller', role: 'seller' }} onAdded={addLocalNote} />
+          </div>
 
           <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
             <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center mt-0.5">

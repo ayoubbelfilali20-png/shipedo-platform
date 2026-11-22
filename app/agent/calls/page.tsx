@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { printOrderLabel, printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import { getCountry } from '@/lib/countries'
+import OrderNotes, { useSharedNotes } from '@/components/OrderNotes'
 
 type OrderRow = {
   id: string
@@ -73,6 +74,10 @@ export default function AgentCallsPage() {
   const [agentId, setAgentId] = useState<string | null>(null)
   const [agentCountry, setAgentCountry] = useState('KE')
   const [agentName, setAgentName] = useState('')
+
+  // Shared notes visible to every role
+  const allOrderIds = useMemo(() => orders.map(o => o.id), [orders])
+  const { notesByOrder: sharedNotes, addLocalNote } = useSharedNotes(allOrderIds)
   const [note, setNote] = useState('')
   const [rescheduleDate, setRescheduleDate] = useState('')
   const [showReschedule, setShowReschedule] = useState(false)
@@ -933,6 +938,10 @@ export default function AgentCallsPage() {
                       <span className="font-semibold text-gray-600">Last note:</span> {order.last_call_note}
                     </div>
                   )}
+                  <div className="mt-2">
+                    <OrderNotes orderId={order.id} notes={sharedNotes[order.id] || []}
+                      user={{ id: agentId || undefined, name: agentName, role: 'agent' }} onAdded={addLocalNote} />
+                  </div>
                 </div>
 
                 {/* Product picker modal */}

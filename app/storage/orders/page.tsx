@@ -11,6 +11,8 @@ import {
 import { getCountry } from '@/lib/countries'
 import { exportOrdersExcel } from '@/lib/exportExcel'
 import { cn } from '@/lib/utils'
+import { getStorage } from '@/lib/auth'
+import OrderNotes, { useSharedNotes } from '@/components/OrderNotes'
 
 type OrderRow = {
   id: string
@@ -94,6 +96,11 @@ function orderToLabel(o: OrderRow): PrintLabelProps {
 
 export default function StorageOrdersPage() {
   const [orders, setOrders] = useState<OrderRow[]>([])
+
+  // Shared notes visible to every role
+  const allOrderIds = useMemo(() => orders.map(o => o.id), [orders])
+  const { notesByOrder: sharedNotes, addLocalNote } = useSharedNotes(allOrderIds)
+  const storageUser = typeof window !== 'undefined' ? getStorage() : null
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -379,6 +386,8 @@ export default function StorageOrdersPage() {
                   {order.returned_at && <span className="text-[10px] text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-lg"><RotateCcw size={10} className="inline mr-1" />Returned: {new Date(order.returned_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>}
                 </div>
                 {order.notes && <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5">{order.notes}</p>}
+                <OrderNotes orderId={order.id} notes={sharedNotes[order.id] || []}
+                  user={{ id: storageUser?.id, name: storageUser?.name || 'Storage', role: 'storage' }} onAdded={addLocalNote} />
               </div>
             </div>
           )

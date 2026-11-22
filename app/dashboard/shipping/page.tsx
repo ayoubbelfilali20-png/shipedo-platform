@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils'
 import { detectDuplicates } from '@/lib/detectDuplicates'
 import { KENYAN_CITIES, resolveCity } from '@/lib/kenyanCities'
 import { TZ_CITIES, resolveTzCity } from '@/lib/tanzaniaCities'
+import { getAdmin } from '@/lib/auth'
+import OrderNotes, { useSharedNotes } from '@/components/OrderNotes'
 
 type OrderRow = {
   id: string
@@ -259,6 +261,11 @@ export default function AdminShippingPage() {
   }, [])
 
   const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
+
+  // Shared notes visible to every role
+  const allOrderIds = useMemo(() => orders.map(o => o.id), [orders])
+  const { notesByOrder: sharedNotes, addLocalNote } = useSharedNotes(allOrderIds)
+  const admin = typeof window !== 'undefined' ? getAdmin() : null
 
   const cityByOrderId = useMemo(() => {
     const m = new Map<string, string | null>()
@@ -859,6 +866,8 @@ export default function AdminShippingPage() {
                       </button>
                     </div>
                   )}
+                  <OrderNotes orderId={order.id} notes={sharedNotes[order.id] || []}
+                    user={{ id: admin?.id, name: admin?.name || admin?.fullName || 'Admin', role: 'admin' }} onAdded={addLocalNote} />
                 </div>
               </div>
             )
