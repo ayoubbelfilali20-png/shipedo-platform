@@ -125,22 +125,50 @@ export default function AdminDashboard() {
     const pending = orders.filter(o => o.status === 'pending').length
     const shipped = orders.filter(o => o.status === 'shipped').length
     const revenue = orders.filter(o => o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent').reduce((s, o) => s + (o.total_amount || 0), 0)
-
-    // Delivered today, split between direct deliveries and agent deliveries
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-    const deliveredToday = orders.filter(o =>
-      (o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') &&
-      o.delivered_at && new Date(o.delivered_at) >= todayStart)
-    const deliveredTodayDirect = deliveredToday.filter(o => o.status === 'delivered').length
-    const deliveredTodayByAgent = deliveredToday.length - deliveredTodayDirect
-    const deliveredTodayAmount = deliveredToday.reduce((s, o) => s + (o.total_amount || 0), 0)
-
     return {
       total, delivered, returned, pending, shipped, revenue,
-      deliveredToday: deliveredToday.length, deliveredTodayDirect, deliveredTodayByAgent, deliveredTodayAmount,
       deliveryRate: total > 0 ? ((delivered / total) * 100).toFixed(1) : '0',
       returnRate:   total > 0 ? ((returned / total) * 100).toFixed(1) : '0',
     }
+  }, [orders])
+
+  // Delivered per day: standard delivery vs agent delivery
+  const [deliveredDate, setDeliveredDate] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
+
+  const isDeliveredOrder = (o: OrderRow) =>
+    (o.status === 'delivered' || o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && !!o.delivered_at
+
+  const deliveredDay = useMemo(() => {
+    const dayOrders = orders.filter(o => isDeliveredOrder(o) &&
+      new Date(o.delivered_at!).toLocaleDateString('sv-SE') === deliveredDate)
+    const direct = dayOrders.filter(o => o.status === 'delivered').length
+    return {
+      total: dayOrders.length,
+      direct,
+      byAgent: dayOrders.length - direct,
+      amount: dayOrders.reduce((s, o) => s + (o.total_amount || 0), 0),
+    }
+  }, [orders, deliveredDate])
+
+  const deliveredDaily = useMemo(() => {
+    const days: { day: string; date: string; Delivered: number; 'By Agent': number }[] = []
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      const key = d.toLocaleDateString('sv-SE')
+      days.push({ day: d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }), date: key, Delivered: 0, 'By Agent': 0 })
+    }
+    const byDate = new Map(days.map(d => [d.date, d]))
+    orders.forEach(o => {
+      if (!isDeliveredOrder(o)) return
+      const row = byDate.get(new Date(o.delivered_at!).toLocaleDateString('sv-SE'))
+      if (!row) return
+      if (o.status === 'delivered') row.Delivered++
+      else row['By Agent']++
+    })
+    return days
   }, [orders])
 
   const revenueChart = useMemo(() => {
@@ -230,43 +258,62 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Delivered today */}
+        {/* Delivered per day: standard vs by agent */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div>
-              <h2 className="text-sm font-bold text-[#1a1c3a]">Delivered Today</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-              </p>
+              <h2 className="text-sm font-bold text-[#1a1c3a]">Delivered per Day</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Standard delivery vs delivered by agent</p>
             </div>
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
-              {cur} {stats.deliveredTodayAmount.toLocaleString()}
-            </span>
+            <div className="flex items-center gap-2">
+              <input type="date" value={deliveredDate} onChange={e => setDeliveredDate(e.target.value)}
+                className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 focus:outline-none focus:border-[#f4991a]" />
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1">
+                {cur} {deliveredDay.amount.toLocaleString()}
+              </span>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
               <div className="flex items-center gap-2 mb-1.5">
                 <CheckCircle size={14} className="text-emerald-500" />
-                <span className="text-[11px] font-bold text-emerald-700 uppercase">Total Today</span>
+                <span className="text-[11px] font-bold text-emerald-700 uppercase">Total</span>
               </div>
-              <div className="text-2xl font-bold text-[#1a1c3a]">{stats.deliveredToday}</div>
+              <div className="text-2xl font-bold text-[#1a1c3a]">{deliveredDay.total}</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">
+                {new Date(deliveredDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </div>
             </div>
-            <div className="rounded-xl border border-sky-100 bg-sky-50/50 p-4">
+            <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <Truck size={14} className="text-sky-500" />
-                <span className="text-[11px] font-bold text-sky-700 uppercase">Delivered</span>
+                <Truck size={14} className="text-indigo-500" />
+                <span className="text-[11px] font-bold text-indigo-700 uppercase">Delivered</span>
               </div>
-              <div className="text-2xl font-bold text-[#1a1c3a]">{stats.deliveredTodayDirect}</div>
+              <div className="text-2xl font-bold text-[#1a1c3a]">{deliveredDay.direct}</div>
               <div className="text-[10px] text-gray-400 mt-0.5">standard delivery</div>
             </div>
             <div className="rounded-xl border border-teal-100 bg-teal-50/50 p-4">
               <div className="flex items-center gap-2 mb-1.5">
-                <Headphones size={14} className="text-teal-500" />
+                <Headphones size={14} className="text-teal-600" />
                 <span className="text-[11px] font-bold text-teal-700 uppercase">By Agent</span>
               </div>
-              <div className="text-2xl font-bold text-[#1a1c3a]">{stats.deliveredTodayByAgent}</div>
+              <div className="text-2xl font-bold text-[#1a1c3a]">{deliveredDay.byAgent}</div>
               <div className="text-[10px] text-gray-400 mt-0.5">delivered / paid by agent</div>
             </div>
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={deliveredDaily} barSize={10} barGap={2}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} interval={1} />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
+              <Tooltip contentStyle={{ borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: '11px' }} />
+              <Bar dataKey="Delivered" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="By Agent" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex items-center justify-center gap-4 mt-1">
+            <span className="flex items-center gap-1.5 text-[11px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-[#6366f1]" /> Delivered</span>
+            <span className="flex items-center gap-1.5 text-[11px] text-gray-500"><span className="w-2.5 h-2.5 rounded-sm bg-[#14b8a6]" /> By Agent</span>
           </div>
         </div>
 
