@@ -327,6 +327,13 @@ export default function AdminShippingPage() {
     return acc
   }, [baseFiltered])
 
+  // Total amount per status (respects the same filters as the counts)
+  const amounts = useMemo(() => {
+    const acc = {} as Record<string, number>
+    baseFiltered.forEach(o => { acc[o.status] = (acc[o.status] || 0) + (o.total_amount || 0) })
+    return acc
+  }, [baseFiltered])
+
   const cityBreakdown = useMemo(() => {
     const q = search.toLowerCase().trim()
     const productLower = filterProduct.toLowerCase()
@@ -476,6 +483,11 @@ export default function AdminShippingPage() {
               >
                 <p className={cn('text-lg font-bold', cfg.color)}>{counts[s] || 0}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">{cfg.label}</p>
+                {(s === 'delivered' || s === 'delivered_by_agent' || s === 'paid_by_agent') && (
+                  <p className={cn('text-[10px] font-bold mt-0.5', cfg.color)}>
+                    {country !== 'ALL' ? `${getCountry(country).currencySymbol} ` : ''}{(amounts[s] || 0).toLocaleString()}
+                  </p>
+                )}
               </button>
             )
           })}
