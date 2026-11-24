@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getDateRange } from '@/lib/dateRange'
 import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import {
@@ -55,18 +56,6 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 const allStatuses = ['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned']
 type DatePreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month'
 
-function getDateRange(preset: DatePreset): { from: Date | null; to: Date | null } {
-  const now = new Date()
-  const sod = (d: Date) => { const c = new Date(d); c.setHours(0,0,0,0); return c }
-  const eod = (d: Date) => { const c = new Date(d); c.setHours(23,59,59,999); return c }
-  switch (preset) {
-    case 'today': return { from: sod(now), to: eod(now) }
-    case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); return { from: sod(y), to: eod(y) } }
-    case 'this_week': { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { from: sod(d), to: eod(now) } }
-    case 'this_month': { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: sod(d), to: eod(now) } }
-    default: return { from: null, to: null }
-  }
-}
 
 function getStatusDate(o: OrderRow): string {
   if (o.status_changed_at) return o.status_changed_at

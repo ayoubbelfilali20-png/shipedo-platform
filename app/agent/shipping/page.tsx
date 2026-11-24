@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getDateRange } from '@/lib/dateRange'
 import { incrementStockForOrderItems } from '@/lib/stock'
 import { printOrderLabels, type PrintLabelProps } from '@/components/PrintLabel'
 import {
@@ -79,24 +80,6 @@ const datePresets: { value: DatePreset; label: string }[] = [
   { value: 'custom',     label: 'Custom' },
 ]
 
-function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): { from: Date | null; to: Date | null } {
-  const now = new Date()
-  const startOfDay = (d: Date) => { const c = new Date(d); c.setHours(0,0,0,0); return c }
-  const endOfDay = (d: Date) => { const c = new Date(d); c.setHours(23,59,59,999); return c }
-  switch (preset) {
-    case 'today': return { from: startOfDay(now), to: endOfDay(now) }
-    case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); return { from: startOfDay(y), to: endOfDay(y) } }
-    case 'this_week': { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { from: startOfDay(d), to: endOfDay(now) } }
-    case 'this_month': { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: startOfDay(d), to: endOfDay(now) } }
-    case 'last_month': { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); const e = new Date(now.getFullYear(), now.getMonth(), 0); return { from: startOfDay(d), to: endOfDay(e) } }
-    case 'custom': {
-      const f = customFrom ? startOfDay(new Date(customFrom)) : null
-      const t = customTo ? endOfDay(new Date(customTo)) : null
-      return { from: f, to: t }
-    }
-    default: return { from: null, to: null }
-  }
-}
 
 function getStatusDate(o: any): string {
   if (o.status_changed_at) return o.status_changed_at

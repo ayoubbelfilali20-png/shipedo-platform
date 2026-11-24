@@ -8,6 +8,7 @@ import {
   MapPin, User, LogOut, Banknote, Send, StickyNote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { getDateRange } from '@/lib/dateRange'
 import { getFollowup, clearUser } from '@/lib/auth'
 import { getCountry } from '@/lib/countries'
 import { findUsiriAgent } from '@/lib/usiriAgents'
@@ -64,23 +65,6 @@ const datePresets: { value: DatePreset; label: string }[] = [
   { value: 'custom',     label: 'Custom' },
 ]
 
-function getDateRange(preset: DatePreset, customFrom: string, customTo: string): { from: Date | null; to: Date | null } {
-  const now = new Date()
-  const sod = (d: Date) => { const c = new Date(d); c.setHours(0, 0, 0, 0); return c }
-  const eod = (d: Date) => { const c = new Date(d); c.setHours(23, 59, 59, 999); return c }
-  switch (preset) {
-    case 'today': return { from: sod(now), to: eod(now) }
-    case 'yesterday': { const y = new Date(now); y.setDate(y.getDate() - 1); return { from: sod(y), to: eod(y) } }
-    case 'this_week': { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return { from: sod(d), to: eod(now) } }
-    case 'this_month': return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: eod(now) }
-    case 'last_month': return { from: new Date(now.getFullYear(), now.getMonth() - 1, 1), to: eod(new Date(now.getFullYear(), now.getMonth(), 0)) }
-    case 'custom': return {
-      from: customFrom ? new Date(customFrom + 'T00:00:00') : null,
-      to: customTo ? new Date(customTo + 'T23:59:59.999') : null,
-    }
-    default: return { from: null, to: null }
-  }
-}
 
 function daysSince(iso?: string | null): number | null {
   if (!iso) return null
