@@ -144,6 +144,10 @@ export default function StorageOrdersPage() {
           })
         } else if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
+          // Only this storage's country — never mix other countries in
+          let myCountry = ''
+          try { myCountry = JSON.parse(localStorage.getItem('shipedo_storage') || '{}').country || '' } catch {}
+          if (myCountry && (row as any).country && (row as any).country !== myCountry) return
           if (allStatuses.includes(row.status)) {
             setOrders(prev => {
               if (prev.some(o => o.id === row.id)) return prev

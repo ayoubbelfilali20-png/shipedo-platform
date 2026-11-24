@@ -242,6 +242,7 @@ export default function AdminShippingPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
+          if (country !== 'ALL' && (row.country || 'KE') !== country) return
           setOrders(prev => {
             if (prev.some(o => o.id === row.id)) return prev
             return [row, ...prev]
@@ -260,7 +261,7 @@ export default function AdminShippingPage() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [country])
 
   const duplicateMap = useMemo(() => detectDuplicates(orders), [orders])
 

@@ -247,11 +247,14 @@ export default function AgentShippingPage() {
 
   // Real-time subscription — only update existing orders
   useEffect(() => {
+    if (!agentId) return
     const channel = supabase
       .channel('agent-shipping-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const row = payload.new as OrderRow
+          // Only this agent's orders — never mix other agents' orders in
+          if ((row as any).assigned_agent_id !== agentId) return
           if (['confirmed', 'prepared', 'shipped_to_agent', 'shipped', 'delivered', 'delivered_by_agent', 'paid_by_agent', 'returned'].includes(row.status)) {
             setOrders(prev => {
               if (prev.some(o => o.id === row.id)) return prev
@@ -274,7 +277,7 @@ export default function AgentShippingPage() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [agentId])
 
   // Shared notes visible to every role
   const allOrderIds = useMemo(() => orders.map(o => o.id), [orders])
