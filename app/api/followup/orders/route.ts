@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 
-const COLS = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, created_at, seller_id, delivery_tracking, country, paid_by_agent_at'
+const COLS = 'id, tracking_number, customer_name, customer_phone, customer_city, customer_address, items, total_amount, original_total, status, payment_method, notes, last_call_note, shipped_at, shipped_to_agent_at, delivered_at, returned_at, created_at, seller_id, delivery_tracking, country, paid_by_agent_at, status_changed_at'
 
 const headers = { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
 
@@ -14,29 +14,26 @@ export async function GET(req: NextRequest) {
   const agentCountry = agent?.country || null
 
   const statusFilter = req.nextUrl.searchParams.get('status')
-  const showAll = req.nextUrl.searchParams.get('all') === '1'
 
-  let q = supabaseAdmin.from('orders').select(COLS)
-    .in('status', ['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'])
-    .order('created_at', { ascending: false })
-
-  if (agentCountry) {
-    q = q.eq('country', agentCountry)
+  // Fetch ALL orders in agent statuses (no date cutoff, no timestamp requirement) —
+  // follow-up agents must see every order sent to the delivery agent, page by page.
+  const PAGE = 1000
+  const orders: any[] = []
+  for (let p = 0; p < 20; p++) {
+    let q = supabaseAdmin.from('orders').select(COLS)
+      .in('status', ['shipped_to_agent', 'delivered_by_agent', 'paid_by_agent', 'returned'])
+      .order('created_at', { ascending: false })
+      .range(p * PAGE, (p + 1) * PAGE - 1)
+    if (agentCountry) q = q.eq('country', agentCountry)
+    if (statusFilter) q = q.eq('status', statusFilter)
+    const { data, error } = await q
+    if (error) {
+      if (orders.length === 0) return NextResponse.json({ orders: [], notes: {}, error: error.message }, { status: 500 })
+      break
+    }
+    orders.push(...(data || []))
+    if (!data || data.length < PAGE) break
   }
-
-  if (statusFilter) {
-    q = q.eq('status', statusFilter)
-  }
-
-  if (!showAll) {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - 60)
-    q = q.gte('created_at', cutoff.toISOString())
-  }
-
-  const { data: rawOrders, error } = await q.limit(2000)
-  if (error) return NextResponse.json({ orders: [], notes: {}, error: error.message }, { status: 500 })
-  const orders = (rawOrders || []).filter((o: any) => !!o.shipped_to_agent_at)
 
   const orderIds = (orders || []).map((o: any) => o.id)
   let notesByOrder: Record<string, any[]> = {}

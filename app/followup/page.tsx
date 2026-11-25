@@ -32,6 +32,7 @@ type OrderRow = {
   delivered_at?: string | null
   returned_at?: string | null
   paid_by_agent_at?: string | null
+  status_changed_at?: string | null
   created_at: string
   delivery_tracking?: string | null
   country?: string
@@ -65,6 +66,16 @@ const datePresets: { value: DatePreset; label: string }[] = [
   { value: 'custom',     label: 'Custom' },
 ]
 
+
+// Date of the LAST status change — so "Today" counts what happened today
+// (e.g. delivered_by_agent today), not when the order was first sent to the agent.
+function statusDate(o: OrderRow): string {
+  if (o.status_changed_at) return o.status_changed_at
+  if (o.status === 'paid_by_agent' && o.paid_by_agent_at) return o.paid_by_agent_at
+  if ((o.status === 'delivered_by_agent' || o.status === 'paid_by_agent') && o.delivered_at) return o.delivered_at
+  if (o.status === 'returned' && o.returned_at) return o.returned_at
+  return o.shipped_to_agent_at || o.created_at
+}
 
 function daysSince(iso?: string | null): number | null {
   if (!iso) return null
@@ -152,6 +163,7 @@ export default function FollowupPage() {
         setOrders(prev => prev.map(o => o.id === orderId ? {
           ...o,
           status: newStatus,
+          status_changed_at: nowIso,
           ...(newStatus === 'delivered_by_agent' ? { delivered_at: nowIso } : {}),
           ...(newStatus === 'paid_by_agent' ? { paid_by_agent_at: nowIso } : {}),
           ...(newStatus === 'returned' ? { returned_at: nowIso } : {}),
@@ -211,7 +223,7 @@ export default function FollowupPage() {
     const q = search.trim().toLowerCase()
     return orders.filter(o => {
       if (from || to) {
-        const t = new Date(o.shipped_to_agent_at || o.created_at).getTime()
+        const t = new Date(statusDate(o)).getTime()
         if (from && t < from.getTime()) return false
         if (to && t > to.getTime()) return false
       }
@@ -233,8 +245,7 @@ export default function FollowupPage() {
 
   const filtered = useMemo(() => {
     const list = filterStatus === 'all' ? baseFiltered : baseFiltered.filter(o => o.status === filterStatus)
-    return [...list].sort((a, b) =>
-      new Date(b.shipped_to_agent_at || b.created_at).getTime() - new Date(a.shipped_to_agent_at || a.created_at).getTime())
+    return [...list].sort((a, b) => new Date(statusDate(b)).getTime() - new Date(statusDate(a)).getTime())
   }, [baseFiltered, filterStatus])
 
   const cityBreakdown = useMemo(() => {
